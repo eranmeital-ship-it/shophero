@@ -1,17 +1,18 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { purgeShopData } from "../lib/shop-data.server";
 
 /**
  * Mandatory Shopify privacy/compliance webhooks (required for App Store review):
  *   - customers/data_request — return the customer data we hold
  *   - customers/redact       — delete a customer's data
- *   - shop/redact            — delete all data for an uninstalled shop (48h later)
+ *   - shop/redact            — delete ALL data for an uninstalled shop (48h later)
  *
  * `authenticate.webhook` verifies the HMAC and rejects forged requests. ShopHero
- * stores no customer PII — only a Session row per shop (tokens + optional BYOK
- * key) — so the customer topics have nothing to return/erase; shop/redact purges
- * the shop's session data.
+ * stores no customer PII (only shop-scoped operational data), so the customer
+ * topics have nothing to return/erase. shop/redact purges everything we hold for
+ * the shop: sessions, profile, reports, content plans, brain docs, jobs, usage,
+ * events, and the local theme workspace.
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic } = await authenticate.webhook(request);
@@ -26,8 +27,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // No customer PII stored — nothing to erase.
       break;
     case "SHOP_REDACT":
-      // Erase everything we hold for this shop.
-      await db.session.deleteMany({ where: { shop } });
+      await purgeShopData(shop);
       break;
   }
 

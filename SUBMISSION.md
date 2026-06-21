@@ -56,9 +56,9 @@ Implemented + HMAC-verified in `app/routes/webhooks.compliance.tsx`.
 
 - [ ] `customers/data_request` — we store no customer PII → documented no-op. ✅
 - [ ] `customers/redact` — no customer PII → documented no-op. ✅
-- [ ] `shop/redact` — **GAP: currently deletes only the Session row.** Must purge
-      ALL shop-scoped data: ShopProfile, StoreReport, ContentPlan, BrainDoc, Job,
-      UsageEvent, AppEvent (+ delete the shop's theme workspace). **(fix needed)**
+- [x] `shop/redact` — purges ALL shop-scoped data via `purgeShopData()`
+      (ShopProfile, StoreReport, ContentPlan, BrainDoc, Job, UsageEvent, AppEvent,
+      Session) + deletes the theme workspace. ✅ (`app/lib/shop-data.server.ts`)
 - [ ] `app/uninstalled` — deletes session; consider also clearing shop data.
 - [ ] All four are registered (`shopify.app.shophero.toml` lists them) and return 200.
 
@@ -78,11 +78,11 @@ Implemented + HMAC-verified in `app/routes/webhooks.compliance.tsx`.
 
 ## 5. Privacy policy, data & subprocessors [BLOCKER]
 
-- [ ] `/privacy` lists what data is accessed, why, retention, and deletion path.
-- [ ] **Disclose Anthropic (Claude) as a subprocessor** — store content is sent to
-      Anthropic to generate edits; note Anthropic does not train on API data.
-- [ ] `/terms` accurate for the service + billing.
-- [ ] `/contact` works (server-side → hello@shophero.io); no public email exposed ✅
+- [x] `/privacy` lists what data is accessed, why, retention, and deletion path. ✅
+- [x] **Anthropic (Claude) disclosed as a subprocessor**, incl. "does not train on
+      API data" + the no-customer-PII stance. ✅ (`app/routes/privacy.tsx`)
+- [ ] `/terms` accurate for the service + billing (review against final pricing).
+- [x] `/contact` works (server-side → hello@shophero.io); no public email exposed ✅
 - [ ] Privacy/Terms URLs entered in the Partner Dashboard listing.
 
 ## 6. App Store listing assets
@@ -115,13 +115,14 @@ Implemented + HMAC-verified in `app/routes/webhooks.compliance.tsx`.
 
 ---
 
-## Known gaps to fix (code)
+## Known gaps to fix
 
-1. **`shop/redact` full purge** — extend the compliance handler to delete every
-   shop-scoped table + the theme workspace. (section 3)
-2. **Production env** — unset `DRIFT_DEV_PLAN`, set `DRIFT_BILLING_TEST=true`,
-   rotate secrets. (sections 2, 4)
-3. (Optional) `app/uninstalled` — also clear shop data, not just the session.
+1. ~~`shop/redact` full purge~~ — DONE (`purgeShopData`).
+2. **Production env (Railway, your action)** — unset `DRIFT_DEV_PLAN`, set
+   `DRIFT_BILLING_TEST=true`, rotate `DRIFT_ENCRYPTION_KEY` + `ADMIN_PASSWORD`
+   for production. (sections 2, 4)
+3. (Optional) `app/uninstalled` — keeps session-only delete by design; full
+   erasure happens via `shop/redact` ~48h later (Shopify's intended pattern).
 
 ## Notes
 
