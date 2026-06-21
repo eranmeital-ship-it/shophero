@@ -186,6 +186,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 interface Deliverable { type: string; title?: string; adminUrl: string; storeUrl?: string }
+interface ContentDraft { id: string; title: string; before: string; after: string }
 interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string; deliverables?: Deliverable[] }
 interface Billing { consumed: number; included: number; balanceUsed: number; cap: number; covered: number; needsCapRaise: boolean }
 interface Version { sha: string; date: string; label: string; files: number }
@@ -636,6 +637,12 @@ export default function Index() {
   const [pending, setPending] = useState<string[]>([]);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
+  // Direct content generation (no agent) — descriptions task.
+  const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; applied?: number; failed?: number; error?: string }>();
+  const [contentDrafts, setContentDrafts] = useState<ContentDraft[] | null>(null);
+  const [contentSkip, setContentSkip] = useState<Set<string>>(new Set());
+  const [descWhich, setDescWhich] = useState("Products with thin/missing descriptions");
+  const [descNotes, setDescNotes] = useState("");
   const [input, setInput] = useState("");
   const [frameKey, setFrameKey] = useState(0);
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
@@ -1116,6 +1123,10 @@ export default function Index() {
     if (blockedByChange()) return;
     const t = TASKS[id];
     if (!t) return;
+    setContentDrafts(null);
+    setContentSkip(new Set());
+    setDescWhich("Products with thin/missing descriptions");
+    setDescNotes("");
     if (id === "store-manager") {
       const recs = report?.recommendations ?? [];
       setSelectedRecs(new Set(recs.map((_, i) => i)));
@@ -1142,6 +1153,46 @@ export default function Index() {
       return { ...v, [key]: cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt] };
     });
   const taskReady = () => !!activeTask && activeTask.fields.every((f) => !(f.type === "product" && f.required) || !!taskValues[f.key]);
+  // ── Direct content generation (descriptions): fast, cheap, no agent loop ──
+  const contentBusy = contentFetcher.state !== "idle";
+  function genDescriptions() {
+    setContentDrafts(null);
+    setContentSkip(new Set());
+    contentFetcher.submit(
+      { op: "generate", task: "descriptions", which: descWhich, notes: descNotes },
+      { method: "post", action: "/api/content" },
+    );
+  }
+  function applyDrafts() {
+    const keep = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id));
+    if (!keep.length) return;
+    contentFetcher.submit(
+      { op: "apply", task: "descriptions", drafts: JSON.stringify(keep) },
+      { method: "post", action: "/api/content" },
+    );
+  }
+  function toggleSkip(id: string) {
+    setContentSkip((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  useEffect(() => {
+    if (contentFetcher.state !== "idle" || !contentFetcher.data) return;
+    const d = contentFetcher.data;
+    if (d.drafts) {
+      setContentDrafts(d.drafts);
+    } else if (typeof d.applied === "number") {
+      setContentDrafts(null);
+      setActiveTask(null);
+      setMessages((m) => [...m, { role: "assistant", text: `✓ Applied ${d.applied} product description${d.applied === 1 ? "" : "s"} to your store${d.failed ? ` · ${d.failed} couldn't be saved` : ""}.` }]);
+      reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentFetcher.state, contentFetcher.data]);
+
   function runTask() {
     if (!activeTask || !taskReady() || thinking) return;
     if (blockedByChange()) return;
@@ -1363,10 +1414,82 @@ export default function Index() {
     );
   }
 
+  function renderDescriptionsTask() {
+    const keepCount = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id)).length;
+    const reviewing = !!contentDrafts;
+    return (
+      <div className="sh-task-panel">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-emoji">✍️</div>
+            <div className="sh-task-title">Rewrite Product Descriptions</div>
+            <div className="sh-task-desc">Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+
+        <div className="sh-task-body">
+          {!reviewing ? (
+            <>
+              <label className="sh-label">Which products?</label>
+              <select className="sh-ob-input" value={descWhich} onChange={(e) => setDescWhich(e.target.value)} disabled={contentBusy}>
+                <option>Products with thin/missing descriptions</option>
+                <option>All products</option>
+              </select>
+              <label className="sh-label" style={{ marginTop: 12 }}>Tone / must-include (optional)</label>
+              <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={descNotes} onChange={(e) => setDescNotes(e.target.value)} placeholder="e.g. emphasize craftsmanship, mention free shipping" disabled={contentBusy} />
+              {contentFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{contentFetcher.data.error}</div>}
+              {contentBusy && <div className="sh-opt-loading" style={{ marginTop: 14 }}><div className="sh-spinner" /> Writing descriptions… (a few seconds per product)</div>}
+            </>
+          ) : contentDrafts!.length === 0 ? (
+            <div className="sh-opt-loading">No products needed rewriting — they already have solid descriptions. ✅</div>
+          ) : (
+            <div className="sh-draft-list">
+              <p className="sh-task-desc">Wrote {contentDrafts!.length} description{contentDrafts!.length === 1 ? "" : "s"}. Untick any you don't want, then publish.</p>
+              {contentDrafts!.map((d) => {
+                const skipped = contentSkip.has(d.id);
+                return (
+                  <div key={d.id} className={`sh-draft${skipped ? " sh-draft-skip" : ""}`}>
+                    <div className="sh-draft-head">
+                      <strong>{d.title}</strong>
+                      <button className="sh-linkbtn" onClick={() => toggleSkip(d.id)}>{skipped ? "Include" : "Skip"}</button>
+                    </div>
+                    <div className="sh-draft-after" dangerouslySetInnerHTML={{ __html: d.after }} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {!reviewing ? (
+          <>
+            <div className="sh-task-est">
+              <span>Est. cost <strong>~$0.04 / product</strong> · a few seconds each</span>
+              <span className="sh-task-est-note">Direct generation — billed only for what's used. Live changes need your approval.</span>
+            </div>
+            <div className="sh-task-foot">
+              <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+              <button className="sh-btn sh-btn-primary" disabled={contentBusy} onClick={genDescriptions}>{contentBusy ? "Writing…" : "Write descriptions →"}</button>
+            </div>
+          </>
+        ) : (
+          <div className="sh-task-foot">
+            <button className="sh-btn sh-btn-ghost" onClick={() => { setContentDrafts(null); setContentSkip(new Set()); }}>Back</button>
+            <button className="sh-btn sh-btn-primary" disabled={contentBusy || keepCount === 0} onClick={applyDrafts}>
+              {contentBusy ? "Publishing…" : `Publish ${keepCount} description${keepCount === 1 ? "" : "s"} →`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderTaskPanel() {
     if (!activeTask) return null;
     if (activeTask.id === "store-manager") return renderStoreManager();
     if (activeTask.id === "content-plan") return renderContentPlanSetup();
+    if (activeTask.id === "bulk-descriptions") return renderDescriptionsTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();
