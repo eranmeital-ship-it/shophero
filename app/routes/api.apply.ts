@@ -28,7 +28,22 @@ export async function action({ request }: ActionFunctionArgs) {
   const fileList = pending.length <= 4 ? pending.join(", ") : `${pending.slice(0, 3).join(", ")} +${pending.length - 3} more`;
   const label = (summary || `Applied ${fileList}`).slice(0, 200);
 
-  const applied = await pushWorkspaceChanges(ctx, themeId, dir, pending);
+  // Push to the working theme. Shopify can reject a file (e.g. an invalid
+  // section-group JSON the agent generated → "missing required key 'name'"). Don't
+  // let that 500 the whole app — return a friendly error so the UI can show it and
+  // let the merchant discard/retry. The staged change is left intact on failure.
+  let applied: number;
+  try {
+    applied = await pushWorkspaceChanges(ctx, themeId, dir, pending);
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.warn("[apply] push failed:", detail);
+    return Response.json({
+      applied: 0,
+      error: `Shopify rejected the change (${detail}). The generated file may be invalid — discard it and try rephrasing your request.`,
+    });
+  }
+
   await commitBaseline(dir, label);
 
   // Stamp the new version + timestamp onto the theme name so the merchant can tell
