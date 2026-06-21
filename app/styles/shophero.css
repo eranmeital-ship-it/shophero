@@ -169,6 +169,17 @@
   color: #8a5a00; background: #fff7e6; border: 1px solid #f1e2c2;
 }
 
+/* "Here's what I shipped" — view links for created/updated store resources */
+.sh-deliver-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sh-deliver {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 8px 11px; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 10px; background: #f6fbf7;
+}
+.sh-deliver-name { font-size: 13px; font-weight: 700; color: var(--sh-ink, #29313d); }
+.sh-deliver-links { display: flex; gap: 12px; }
+.sh-deliver-links a { font-size: 12.5px; font-weight: 700; color: var(--sh-accent, #0a84ff); text-decoration: none; white-space: nowrap; }
+.sh-deliver-links a:hover { text-decoration: underline; }
+
 /* ---------- Action bars (approve / apply) ---------- */
 .sh-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

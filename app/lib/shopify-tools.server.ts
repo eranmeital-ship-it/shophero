@@ -23,11 +23,71 @@ export interface AdminCtx {
   accessToken: string;
 }
 
+export interface Deliverable {
+  type: string; // "article" | "page" | "product" | "collection" | "blog"
+  title?: string;
+  adminUrl: string;
+  storeUrl?: string;
+}
+
 export interface MutationGate {
   /** When false, mutations are recorded (not executed) for merchant approval. */
   allowMutations: boolean;
   /** Called with each blocked mutation so the app can surface it for approval. */
   onProposed: (m: { query: string; variables?: unknown }) => void;
+  /** Called with each store resource an executed mutation created/updated, so the app can link to it. */
+  onDelivered?: (d: Deliverable) => void;
+}
+
+// gid type → admin section + storefront path builder.
+const RESOURCE_MAP: Record<string, { admin: string; store?: (handle: string, blogHandle?: string) => string }> = {
+  Product: { admin: "products", store: (h) => `/products/${h}` },
+  Collection: { admin: "collections", store: (h) => `/collections/${h}` },
+  Page: { admin: "content/pages", store: (h) => `/pages/${h}` },
+  Article: { admin: "content/articles", store: (h, blog) => (blog ? `/blogs/${blog}/${h}` : "") },
+  Blog: { admin: "content/blogs", store: (h) => `/blogs/${h}` },
+};
+
+/** Walk a mutation's response for created/updated resources and emit view links. */
+function collectDeliverables(ctx: AdminCtx, responseText: string, onDelivered: (d: Deliverable) => void): void {
+  let json: { data?: unknown };
+  try {
+    json = JSON.parse(responseText) as { data?: unknown };
+  } catch {
+    return;
+  }
+  if (!json.data) return;
+  const storeHandle = ctx.shop.replace(/\.myshopify\.com$/, "");
+  const seen = new Set<string>();
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    const id = typeof obj.id === "string" ? obj.id : undefined;
+    const m = id?.match(/^gid:\/\/shopify\/(Product|Collection|Page|Article|Blog)\/(\d+)/);
+    if (m && id && !seen.has(id)) {
+      seen.add(id);
+      const [, type, numId] = m;
+      const meta = RESOURCE_MAP[type];
+      const adminUrl = `https://admin.shopify.com/store/${storeHandle}/${meta.admin}/${numId}`;
+      let storeUrl: string | undefined =
+        typeof obj.onlineStoreUrl === "string" ? obj.onlineStoreUrl
+        : typeof obj.onlineStorePreviewUrl === "string" ? obj.onlineStorePreviewUrl
+        : undefined;
+      if (!storeUrl && typeof obj.handle === "string" && meta.store) {
+        const blog = obj.blog as { handle?: string } | undefined;
+        const blogHandle = type === "Article" && typeof blog?.handle === "string" ? blog.handle : undefined;
+        const path = meta.store(obj.handle, blogHandle);
+        if (path) storeUrl = `https://${ctx.shop}${path}`;
+      }
+      onDelivered({ type: type.toLowerCase(), title: typeof obj.title === "string" ? obj.title : undefined, adminUrl, storeUrl });
+    }
+    for (const v of Object.values(obj)) walk(v);
+  };
+  walk(json.data);
 }
 
 export function buildShopifyMcp(ctx: AdminCtx, gate: MutationGate) {
@@ -83,6 +143,14 @@ export function buildShopifyMcp(ctx: AdminCtx, gate: MutationGate) {
           const text = await res.text();
           if (isMutation) {
             console.log(`[shopify-tool] ${ctx.shop} mutation -> HTTP ${res.status}`);
+            // Surface what was created/updated so the app can link to it.
+            if (res.ok && gate.onDelivered) {
+              try {
+                collectDeliverables(ctx, text, gate.onDelivered);
+              } catch {
+                /* best-effort */
+              }
+            }
           }
           return {
             content: [

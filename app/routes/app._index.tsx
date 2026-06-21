@@ -185,7 +185,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string }
+interface Deliverable { type: string; title?: string; adminUrl: string; storeUrl?: string }
+interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string; deliverables?: Deliverable[] }
 interface Billing { consumed: number; included: number; balanceUsed: number; cap: number; covered: number; needsCapRaise: boolean }
 interface Version { sha: string; date: string; label: string; files: number }
 interface Selection { name: string; sectionType: string; sectionId: string; selector: string; tag: string; text: string; html: string }
@@ -194,7 +195,7 @@ interface Breakdown { key?: string; label?: string; weight?: number; earned?: nu
 interface HistoryPoint { date: string; health: number; [area: string]: number | string }
 interface ReportData { scores: Score[]; health?: number; breakdowns?: Record<string, Breakdown[]>; history?: HistoryPoint[]; issues?: AuditIssue[]; findings: string[]; summary: string; recommendations: Recommendation[]; generatedAt: string; cached: boolean }
 interface PlanData { strategy: string | null; perDay: number; days: number; publishedCount: number; status: string; draftTitle: string | null; draftBody: string | null; draftMeta: string | null; draftTopic: string | null }
-interface ChatData { assistantText?: string; toolEvents?: string[]; pending?: string[]; error?: string; costUsd?: number; usage?: { inputTokens?: number; outputTokens?: number }; model?: string; proposedMutations?: { summary: string }[]; billing?: Billing }
+interface ChatData { assistantText?: string; toolEvents?: string[]; pending?: string[]; error?: string; costUsd?: number; usage?: { inputTokens?: number; outputTokens?: number }; model?: string; proposedMutations?: { summary: string }[]; deliverables?: Deliverable[]; billing?: Billing }
 interface ApplyData { applied: number; message?: string; error?: string; version?: string; pending?: string[]; total?: number }
 
 // Merchant pays 3x our raw API cost (markup baked into the displayed price).
@@ -1520,6 +1521,7 @@ export default function Index() {
             tools: done!.toolEvents ?? tools,
             cost: done!.costUsd,
             model: done!.model,
+            deliverables: done!.deliverables,
           },
         ]);
         setPending(done.pending ?? []);
@@ -1717,6 +1719,22 @@ export default function Index() {
                   {m.tools && m.tools.length > 0 && (
                     <div className="sh-meta">
                       <span className="sh-tools">{m.tools.map(friendlyStep).join("  ·  ")}</span>
+                    </div>
+                  )}
+                  {m.deliverables && m.deliverables.length > 0 && (
+                    <div className="sh-deliver-list">
+                      {m.deliverables.map((d, di) => (
+                        <div key={di} className="sh-deliver">
+                          <span className="sh-deliver-name">
+                            {d.type === "article" ? "📝" : d.type === "page" ? "📄" : d.type === "product" ? "🛍️" : d.type === "collection" ? "🗂️" : "✦"}{" "}
+                            {d.title || d.type}
+                          </span>
+                          <span className="sh-deliver-links">
+                            {d.storeUrl && <a href={d.storeUrl} target="_blank" rel="noreferrer">View on store ↗</a>}
+                            <a href={d.adminUrl} target="_blank" rel="noreferrer">Open in admin ↗</a>
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

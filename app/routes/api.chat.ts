@@ -160,6 +160,7 @@ export async function action({ request }: ActionFunctionArgs) {
           usage: r.usage,
           model: r.model,
           proposedMutations: r.proposedMutations,
+          deliverables: r.deliverables,
           billing,
         });
       } catch (err) {

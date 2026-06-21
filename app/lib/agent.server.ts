@@ -1,6 +1,6 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { modelChain } from "./model-router.server";
-import { buildShopifyMcp, SHOPIFY_TOOL_NAME, type AdminCtx } from "./shopify-tools.server";
+import { buildShopifyMcp, SHOPIFY_TOOL_NAME, type AdminCtx, type Deliverable } from "./shopify-tools.server";
 import { orderedKeys, markFailed, markOk, keyFailureKind } from "./key-pool.server";
 import { buildBrainMcp, BRAIN_TOOL_NAMES, BRAIN_LABELS, REMEMBER_TOOL_NAME } from "./knowledge-tools.server";
 
@@ -74,6 +74,7 @@ Making theme changes well:
 Two DIFFERENT change models — know which you're using:
 - THEME FILE edits are staged in this working copy and only go live when the merchant clicks Apply. Reversible.
 - The \`${SHOPIFY_TOOL_NAME}\` tool runs Shopify Admin GraphQL for store resources (products, collections, pages, blogs/articles, navigation, metafields). Queries are safe to explore. MUTATIONS write to the LIVE store immediately and CANNOT be undone — only run a mutation the merchant explicitly asked for. For bulk creation (e.g. many blog posts), generate all the content first, then create each item.
+- When you create or update a store resource, request \`id\`, \`handle\`, and \`title\` in the mutation response so it can be linked for the merchant (articles: also request the parent \`blog { handle }\`). PUBLISH content the merchant wants live — set the published state (e.g. an article's \`isPublished: true\`/\`publishedAt\`, a page's published state) so it actually appears on the storefront; only leave it a draft if they ask for a draft.
 
 Conversion edge: for any conversion, optimization, redesign, or "make it sell/convert better" task (hero, product page, CTAs, trust, urgency, offers, cart, mobile), FIRST call the cro_playbook tool and apply the relevant tactics — it's ShopHero's proven playbook, not generic advice.
 
@@ -105,6 +106,8 @@ export interface AgentTurnResult {
   model?: string;
   /** Live store mutations the agent wants to run, held for merchant approval. */
   proposedMutations?: { summary: string }[];
+  /** Store resources created/updated this turn, with view links. */
+  deliverables?: Deliverable[];
 }
 
 export interface AgentTurnOpts {
@@ -285,6 +288,7 @@ async function runQuery(
   let ok = true;
   let errorText: string | undefined;
   const proposed: { summary: string }[] = [];
+  const delivered: Deliverable[] = [];
 
   // Bash = shell exec on the server; the biggest attack surface. Allowed by
   // default (theme tooling uses it), set DRIFT_ALLOW_BASH=false to drop it.
@@ -321,6 +325,7 @@ async function runQuery(
               shopify: buildShopifyMcp(admin, {
                 allowMutations: !!opts.allowMutations,
                 onProposed: (m) => proposed.push({ summary: mutationLabel(m.query) }),
+                onDelivered: (d) => delivered.push(d),
               }),
             }
           : {}),
@@ -395,6 +400,7 @@ async function runQuery(
       usage,
       model,
       proposedMutations: proposed.length ? proposed : undefined,
+      deliverables: delivered.length ? delivered : undefined,
     },
     ok,
     errorText,
