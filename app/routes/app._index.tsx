@@ -1714,15 +1714,9 @@ export default function Index() {
               {messages.map((m, i) => (
                 <div key={i} className={`sh-msg ${m.role === "user" ? "sh-msg-user" : "sh-msg-ai"}`}>
                   <div>{m.text}</div>
-                  {(m.tools?.length || m.cost != null || m.model) && (
+                  {m.tools && m.tools.length > 0 && (
                     <div className="sh-meta">
-                      {m.tools && m.tools.length > 0 && <span className="sh-tools">{m.tools.map(friendlyStep).join("  ·  ")}</span>}
-                      {(m.cost != null || m.model) && (
-                        <span className="sh-cost">
-                          {m.model ? `${m.model.replace("claude-", "")} · ` : ""}
-                          {m.cost != null ? `$${(m.cost * MARKUP).toFixed(4)}` : ""}
-                        </span>
-                      )}
+                      <span className="sh-tools">{m.tools.map(friendlyStep).join("  ·  ")}</span>
                     </div>
                   )}
                 </div>
