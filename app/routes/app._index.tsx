@@ -273,6 +273,30 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "🎨", label: "Redesign Hero", taskId: "redesign-hero" },
 ];
 
+// Rough BILLED cost + time estimate per task, shown before running so nothing is a
+// surprise. It's deliberately conservative (you're only charged for actual usage).
+const TASK_ESTIMATE: Record<string, { usd: number; secs: number }> = {
+  "store-manager": { usd: 2.0, secs: 180 },
+  "build-pdp": { usd: 1.2, secs: 120 },
+  "seo-genius": { usd: 0.6, secs: 60 },
+  "cro-boost": { usd: 0.8, secs: 90 },
+  "trust-builder": { usd: 0.45, secs: 50 },
+  "bulk-descriptions": { usd: 0.6, secs: 70 },
+  "mobile-opt": { usd: 0.6, secs: 70 },
+  "speed-boost": { usd: 0.5, secs: 60 },
+  "launch-campaign": { usd: 0.7, secs: 90 },
+  "write-content": { usd: 0.4, secs: 60 },
+  "content-plan": { usd: 0.3, secs: 45 },
+  "aeo": { usd: 0.7, secs: 80 },
+  "redesign-hero": { usd: 0.9, secs: 90 },
+};
+function taskEstimate(id: string): { usd: number; secs: number } {
+  return TASK_ESTIMATE[id] ?? { usd: 0.5, secs: 60 };
+}
+function fmtSecs(s: number): string {
+  return s >= 60 ? `~${Math.round(s / 60)} min` : `~${s}s`;
+}
+
 // ── Task launcher: clicking a quick action opens a setup panel (asks the right
 // questions), then "Go" compiles answers into the agent prompt. ──────────────
 type ProductLite = { id: string; title: string; handle: string; image?: string; price?: string };
@@ -1433,9 +1457,15 @@ export default function Index() {
             </div>
           ))}
         </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>~${taskEstimate(activeTask.id).usd.toFixed(2)}</strong> · {fmtSecs(taskEstimate(activeTask.id).secs)}</span>
+          <span className="sh-task-est-note">Rough estimate — you're billed only for what's actually used.</span>
+        </div>
         <div className="sh-task-foot">
           <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
-          <button className="sh-btn sh-btn-primary" disabled={!taskReady() || thinking} onClick={runTask}>Go →</button>
+          <button className="sh-btn sh-btn-primary" disabled={!taskReady() || thinking} onClick={runTask}>
+            Run · ~${taskEstimate(activeTask.id).usd.toFixed(2)}
+          </button>
         </div>
       </div>
     );
