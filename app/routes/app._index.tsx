@@ -1444,11 +1444,14 @@ export default function Index() {
       if (errored) {
         setMessages((m) => [...m, { role: "assistant", text: `⚠️ ${errored}` }]);
       } else if (done) {
+        const summary = (done!.assistantText ?? "").trim();
+        const staged = (done!.pending?.length ?? 0) + (done!.proposedMutations?.length ?? 0);
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
-            text: done!.assistantText ?? text,
+            // Never fall back to the raw streamed thinking — it's a messy blob.
+            text: summary || (staged ? "✓ Done — review the staged changes below to approve them." : "✓ Done."),
             tools: done!.toolEvents ?? tools,
             cost: done!.costUsd,
             model: done!.model,
@@ -1661,20 +1664,16 @@ export default function Index() {
                 <div className="sh-loader">
                   <div className="sh-loader-bar" />
                   <div className="sh-loader-text">
-                    <span className="sh-dot" /> {live.text ? "Working…" : "Thinking…"}
+                    <span className="sh-dot" /> {live.tools.length || live.text ? "Working…" : "Thinking…"}
                   </div>
-                  {live.text && (
-                    <div className="sh-msg-ai" style={{ marginTop: 8, padding: "10px 13px", borderRadius: 14, whiteSpace: "pre-wrap" }}>
-                      {live.text}
-                    </div>
-                  )}
                   {live.tools.length > 0 && (
                     <div className="sh-steps">
-                      {live.tools.slice(-6).map((t, i) => (
+                      {live.tools.slice(-5).map((t, i) => (
                         <div key={`${i}-${t}`} className="sh-step">↳ {t}</div>
                       ))}
                     </div>
                   )}
+                  {live.text && <div className="sh-think">{live.text.slice(-240)}</div>}
                 </div>
               )}
             </div>

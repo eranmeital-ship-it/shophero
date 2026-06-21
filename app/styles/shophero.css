@@ -143,7 +143,7 @@
   background: linear-gradient(90deg, transparent, var(--sh-accent), transparent);
   animation: sh-slide 1.25s ease-in-out infinite;
 }
-.sh-loader-text { font-size: 13px; color: var(--sh-ink-soft); display: flex; align-items: center; gap: 8px; }
+.sh-loader-text { font-size: 13px; font-weight: 700; color: var(--sh-ink); display: flex; align-items: center; gap: 8px; }
 .sh-loader-text .sh-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--sh-accent);
   animation: sh-pulse 1.1s ease-in-out infinite;
@@ -154,6 +154,13 @@
   animation: sh-fade-up 0.25s ease both;
 }
 .sh-step:last-child { color: var(--sh-ink); }
+/* Live thinking tail — bounded + muted so it never dominates or scrolls the
+   "Working…" header out of view. We show only the latest snippet. */
+.sh-think {
+  margin-top: 8px; font-size: 11.5px; line-height: 1.5; color: var(--sh-ink-faint);
+  max-height: 54px; overflow: hidden; font-style: italic;
+  border-left: 2px solid var(--sh-line, #e6e9ef); padding-left: 9px;
+}
 
 /* ---------- Action bars (approve / apply) ---------- */
 .sh-bar {
