@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
-import { changedFiles, commitBaseline } from "../lib/workspace.server";
-import { pushWorkspaceChanges } from "../lib/theme.server";
+import { changedFiles, commitBaseline, commitCount } from "../lib/workspace.server";
+import { pushWorkspaceChanges, renameTheme } from "../lib/theme.server";
 
 /**
  * The approval gate. Only when the merchant clicks "Apply" do the agent's local
@@ -31,5 +31,20 @@ export async function action({ request }: ActionFunctionArgs) {
   const applied = await pushWorkspaceChanges(ctx, themeId, dir, pending);
   await commitBaseline(dir, label);
 
-  return Response.json({ applied });
+  // Stamp the new version + timestamp onto the theme name so the merchant can tell
+  // the latest edited version from the original duplicate in their Themes list.
+  // Skipped when a custom DRIFT_THEME_NAME is pinned (we leave that name alone).
+  let version: string | undefined;
+  if (!process.env.DRIFT_THEME_NAME) {
+    try {
+      const n = Math.max(1, (await commitCount(dir)) - 1); // baseline = v1.0
+      const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+      version = `v1.${n}`;
+      await renameTheme(ctx, themeId, `ShopHero | ${version} · ${stamp} UTC`);
+    } catch {
+      /* non-fatal — the version name is cosmetic */
+    }
+  }
+
+  return Response.json({ applied, version });
 }

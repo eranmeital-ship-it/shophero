@@ -859,6 +859,10 @@
   font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   color: #1c8c43; background: rgba(52, 199, 89, 0.14); padding: 2px 8px; border-radius: 999px;
 }
+.sh-hist-ver {
+  flex: 0 0 auto; font-size: 11px; font-weight: 800; color: var(--sh-accent, #0a84ff);
+  background: rgba(10, 132, 255, 0.1); padding: 2px 7px; border-radius: 6px; font-variant-numeric: tabular-nums;
+}
 
 /* ===================== Logo image (drop-in at /logo.png) ===================== */
 .sh-brand-mark { position: relative; overflow: hidden; }

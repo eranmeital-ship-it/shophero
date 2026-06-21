@@ -15,10 +15,23 @@ import path from "node:path";
  */
 
 const API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-07";
-// The unpublished theme Drift edits. Override with DRIFT_THEME_NAME to point at
-// an existing theme (e.g. a native "Duplicate" of the live theme) — far more
-// reliable than the asset-by-asset copy used when creating one from scratch.
-const WORKING_THEME_NAME = process.env.DRIFT_THEME_NAME ?? "Drift Working Copy";
+// The unpublished theme ShopHero edits. We use a stable "ShopHero | " prefix so
+// the theme can be renamed with a version + timestamp on each apply (so merchants
+// can tell the latest edited version from the original duplicate) while still
+// being found reliably by prefix. Override with DRIFT_THEME_NAME to pin an exact
+// existing theme (e.g. a native "Duplicate" of the live theme) — in that mode we
+// leave the name as-is and don't auto-version it.
+export const WORKING_THEME_PREFIX = "ShopHero | ";
+const WORKING_THEME_NAME = process.env.DRIFT_THEME_NAME ?? `${WORKING_THEME_PREFIX}Working Copy`;
+
+/** Does this theme name belong to ShopHero's working copy? */
+function isWorkingTheme(name: string): boolean {
+  const custom = process.env.DRIFT_THEME_NAME;
+  if (custom) return name === custom;
+  // Match the default name, any versioned "ShopHero | v1.N …" rename, and the
+  // legacy "Drift Working Copy" name from earlier installs.
+  return name === WORKING_THEME_NAME || name.startsWith(WORKING_THEME_PREFIX) || name === "Drift Working Copy";
+}
 
 interface Ctx {
   shop: string; // e.g. my-store.myshopify.com
@@ -114,10 +127,21 @@ export async function liveThemeId(ctx: Ctx): Promise<number> {
   return live.id;
 }
 
+/**
+ * Rename the working theme (metadata only — no theme-file-write exemption needed).
+ * Used to stamp the current version + timestamp onto the theme name after an apply.
+ */
+export async function renameTheme(ctx: Ctx, themeId: number, name: string): Promise<void> {
+  await rest(ctx, `/themes/${themeId}.json`, {
+    method: "PUT",
+    body: JSON.stringify({ theme: { id: themeId, name } }),
+  });
+}
+
 /** Get the Drift working copy, creating it from the live theme if absent. */
 export async function ensureWorkingTheme(ctx: Ctx): Promise<Theme> {
   const themes = await listThemes(ctx);
-  const existing = themes.find((t) => t.name === WORKING_THEME_NAME);
+  const existing = themes.find((t) => isWorkingTheme(t.name));
   if (existing) {
     // Self-heal: an earlier failed/partial bootstrap can leave this theme
     // empty or incomplete (=> "missing layout/theme.liquid" and unpreviewable).

@@ -2010,14 +2010,20 @@ export default function Index() {
                 <div className="sh-opt-loading"><div className="sh-spinner" /> Loading history…</div>
               ) : history.data?.versions?.length ? (
                 <div className="sh-hist">
-                  {history.data.versions.map((v, i) => (
+                  {history.data.versions.map((v, i, arr) => {
+                    const ver = arr.length - 1 - i; // oldest commit = baseline = v1.0
+                    const isBaseline = ver === 0;
+                    return (
                     <div key={v.sha} className="sh-hist-item">
                       <div className="sh-hist-main">
                         <div className="sh-hist-label">
-                          {prettyLabel(v.label)}
-                          {i === 0 && <span className="sh-hist-current">Current</span>}
+                          <span className="sh-hist-ver">v1.{ver}</span>
+                          {isBaseline ? "Original copy (duplicated)" : prettyLabel(v.label)}
+                          {i === 0 && <span className="sh-hist-current">Latest</span>}
                         </div>
-                        <div className="sh-hist-meta">{relTime(v.date)} · {v.files} file{v.files === 1 ? "" : "s"}</div>
+                        <div className="sh-hist-meta">
+                          {new Date(v.date).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {relTime(v.date)} · {v.files} file{v.files === 1 ? "" : "s"}
+                        </div>
                       </div>
                       {i !== 0 && (
                         <button
@@ -2030,7 +2036,8 @@ export default function Index() {
                         </button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p style={{ color: "var(--sh-ink-soft)", fontSize: 13 }}>

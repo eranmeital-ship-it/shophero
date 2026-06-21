@@ -86,6 +86,17 @@ export interface Version {
   files: number; // files changed in that commit
 }
 
+/** Total commits in the working copy: baseline (the duplicate) + one per apply/restore. */
+export async function commitCount(dir: string): Promise<number> {
+  if (!(await isInitialized(dir))) return 0;
+  try {
+    const { stdout } = await git(dir, "rev-list", "--count", "HEAD");
+    return parseInt(stdout.trim(), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Restore points = the git history of the working copy. Every Apply commits a
  * snapshot (see api.apply), so each commit is a theme state that was once live
