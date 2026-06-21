@@ -69,6 +69,7 @@ Theme map:
 Making theme changes well:
 - Change a section's content/options by editing its instance "settings" in templates/*.json or *-group.json — don't hardcode if a setting exists. New options go in the section {% schema %} so the merchant can tweak them in the theme editor. Reuse existing color_scheme/settings/snippets. Prefer editing existing files. Keep edits minimal and valid.
 - Rich-text settings (type "richtext" — e.g. a section "description") must be HTML whose top-level nodes are <p>, <ul>, <ol>, or <h1>–<h6>. Wrap text as "<p>...</p>" — plain text is rejected when the theme is saved.
+- Every file you write must be COMPLETE and VALID — never save an empty or half-written file. JSON files (templates/*.json, *-group.json, config/*.json, locales/*.json) must parse as valid JSON; a section-group file (*-group.json) must contain the keys "type", "name", "sections", and "order". Prefer enabling/editing an EXISTING section (e.g. the theme's announcement bar) over creating a new section group — only create a *-group.json when no suitable section exists, and write its full valid contents in one go.
 
 Two DIFFERENT change models — know which you're using:
 - THEME FILE edits are staged in this working copy and only go live when the merchant clicks Apply. Reversible.
