@@ -250,18 +250,48 @@ export async function pullThemeToWorkspace(ctx: Ctx, themeId: number, dir: strin
   }
 }
 
-/** Push the given changed asset keys from disk up to the working theme. */
+export interface PushResult {
+  applied: string[]; // keys pushed successfully
+  failed: { key: string; reason: string }[]; // keys that were rejected/invalid
+}
+
+/**
+ * Push the given changed asset keys to the working theme — resilient by design:
+ *  - JSON theme files are validated locally first (a malformed section/template/
+ *    config is caught without wasting an API call), and
+ *  - each file is pushed independently, so one bad file doesn't block the rest.
+ * Returns which keys applied and which failed (with reasons) so the caller can
+ * commit the good ones and keep the bad ones staged for discard/retry.
+ */
 export async function pushWorkspaceChanges(
   ctx: Ctx,
   themeId: number,
   dir: string,
   keys: string[],
-): Promise<number> {
+): Promise<PushResult> {
+  const applied: string[] = [];
+  const failed: { key: string; reason: string }[] = [];
   for (const key of keys) {
-    const value = await readFile(path.join(dir, key), "utf8");
-    await putAsset(ctx, themeId, key, value);
+    try {
+      const value = await readFile(path.join(dir, key), "utf8");
+      // Validate JSON theme files (sections/templates/config/locales) up front.
+      if (key.endsWith(".json")) {
+        try {
+          JSON.parse(value);
+        } catch (e) {
+          failed.push({ key, reason: `invalid JSON — ${e instanceof Error ? e.message : "parse error"}` });
+          continue;
+        }
+      }
+      await putAsset(ctx, themeId, key, value);
+      applied.push(key);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      console.warn(`[theme] push failed for ${key}: ${reason}`);
+      failed.push({ key, reason });
+    }
   }
-  return keys.length;
+  return { applied, failed };
 }
 
 export function previewUrl(shop: string, themeId: number): string {

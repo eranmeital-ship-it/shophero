@@ -195,7 +195,7 @@ interface HistoryPoint { date: string; health: number; [area: string]: number | 
 interface ReportData { scores: Score[]; health?: number; breakdowns?: Record<string, Breakdown[]>; history?: HistoryPoint[]; issues?: AuditIssue[]; findings: string[]; summary: string; recommendations: Recommendation[]; generatedAt: string; cached: boolean }
 interface PlanData { strategy: string | null; perDay: number; days: number; publishedCount: number; status: string; draftTitle: string | null; draftBody: string | null; draftMeta: string | null; draftTopic: string | null }
 interface ChatData { assistantText?: string; toolEvents?: string[]; pending?: string[]; error?: string; costUsd?: number; usage?: { inputTokens?: number; outputTokens?: number }; model?: string; proposedMutations?: { summary: string }[]; billing?: Billing }
-interface ApplyData { applied: number; message?: string; error?: string; version?: string }
+interface ApplyData { applied: number; message?: string; error?: string; version?: string; pending?: string[]; total?: number }
 
 // Merchant pays 3x our raw API cost (markup baked into the displayed price).
 const MARKUP = 3;
@@ -745,13 +745,18 @@ export default function Index() {
 
   useEffect(() => {
     if (apply.state !== "idle" || !apply.data) return;
-    if (apply.data.error) {
-      // Keep the change staged so the merchant can discard or retry.
-      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't apply this change. ${apply.data!.error}` }]);
-    } else if (apply.data.applied) {
-      setPending([]);
+    const d = apply.data;
+    if (d.applied > 0) {
+      // Some/all applied — keep any failed files staged for discard/retry.
+      setPending(d.pending ?? []);
       setFrameKey((k) => k + 1);
-      setMessages((m) => [...m, { role: "assistant", text: `✓ Change applied to your theme${apply.data!.version ? ` (${apply.data!.version})` : ""}.` }]);
+      let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}.`;
+      if (d.error) msg += ` ⚠️ ${d.error}`;
+      setMessages((m) => [...m, { role: "assistant", text: msg }]);
+    } else if (d.error || d.message !== "Nothing to apply") {
+      // Nothing applied — keep the change staged so the merchant can discard/retry.
+      if (d.pending) setPending(d.pending);
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't apply this change. ${d.error ?? ""}`.trim() }]);
     }
   }, [apply.state, apply.data]);
 

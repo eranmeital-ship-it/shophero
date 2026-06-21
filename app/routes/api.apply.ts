@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
-import { changedFiles, commitBaseline, commitCount } from "../lib/workspace.server";
+import { changedFiles, commitFiles, commitCount } from "../lib/workspace.server";
 import { pushWorkspaceChanges, renameTheme } from "../lib/theme.server";
 
 /**
@@ -28,23 +28,23 @@ export async function action({ request }: ActionFunctionArgs) {
   const fileList = pending.length <= 4 ? pending.join(", ") : `${pending.slice(0, 3).join(", ")} +${pending.length - 3} more`;
   const label = (summary || `Applied ${fileList}`).slice(0, 200);
 
-  // Push to the working theme. Shopify can reject a file (e.g. an invalid
-  // section-group JSON the agent generated → "missing required key 'name'"). Don't
-  // let that 500 the whole app — return a friendly error so the UI can show it and
-  // let the merchant discard/retry. The staged change is left intact on failure.
-  let applied: number;
-  try {
-    applied = await pushWorkspaceChanges(ctx, themeId, dir, pending);
-  } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
-    console.warn("[apply] push failed:", detail);
-    return Response.json({
-      applied: 0,
-      error: `Shopify rejected the change (${detail}). The generated file may be invalid — discard it and try rephrasing your request.`,
-    });
+  // Push each file independently (JSON validated locally first). One bad file —
+  // e.g. an invalid section-group JSON the agent generated → "missing required key
+  // 'name'" — no longer 500s the app or blocks the good files. We commit only what
+  // applied and leave failures staged so the merchant can discard/retry them.
+  const { applied: appliedKeys, failed } = await pushWorkspaceChanges(ctx, themeId, dir, pending);
+  const remaining = failed.map((f) => f.key);
+  const failMsg = failed.length
+    ? `${failed.length} file(s) couldn't be applied — ${failed.map((f) => `${f.key}: ${f.reason}`).join("; ")}`
+    : undefined;
+
+  // Nothing applied → leave everything staged, report why.
+  if (appliedKeys.length === 0) {
+    return Response.json({ applied: 0, total: pending.length, error: failMsg ?? "No changes were applied.", pending });
   }
 
-  await commitBaseline(dir, label);
+  // Commit only the successfully-applied files (failures stay pending).
+  await commitFiles(dir, appliedKeys, label);
 
   // Stamp the new version + timestamp onto the theme name so the merchant can tell
   // the latest edited version from the original duplicate in their Themes list.
@@ -61,5 +61,5 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  return Response.json({ applied, version });
+  return Response.json({ applied: appliedKeys.length, total: pending.length, version, error: failMsg, pending: remaining });
 }

@@ -62,6 +62,20 @@ export async function commitBaseline(dir: string, message: string): Promise<void
   }
 }
 
+/**
+ * Commit only specific files as a new baseline (the rest stay uncommitted, so a
+ * partially-failed apply keeps the failed files pending for discard/retry).
+ */
+export async function commitFiles(dir: string, keys: string[], message: string): Promise<void> {
+  if (!keys.length || !(await isInitialized(dir))) return;
+  await git(dir, "add", "--", ...keys);
+  try {
+    await git(dir, "commit", "-q", "-m", message);
+  } catch {
+    /* nothing staged */
+  }
+}
+
 /** Theme-asset keys (e.g. "sections/header.liquid") changed since the baseline. */
 export async function changedFiles(dir: string): Promise<string[]> {
   const { stdout } = await git(dir, "status", "--porcelain");
