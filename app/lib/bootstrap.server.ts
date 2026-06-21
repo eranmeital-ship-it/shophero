@@ -14,7 +14,8 @@ import {
  * Returns the working theme id and the workspace dir.
  */
 export async function ensureReady(ctx: { shop: string; accessToken: string }) {
-  const themeId = await ensureWorkingTheme(ctx);
+  const theme = await ensureWorkingTheme(ctx);
+  const themeId = theme.id;
   const dir = workspaceDir(ctx.shop);
 
   if (!(await isInitialized(dir))) {
@@ -23,7 +24,7 @@ export async function ensureReady(ctx: { shop: string; accessToken: string }) {
     await commitBaseline(dir, "baseline: pulled working theme");
   }
 
-  return { themeId, dir };
+  return { themeId, dir, themeName: theme.name, themeCopiedAt: theme.created_at ?? null };
 }
 
 /**

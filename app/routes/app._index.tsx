@@ -157,28 +157,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // to trip an embedded-app timeout. It can also fail (e.g. Shopify requires a
   // theme-write exemption / custom-app token) — in that case show the access gate.
   const ctx = { shop: session.shop, accessToken: session.accessToken! };
+  const nullTheme = { name: null as string | null, copiedAt: null as string | null };
   const errState = bootstrapState(session.shop);
   if (errState?.status === "error") {
     const msg = errState.error ?? "";
     const kind = /themeFilesUpsert|write_themes|exemption|Access denied|ACCESS_DENIED/i.test(msg) ? "access" : "setup";
-    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false };
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false, themeInfo: nullTheme };
   }
 
   if (!(await isReady(session.shop))) {
     startBootstrap(ctx);
-    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: null as null | string, preparing: true };
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: null as null | string, preparing: true, themeInfo: nullTheme };
   }
 
   // Ready (or self-heals quickly) — load the editor.
   try {
-    const { themeId } = await ensureReady(ctx);
+    const { themeId, themeName, themeCopiedAt } = await ensureReady(ctx);
     const previews = await buildPreviews(admin, session.shop, themeId);
-    return { ...base, themeId, previews, themeError: null as null | string, preparing: false };
+    return { ...base, themeId, previews, themeError: null as null | string, preparing: false, themeInfo: { name: themeName, copiedAt: themeCopiedAt } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[app] theme setup failed — serving dashboard in limited mode:", msg);
     const kind = /themeFilesUpsert|write_themes|exemption|Access denied|ACCESS_DENIED/i.test(msg) ? "access" : "setup";
-    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false };
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false, themeInfo: nullTheme };
   }
 }
 
@@ -554,7 +555,7 @@ const ISSUES: Issue[] = [
 const impactClass = (i: string) => (i === "high" ? "sh-impact-high" : i === "med" ? "sh-impact-med" : "sh-impact-low");
 
 export default function Index() {
-  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing } = useLoaderData<typeof loader>();
+  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing, themeInfo } = useLoaderData<typeof loader>();
 
   // First-run theme setup runs in the background — poll until it's ready and
   // rotate reassuring messages so the wait feels intentional, not stuck.
@@ -1531,14 +1532,13 @@ export default function Index() {
         {/* Top zone (~30%): brand, modes, health */}
         <div className="sh-top">
           <div className="sh-header">
-            <div className="sh-brand">
-              <div className="sh-brand-mark">
-                <img className="sh-mark-img" src="/logo.png" alt="ShopHero" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                S
-              </div>
+            <div className="sh-brand" title="ShopHero edits a safe, unpublished copy of your theme — your live store is never touched until you approve.">
+              <div className="sh-brand-mark sh-brand-mark-theme">🎨</div>
               <div>
-                <div className="sh-brand-name">ShopHero</div>
-                <div className="sh-brand-shop">{shop}</div>
+                <div className="sh-brand-name">{themeInfo?.name || "Working copy"}</div>
+                <div className="sh-brand-shop">
+                  Safe working copy{themeInfo?.copiedAt ? ` · copied ${new Date(themeInfo.copiedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : ""}
+                </div>
               </div>
             </div>
             <div className="sh-header-right" data-tour="header">

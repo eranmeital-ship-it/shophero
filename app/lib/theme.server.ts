@@ -101,7 +101,7 @@ const THEME_FILES_UPSERT = `
     }
   }`;
 
-interface Theme { id: number; name: string; role: string; }
+interface Theme { id: number; name: string; role: string; created_at?: string; updated_at?: string; }
 
 async function listThemes(ctx: Ctx): Promise<Theme[]> {
   const { themes } = await rest<{ themes: Theme[] }>(ctx, "/themes.json");
@@ -115,7 +115,7 @@ export async function liveThemeId(ctx: Ctx): Promise<number> {
 }
 
 /** Get the Drift working copy, creating it from the live theme if absent. */
-export async function ensureWorkingTheme(ctx: Ctx): Promise<number> {
+export async function ensureWorkingTheme(ctx: Ctx): Promise<Theme> {
   const themes = await listThemes(ctx);
   const existing = themes.find((t) => t.name === WORKING_THEME_NAME);
   if (existing) {
@@ -127,7 +127,7 @@ export async function ensureWorkingTheme(ctx: Ctx): Promise<number> {
     if (!keys.includes("layout/theme.liquid")) {
       await copyLiveAssets(ctx, themes, existing.id);
     }
-    return existing.id;
+    return existing;
   }
 
   // Create a blank unpublished theme, then copy every live asset into it.
@@ -136,7 +136,7 @@ export async function ensureWorkingTheme(ctx: Ctx): Promise<number> {
     body: JSON.stringify({ theme: { name: WORKING_THEME_NAME, role: "unpublished" } }),
   });
   await copyLiveAssets(ctx, themes, theme.id);
-  return theme.id;
+  return theme;
 }
 
 /** Copy every asset from the live (main) theme into the target theme. */
