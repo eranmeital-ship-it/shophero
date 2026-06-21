@@ -29,7 +29,19 @@ function base(shop: string): string {
   return `https://${shop}/admin/api/${API_VERSION}`;
 }
 
-async function rest<T>(ctx: Ctx, p: string, init?: RequestInit): Promise<T> {
+// Shopify's REST Asset API allows only ~2 requests/second. The theme bootstrap
+// reads/writes one asset per file, so we serialize every REST call through a
+// single chain and space them out — otherwise a theme with many files instantly
+// blows the limit and 429s mid-copy, crashing setup. We also retry 429s with the
+// server's Retry-After hint.
+const REST_MIN_INTERVAL_MS = 550; // ~1.8 req/s — safely under the 2/s cap
+let restChain: Promise<unknown> = Promise.resolve();
+let lastRestAt = 0;
+
+async function doRest<T>(ctx: Ctx, p: string, init: RequestInit | undefined, attempt: number): Promise<T> {
+  const wait = REST_MIN_INTERVAL_MS - (Date.now() - lastRestAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+
   const res = await fetch(`${base(ctx.shop)}${p}`, {
     ...init,
     headers: {
@@ -38,10 +50,24 @@ async function rest<T>(ctx: Ctx, p: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
+  lastRestAt = Date.now();
+
+  if (res.status === 429 && attempt < 6) {
+    const retryAfter = Number(res.headers.get("Retry-After")) || attempt + 1;
+    await new Promise((r) => setTimeout(r, Math.ceil(retryAfter * 1000)));
+    return doRest<T>(ctx, p, init, attempt + 1);
+  }
   if (!res.ok) {
     throw new Error(`Shopify ${init?.method ?? "GET"} ${p} -> ${res.status} ${await res.text()}`);
   }
   return (await res.json()) as T;
+}
+
+async function rest<T>(ctx: Ctx, p: string, init?: RequestInit): Promise<T> {
+  // Chain so REST calls run one at a time, evenly spaced under the rate limit.
+  const run = restChain.then(() => doRest<T>(ctx, p, init, 0));
+  restChain = run.then(() => undefined, () => undefined);
+  return run;
 }
 
 /**
@@ -117,10 +143,13 @@ export async function ensureWorkingTheme(ctx: Ctx): Promise<number> {
 async function copyLiveAssets(ctx: Ctx, themes: Theme[], targetId: number): Promise<void> {
   const liveId = themes.find((t) => t.role === "main")!.id;
   const keys = await listAssetKeys(ctx, liveId);
+  // Reads are rate-limited one-by-one (REST); writes are batched (GraphQL accepts
+  // many files per call) so the whole copy is read-bound, not 2× per asset.
+  const files: { key: string; value: string }[] = [];
   for (const key of keys) {
-    const value = await getAsset(ctx, liveId, key);
-    await putAsset(ctx, targetId, key, value);
+    files.push({ key, value: await getAsset(ctx, liveId, key) });
   }
+  await putAssets(ctx, targetId, files);
 }
 
 async function listAssetKeys(ctx: Ctx, themeId: number): Promise<string[]> {
@@ -160,6 +189,28 @@ async function putAsset(ctx: Ctx, themeId: number, key: string, value: string): 
       if (isLast) throw err;
       // Theme not ready yet — wait and retry
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+/** Upsert many theme files in batches (themeFilesUpsert accepts an array). */
+async function putAssets(ctx: Ctx, themeId: number, files: { key: string; value: string }[]): Promise<void> {
+  const CHUNK = 20;
+  for (let i = 0; i < files.length; i += CHUNK) {
+    const chunk = files.slice(i, i + CHUNK);
+    const input = chunk.map((f) => ({ filename: f.key, body: { type: "TEXT", value: f.value } }));
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const data = await graphql<{
+          themeFilesUpsert: { userErrors: { field: string[]; message: string; code: string }[] };
+        }>(ctx, THEME_FILES_UPSERT, { themeId: `gid://shopify/OnlineStoreTheme/${themeId}`, files: input });
+        const errs = data.themeFilesUpsert.userErrors;
+        if (errs.length) throw new Error(errs.map((e) => `${(e.field ?? []).join(".")}: ${e.message}`).join("; "));
+        break;
+      } catch (err) {
+        if (attempt === 3) throw err;
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
     }
   }
 }
