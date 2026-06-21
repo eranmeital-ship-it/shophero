@@ -25,7 +25,7 @@ import { buildBrainMcp, BRAIN_TOOL_NAMES, BRAIN_LABELS, REMEMBER_TOOL_NAME } fro
 
 const MAX_TURNS = Number(process.env.DRIFT_MAX_TURNS ?? 16);
 // Hard wall-clock cap per request — aborts a single runaway turn.
-const REQUEST_TIMEOUT_MS = Number(process.env.DRIFT_REQUEST_TIMEOUT_MS ?? 120_000) || 120_000;
+const REQUEST_TIMEOUT_MS = Number(process.env.DRIFT_REQUEST_TIMEOUT_MS ?? 240_000) || 240_000;
 
 // Cap concurrent agent turns per instance — each turn spawns a subprocess, so
 // unbounded concurrency can exhaust RAM/CPU. Excess turns queue for a slot.
@@ -75,6 +75,7 @@ Two DIFFERENT change models — know which you're using:
 - THEME FILE edits are staged in this working copy and only go live when the merchant clicks Apply. Reversible.
 - The \`${SHOPIFY_TOOL_NAME}\` tool runs Shopify Admin GraphQL for store resources (products, collections, pages, blogs/articles, navigation, metafields). Queries are safe to explore. MUTATIONS write to the LIVE store immediately and CANNOT be undone — only run a mutation the merchant explicitly asked for. For bulk creation (e.g. many blog posts), generate all the content first, then create each item.
 - When you create or update a store resource, request \`id\`, \`handle\`, and \`title\` in the mutation response so it can be linked for the merchant (articles: also request the parent \`blog { handle }\`). PUBLISH content the merchant wants live — set the published state (e.g. an article's \`isPublished: true\`/\`publishedAt\`, a page's published state) so it actually appears on the storefront; only leave it a draft if they ask for a draft.
+- Large multi-item asks (e.g. "for each of 15 products…"): don't attempt dozens in one turn — you'll run out of time and the merchant gets nothing. Do a solid handful well (≈5–8 items), then clearly tell the merchant how many you completed and that they can run it again for the next batch, or use the one-click bulk tools / scheduled jobs to process the whole catalog safely in the background.
 
 Conversion edge: for any conversion, optimization, redesign, or "make it sell/convert better" task (hero, product page, CTAs, trust, urgency, offers, cart, mobile), FIRST call the cro_playbook tool and apply the relevant tactics — it's ShopHero's proven playbook, not generic advice.
 
@@ -247,6 +248,7 @@ async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResum
       const { result, ok, errorText } = await runQuery(opts, route, model, resume);
       if (ok) return result;
       if (errorText && keyFailureKind(errorText)) throw new Error(errorText); // → route failover
+      if (errorText?.startsWith("TIMEOUT")) return result; // don't escalate a timeout — it'd just time out again
       if (isLast) return result; // best effort
       lastErr = new Error(errorText ?? "model attempt failed");
     } catch (err) {
@@ -386,6 +388,20 @@ async function runQuery(
       };
     }
   }
+  } catch (e) {
+    // The wall-clock cap aborts via abortController — the SDK reports that as
+    // "aborted by user", which is misleading. Turn it into a clear, actionable
+    // message shown to the merchant, and mark it TIMEOUT so the caller doesn't
+    // escalate to a pricier model (which would just time out again).
+    if (abortController.signal.aborted) {
+      ok = false;
+      errorText = "TIMEOUT";
+      const note =
+        "⏱️ This took longer than the time limit and was stopped before finishing. Try fewer items at once (e.g. 5 products at a time), or use the one-click bulk tools / scheduled jobs for large batches — they run safely in the background. Anything not yet approved was not applied.";
+      assistantText = assistantText ? `${assistantText}\n\n${note}` : note;
+    } else {
+      throw e;
+    }
   } finally {
     clearTimeout(timer);
   }
