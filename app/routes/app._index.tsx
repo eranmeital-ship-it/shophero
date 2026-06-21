@@ -1455,9 +1455,9 @@ export default function Index() {
               access to build and preview changes safely.
             </p>
             <div className="sh-theme-gate-steps">
-              <div className="sh-theme-gate-step"><span>1</span> In your store admin, open <strong>Settings → Apps and sales channels → Develop apps</strong> and create (or open) a custom app with the <strong>write_themes</strong> and <strong>read_themes</strong> scopes.</div>
-              <div className="sh-theme-gate-step"><span>2</span> Install it and copy the <strong>Admin API access token</strong> (<code>shpat_…</code>).</div>
-              <div className="sh-theme-gate-step"><span>3</span> Add it to ShopHero's hosting as <code>DRIFT_THEME_TOKEN</code>, then reload this page.</div>
+              <div className="sh-theme-gate-step"><span>1</span><div>In your store admin, open <strong>Settings → Apps and sales channels → Develop apps</strong> and create (or open) a custom app with the <strong>write_themes</strong> and <strong>read_themes</strong> scopes.</div></div>
+              <div className="sh-theme-gate-step"><span>2</span><div>Install it and copy the <strong>Admin API access token</strong> (<code>shpat_…</code>).</div></div>
+              <div className="sh-theme-gate-step"><span>3</span><div>Add it to ShopHero's hosting as <code>DRIFT_THEME_TOKEN</code>, then reload this page.</div></div>
             </div>
             <p className="sh-theme-gate-note">
               For a full App Store launch, request Shopify's theme-write exemption instead — then no per-store token is needed.
