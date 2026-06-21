@@ -135,10 +135,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect(`/app/onboarding?${url.searchParams.toString()}`);
   }
 
-  const ctx = { shop: session.shop, accessToken: session.accessToken! };
-  const { themeId } = await ensureReady(ctx);
-  const previews = await buildPreviews(admin, session.shop, themeId);
-
   // Annual revenue (from onboarding) → used to estimate plan upside.
   let revenueAnnual = 0;
   try {
@@ -146,16 +142,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
     revenueAnnual = revenueFromBucket(d?.answers?.revenue);
   } catch { /* ignore */ }
 
-  return {
+  const base = {
     shop: session.shop,
-    themeId,
-    previews,
     activePlan,
     recommendations: parseRecommendations(profile),
     report: await getCachedReport(session.shop).catch(() => null),
     revenueAnnual,
     plan: await getPlan(session.shop).catch(() => null),
   };
+
+  // Theme setup (duplicating the live theme into our working copy) can fail —
+  // most often because Shopify requires a theme-write exemption / a custom-app
+  // token (DRIFT_THEME_TOKEN). Degrade gracefully instead of bricking the whole
+  // dashboard with a blank "Application Error".
+  try {
+    const ctx = { shop: session.shop, accessToken: session.accessToken! };
+    const { themeId } = await ensureReady(ctx);
+    const previews = await buildPreviews(admin, session.shop, themeId);
+    return { ...base, themeId, previews, themeError: null as null | string };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[app] theme setup failed — serving dashboard in limited mode:", msg);
+    const kind = /themeFilesUpsert|write_themes|exemption|Access denied|ACCESS_DENIED/i.test(msg) ? "access" : "setup";
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind };
+  }
 }
 
 interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string }
@@ -521,7 +531,7 @@ const ISSUES: Issue[] = [
 const impactClass = (i: string) => (i === "high" ? "sh-impact-high" : i === "med" ? "sh-impact-med" : "sh-impact-low");
 
 export default function Index() {
-  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan } = useLoaderData<typeof loader>();
+  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError } = useLoaderData<typeof loader>();
   const planFetcher = useFetcher<{ plan: PlanData | null; error?: string }>();
   const [plan, setPlan] = useState<PlanData | null>((initialPlan as PlanData | null) ?? null);
   const [planReview, setPlanReview] = useState(false);
@@ -1428,6 +1438,35 @@ export default function Index() {
       setThinking(false);
       setLive({ text: "", tools: [] });
     }
+  }
+
+  // Theme setup failed (e.g. Shopify theme-write exemption / custom-app token
+  // missing). Show a clear, actionable state instead of crashing the dashboard.
+  if (themeError) {
+    return (
+      <div className="sh-shell">
+        <div className="sh-theme-gate">
+          <div className="sh-theme-gate-card">
+            <div className="sh-theme-gate-icon">🎨</div>
+            <h1>One step left: theme access</h1>
+            <p>
+              ShopHero is connected to <strong>{shop}</strong>, but Shopify hasn't granted it
+              permission to edit your theme yet. Everything else is ready — we just need theme
+              access to build and preview changes safely.
+            </p>
+            <div className="sh-theme-gate-steps">
+              <div className="sh-theme-gate-step"><span>1</span> In your store admin, open <strong>Settings → Apps and sales channels → Develop apps</strong> and create (or open) a custom app with the <strong>write_themes</strong> and <strong>read_themes</strong> scopes.</div>
+              <div className="sh-theme-gate-step"><span>2</span> Install it and copy the <strong>Admin API access token</strong> (<code>shpat_…</code>).</div>
+              <div className="sh-theme-gate-step"><span>3</span> Add it to ShopHero's hosting as <code>DRIFT_THEME_TOKEN</code>, then reload this page.</div>
+            </div>
+            <p className="sh-theme-gate-note">
+              For a full App Store launch, request Shopify's theme-write exemption instead — then no per-store token is needed.
+            </p>
+            <button className="sh-btn sh-btn-primary" onClick={() => window.location.reload()}>Reload</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -756,6 +756,18 @@
 .sh-ob-perm { font-size: 13px; font-weight: 580; color: var(--sh-ink); padding: 8px 13px; border-radius: 11px; background: linear-gradient(180deg, #fff, #f1faf3); border: 1px solid var(--sh-line); box-shadow: var(--sh-shadow-sm); }
 
 /* Building screen */
+/* Theme-access gate — friendly fallback when theme writes are blocked */
+.sh-theme-gate { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 40px 20px; width: 100%; }
+.sh-theme-gate-card { max-width: 560px; background: #fff; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 18px; padding: 34px 32px; box-shadow: var(--sh-shadow-sm, 0 8px 30px rgba(0,0,0,0.06)); }
+.sh-theme-gate-icon { font-size: 34px; }
+.sh-theme-gate-card h1 { font-size: 22px; font-weight: 850; margin: 10px 0 8px; }
+.sh-theme-gate-card > p { font-size: 14.5px; line-height: 1.6; color: var(--sh-ink-soft, #5a6472); margin: 0 0 18px; }
+.sh-theme-gate-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.sh-theme-gate-step { display: flex; gap: 11px; font-size: 13.5px; line-height: 1.5; color: var(--sh-ink, #29313d); }
+.sh-theme-gate-step span { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--sh-accent, #0a84ff); color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.sh-theme-gate-step code, .sh-theme-gate-note code { background: var(--sh-bg-soft, #f4f6f8); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
+.sh-theme-gate-note { font-size: 12.5px; color: var(--sh-ink-faint, #98a1ad); line-height: 1.5; margin: 0 0 18px; }
+
 .sh-ob-build { min-height: 420px; }
 .sh-ob-build-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 380px; gap: 14px; text-align: center; }
 .sh-ob-build-spinner { width: 44px; height: 44px; border-width: 4px; }
