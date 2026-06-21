@@ -1,4 +1,5 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
+import CONTENT_STRATEGY from "../knowledge/content.md?raw";
 import { complete } from "./llm.server";
 import { buildBrandContext } from "./brand.server";
 
@@ -271,6 +272,114 @@ export async function applyAlt(
     else failed += files.length;
   }
   return { applied, failed };
+}
+
+// ── Blog articles (Write Content) ─────────────────────────────────────────────
+
+async function gatherArticleContext(admin: AdminApiContext): Promise<{ titles: string[]; types: string[] }> {
+  const titles: string[] = [];
+  const b = await adminGql<{ blogs?: { nodes?: { articles?: { nodes?: { title?: string }[] } }[] } }>(admin, `{ blogs(first:5){ nodes { articles(first:25){ nodes { title } } } } }`);
+  for (const blog of b?.blogs?.nodes ?? []) for (const a of blog.articles?.nodes ?? []) if (a.title) titles.push(a.title);
+  const p = await adminGql<{ products?: { nodes?: { productType?: string }[] } }>(admin, `{ products(first:40){ nodes { productType } } }`);
+  const types = [...new Set((p?.products?.nodes ?? []).map((x) => x.productType).filter((t): t is string => !!t))];
+  return { titles, types };
+}
+
+/** Suggest the 5 most useful NEW article topics for this store (grounded, no repeats). */
+export async function suggestTopics(admin: AdminApiContext): Promise<string[]> {
+  const { titles, types } = await gatherArticleContext(admin);
+  const user = [
+    types.length ? `The store sells: ${types.join(", ")}.` : "A Shopify store.",
+    titles.length ? `Already published (suggest NEW, non-overlapping topics): ${titles.slice(0, 40).join("; ")}.` : "No articles published yet.",
+    "",
+    "Suggest the 5 MOST useful blog article topics for THIS store — buyer-intent first, ones that drive qualified traffic and sales and fill real gaps.",
+  ].join("\n");
+  const SYS = `You suggest blog article topics for a Shopify store. Respond with ONLY a JSON array of exactly 5 short topic strings (concise article-title ideas) — no prose, no code fences.`;
+  try {
+    const res = await complete({ system: SYS, user, maxTokens: 300, tier: "cheap" });
+    let t = cleanHtml(res.text);
+    const a = t.indexOf("[");
+    const b = t.lastIndexOf("]");
+    if (a >= 0 && b > a) t = t.slice(a, b + 1);
+    const arr = JSON.parse(t) as unknown;
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+}
+
+const ARTICLE_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent. Use <h2>/<h3>/<ul>/<p> and end with a soft CTA; suggest internal links to relevant products/collections inline.
+Respond with ONLY JSON, no prose, no code fences: {"title":"…","metaDescription":"≤155 chars","bodyHtml":"<p>…</p> the full article in valid HTML"}. Never invent statistics.`;
+
+export async function generateArticles(
+  admin: AdminApiContext,
+  shop: string,
+  opts: { count?: number; topic?: string; notes?: string },
+): Promise<{ drafts: ContentDraft[]; costUsd: number; total: number }> {
+  const n = Math.max(1, Math.min(5, opts.count ?? 1));
+  const [{ titles, types }, brand] = await Promise.all([gatherArticleContext(admin), buildBrandContext(shop).catch(() => "")]);
+  const used = [...titles];
+  const drafts: ContentDraft[] = [];
+  let costUsd = 0;
+  for (let i = 0; i < n; i++) {
+    const user = [
+      types.length ? `The store sells: ${types.join(", ")}.` : "",
+      opts.topic ? `Write about: ${opts.topic}.` : "Pick the single highest-value NEW buyer-intent topic that fills a gap.",
+      opts.notes ? `Notes: ${opts.notes}.` : "",
+      used.length ? `Do NOT repeat these titles: ${used.slice(0, 45).join("; ")}.` : "",
+      brand ? `\n${brand}` : "",
+      "",
+      "Write the article now.",
+    ].filter(Boolean).join("\n");
+    try {
+      const res = await complete({ cachePrefix: CONTENT_STRATEGY, system: ARTICLE_SYSTEM, user, maxTokens: 2600, tier: "cheap" });
+      costUsd += res.costUsd;
+      let t = cleanHtml(res.text);
+      const a = t.indexOf("{");
+      const b = t.lastIndexOf("}");
+      if (a >= 0 && b > a) t = t.slice(a, b + 1);
+      const o = JSON.parse(t) as { title?: string; metaDescription?: string; bodyHtml?: string };
+      if (!o.title || !o.bodyHtml) continue;
+      used.push(o.title);
+      drafts.push({ id: `article-${i}`, title: o.title, before: opts.topic || "new article", after: o.bodyHtml, metaDescription: String(o.metaDescription ?? "").slice(0, 160) });
+    } catch {
+      /* skip */
+    }
+  }
+  return { drafts, costUsd, total: n };
+}
+
+/** Publish approved articles to the store's blog (creating a blog if needed). */
+export async function publishArticles(
+  admin: AdminApiContext,
+  shop: string,
+  drafts: { title: string; after: string; metaDescription?: string }[],
+): Promise<{ applied: number; failed: number; links: { title: string; adminUrl: string }[] }> {
+  let blogId: string | undefined = (await adminGql<{ blogs?: { nodes?: { id: string }[] } }>(admin, `{ blogs(first:1){ nodes { id } } }`))?.blogs?.nodes?.[0]?.id;
+  if (!blogId) {
+    blogId = (await adminGql<{ blogCreate?: { blog?: { id?: string } } }>(admin, `mutation{ blogCreate(blog:{title:"News"}){ blog{ id } userErrors{ message } } }`))?.blogCreate?.blog?.id;
+  }
+  const storeHandle = shop.replace(/\.myshopify\.com$/, "");
+  const links: { title: string; adminUrl: string }[] = [];
+  let applied = 0;
+  let failed = 0;
+  if (!blogId) return { applied: 0, failed: drafts.length, links };
+  for (const d of drafts) {
+    const data = await adminGql<{ articleCreate?: { article?: { id?: string }; userErrors?: { message: string }[] } }>(
+      admin,
+      `mutation($a: ArticleCreateInput!){ articleCreate(article:$a){ article{ id } userErrors{ message } } }`,
+      { a: { blogId, title: d.title, body: cleanHtml(d.after), summary: d.metaDescription || undefined, isPublished: true, author: { name: "ShopHero" } } },
+    );
+    const id = data?.articleCreate?.article?.id;
+    if (id && !(data?.articleCreate?.userErrors?.length)) {
+      applied++;
+      const num = id.match(/\/(\d+)$/)?.[1] ?? "";
+      links.push({ title: d.title, adminUrl: `https://admin.shopify.com/store/${storeHandle}/content/articles/${num}` });
+    } else {
+      failed++;
+    }
+  }
+  return { applied, failed, links };
 }
 
 /** Write approved descriptions to the live store via the Admin API. */

@@ -649,12 +649,15 @@ export default function Index() {
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Direct content generation (no agent) — descriptions task.
-  const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; costUsd?: number; applied?: number; failed?: number; error?: string }>();
+  const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; costUsd?: number; applied?: number; failed?: number; error?: string; links?: { title: string; adminUrl: string }[] }>();
+  const suggestFetcher = useFetcher<{ topics?: string[] }>();
   const [contentDrafts, setContentDrafts] = useState<ContentDraft[] | null>(null);
   const [contentCost, setContentCost] = useState(0);
   const [contentSkip, setContentSkip] = useState<Set<string>>(new Set());
   const [descWhich, setDescWhich] = useState("Products with thin/missing descriptions");
   const [descNotes, setDescNotes] = useState("");
+  const [articleCount, setArticleCount] = useState("1");
+  const [articleTopic, setArticleTopic] = useState("");
   const [input, setInput] = useState("");
   const [frameKey, setFrameKey] = useState(0);
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
@@ -1143,6 +1146,11 @@ export default function Index() {
       : "Products with thin/missing descriptions",
     );
     setDescNotes("");
+    setArticleCount("1");
+    setArticleTopic("");
+    if (id === "write-content") {
+      suggestFetcher.submit({ op: "suggest", task: "articles" }, { method: "post", action: "/api/content" });
+    }
     if (id === "store-manager") {
       const recs = report?.recommendations ?? [];
       setSelectedRecs(new Set(recs.map((_, i) => i)));
@@ -1171,15 +1179,23 @@ export default function Index() {
   const taskReady = () => !!activeTask && activeTask.fields.every((f) => !(f.type === "product" && f.required) || !!taskValues[f.key]);
   // ── Direct content generation (descriptions): fast, cheap, no agent loop ──
   const contentBusy = contentFetcher.state !== "idle";
-  const contentTaskType = (): "descriptions" | "seo" | "alt" =>
-    activeTask?.id === "seo-genius" ? "seo" : activeTask?.id === "alt-text" ? "alt" : "descriptions";
+  const contentTaskType = (): "descriptions" | "seo" | "alt" | "articles" =>
+    activeTask?.id === "seo-genius" ? "seo"
+    : activeTask?.id === "alt-text" ? "alt"
+    : activeTask?.id === "write-content" ? "articles"
+    : "descriptions";
   function genContent() {
     setContentDrafts(null);
     setContentSkip(new Set());
-    contentFetcher.submit(
-      { op: "generate", task: contentTaskType(), which: descWhich, notes: descNotes },
-      { method: "post", action: "/api/content" },
-    );
+    const t = contentTaskType();
+    const payload: Record<string, string> = { op: "generate", task: t, notes: descNotes };
+    if (t === "articles") {
+      payload.count = articleCount;
+      payload.topic = articleTopic;
+    } else {
+      payload.which = descWhich;
+    }
+    contentFetcher.submit(payload, { method: "post", action: "/api/content" });
   }
   function applyDrafts() {
     const keep = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id));
@@ -1206,7 +1222,13 @@ export default function Index() {
     } else if (typeof d.applied === "number") {
       setContentDrafts(null);
       setActiveTask(null);
-      setMessages((m) => [...m, { role: "assistant", text: `✓ Applied ${d.applied} product description${d.applied === 1 ? "" : "s"} to your store${d.failed ? ` · ${d.failed} couldn't be saved` : ""}.` }]);
+      const articles = !!d.links;
+      const deliverables = (d.links ?? []).map((l) => ({ type: "article", title: l.title, adminUrl: l.adminUrl }));
+      setMessages((m) => [...m, {
+        role: "assistant",
+        text: `✓ ${articles ? "Published" : "Applied"} ${d.applied} ${articles ? "blog article" : "update"}${d.applied === 1 ? "" : "s"}${d.failed ? ` · ${d.failed} failed` : ""}.`,
+        deliverables: deliverables.length ? deliverables : undefined,
+      }]);
       reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1433,15 +1455,17 @@ export default function Index() {
     );
   }
 
-  function renderContentTask(mode: "descriptions" | "seo" | "alt") {
+  function renderContentTask(mode: "descriptions" | "seo" | "alt" | "articles") {
     const keepCount = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id)).length;
     const reviewing = !!contentDrafts;
     const isSeo = mode === "seo";
     const isAlt = mode === "alt";
+    const isArticles = mode === "articles";
     const META = {
-      descriptions: { title: "✍️ Rewrite Product Descriptions", desc: "Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish.", noun: "description", perItem: 0.04, writing: "Writing descriptions…", empty: "No products needed rewriting — they already have solid descriptions. ✅", btn: "Write descriptions →", which: ["Products with thin/missing descriptions", "All products"], notesLabel: "Tone / must-include (optional)", notesPh: "e.g. emphasize craftsmanship, mention free shipping" },
-      seo: { title: "🔍 SEO Titles & Meta", desc: "Optimized SEO page titles + meta descriptions, written directly (no agent wait). Review before/after, then publish.", noun: "SEO update", perItem: 0.02, writing: "Writing SEO…", empty: "No products needed SEO — they're already optimized. ✅", btn: "Write SEO →", which: ["Products with missing SEO", "All products"], notesLabel: "Target keywords / notes (optional)", notesPh: "e.g. focus on 'beginner snowboards'" },
-      alt: { title: "🖼️ Image Alt Text", desc: "Descriptive alt text for product images (SEO + accessibility), written directly. Review, then apply.", noun: "image alt update", perItem: 0.02, writing: "Writing alt text…", empty: "All your product images already have alt text. ✅", btn: "Write alt text →", which: ["Products with images missing alt text", "All product images"], notesLabel: "Notes (optional)", notesPh: "e.g. include the color and material" },
+      descriptions: { title: "✍️ Rewrite Product Descriptions", desc: "Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish.", noun: "description", unit: "product", perItem: 0.04, writing: "Writing descriptions…", empty: "No products needed rewriting — they already have solid descriptions. ✅", btn: "Write descriptions →", which: ["Products with thin/missing descriptions", "All products"], notesLabel: "Tone / must-include (optional)", notesPh: "e.g. emphasize craftsmanship, mention free shipping" },
+      seo: { title: "🔍 SEO Titles & Meta", desc: "Optimized SEO page titles + meta descriptions, written directly (no agent wait). Review before/after, then publish.", noun: "SEO update", unit: "product", perItem: 0.02, writing: "Writing SEO…", empty: "No products needed SEO — they're already optimized. ✅", btn: "Write SEO →", which: ["Products with missing SEO", "All products"], notesLabel: "Target keywords / notes (optional)", notesPh: "e.g. focus on 'beginner snowboards'" },
+      alt: { title: "🖼️ Image Alt Text", desc: "Descriptive alt text for product images (SEO + accessibility), written directly. Review, then apply.", noun: "image alt update", unit: "product", perItem: 0.02, writing: "Writing alt text…", empty: "All your product images already have alt text. ✅", btn: "Write alt text →", which: ["Products with images missing alt text", "All product images"], notesLabel: "Notes (optional)", notesPh: "e.g. include the color and material" },
+      articles: { title: "📝 Write Blog Posts", desc: "On-brand, SEO-optimized blog articles written directly. Pick a topic (or use a suggestion), then publish to your blog.", noun: "article", unit: "article", perItem: 0.05, writing: "Writing articles…", empty: "Couldn't generate the article — please try again.", btn: "Write articles →", which: [], notesLabel: "Notes (optional)", notesPh: "e.g. keep it under 600 words; link to the snowboard collection" },
     }[mode];
     return (
       <div className="sh-task">
@@ -1456,14 +1480,38 @@ export default function Index() {
         <div className="sh-task-body">
           {!reviewing ? (
             <>
-              <label className="sh-label">Which products?</label>
-              <select className="sh-ob-input" value={descWhich} onChange={(e) => setDescWhich(e.target.value)} disabled={contentBusy}>
-                {META.which.map((o) => <option key={o}>{o}</option>)}
-              </select>
+              {isArticles ? (
+                <>
+                  <label className="sh-label">How many articles?</label>
+                  <select className="sh-ob-input" value={articleCount} onChange={(e) => setArticleCount(e.target.value)} disabled={contentBusy}>
+                    <option value="1">1</option>
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                  </select>
+                  <label className="sh-label" style={{ marginTop: 12 }}>Topic (optional)</label>
+                  <input className="sh-ob-input" value={articleTopic} onChange={(e) => setArticleTopic(e.target.value)} placeholder="e.g. How to choose a beginner snowboard" disabled={contentBusy} />
+                  {(suggestFetcher.data?.topics?.length ?? 0) > 0 && (
+                    <div className="sh-topic-chips">
+                      <span className="sh-topic-lbl">Suggested for your store — tap to use:</span>
+                      {suggestFetcher.data!.topics!.map((tp, i) => (
+                        <button key={i} className="sh-topic-chip" onClick={() => setArticleTopic(tp)} disabled={contentBusy}>{tp}</button>
+                      ))}
+                    </div>
+                  )}
+                  {suggestFetcher.state !== "idle" && !suggestFetcher.data && <div className="sh-topic-loading"><div className="sh-spinner" /> Finding the best topics for your store…</div>}
+                </>
+              ) : (
+                <>
+                  <label className="sh-label">Which products?</label>
+                  <select className="sh-ob-input" value={descWhich} onChange={(e) => setDescWhich(e.target.value)} disabled={contentBusy}>
+                    {META.which.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </>
+              )}
               <label className="sh-label" style={{ marginTop: 12 }}>{META.notesLabel}</label>
-              <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={descNotes} onChange={(e) => setDescNotes(e.target.value)} placeholder={META.notesPh} disabled={contentBusy} />
+              <textarea className="sh-ob-input sh-ob-textarea" rows={isArticles ? 2 : 3} value={descNotes} onChange={(e) => setDescNotes(e.target.value)} placeholder={META.notesPh} disabled={contentBusy} />
               {contentFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{contentFetcher.data.error}</div>}
-              {contentBusy && <div className="sh-opt-loading" style={{ marginTop: 14 }}><div className="sh-spinner" /> {META.writing} (a few seconds per product)</div>}
+              {contentBusy && <div className="sh-opt-loading" style={{ marginTop: 14 }}><div className="sh-spinner" /> {META.writing} ({isArticles ? "this can take a moment" : "a few seconds per product"})</div>}
             </>
           ) : contentDrafts!.length === 0 ? (
             <div className="sh-opt-loading">{META.empty}</div>
@@ -1501,7 +1549,7 @@ export default function Index() {
         {!reviewing ? (
           <>
             <div className="sh-task-est">
-              <span>Est. cost <strong>~${META.perItem.toFixed(2)} / product</strong> · a few seconds each</span>
+              <span>Est. cost <strong>~${META.perItem.toFixed(2)} / {META.unit}</strong> · a few seconds each</span>
               <span className="sh-task-est-note">Direct generation — billed only for what's used. Live changes need your approval.</span>
             </div>
             <div className="sh-task-foot">
@@ -1528,6 +1576,7 @@ export default function Index() {
     if (activeTask.id === "bulk-descriptions") return renderContentTask("descriptions");
     if (activeTask.id === "seo-genius") return renderContentTask("seo");
     if (activeTask.id === "alt-text") return renderContentTask("alt");
+    if (activeTask.id === "write-content") return renderContentTask("articles");
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();
@@ -1601,9 +1650,9 @@ export default function Index() {
                   )}
                 </div>
               ) : f.type === "textarea" ? (
-                <textarea className="sh-ob-input sh-ob-textarea" rows={3} placeholder={f.placeholder} value={sval(taskValues[f.key])} onChange={(e) => setField(f.key, e.target.value)} />
+                <textarea className="sh-ob-input sh-ob-textarea" rows={3} placeholder={f.placeholder} value={(taskValues[f.key] as string) ?? ""} onChange={(e) => setField(f.key, e.target.value)} />
               ) : f.type === "text" ? (
-                <input className="sh-ob-input" placeholder={f.placeholder} value={sval(taskValues[f.key])} onChange={(e) => setField(f.key, e.target.value)} />
+                <input className="sh-ob-input" placeholder={f.placeholder} value={(taskValues[f.key] as string) ?? ""} onChange={(e) => setField(f.key, e.target.value)} />
               ) : f.type === "select" ? (
                 <select className="sh-ob-input" value={sval(taskValues[f.key])} onChange={(e) => setField(f.key, e.target.value)}>
                   {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
