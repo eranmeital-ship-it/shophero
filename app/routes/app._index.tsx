@@ -1542,20 +1542,18 @@ export default function Index() {
               </div>
             </div>
             <div className="sh-header-right" data-tour="header">
-              <span className="sh-pill" title="AI usage this session — drawn from your monthly allowance ($15 included, then $50 auto top-ups)">
-                Usage <strong>${sessionBilled.toFixed(2)}</strong>
-              </span>
-              <span className="sh-pill">{activePlan === "managed" ? "Managed AI" : "BYOK"}</span>
-              <button className="sh-icon-btn" title="How it works" onClick={() => setTourOpen(true)}>
-                ?
-              </button>
-              <button className="sh-icon-btn" title="Version history" onClick={openHistory}>
-                🕘
-              </button>
+              <div className="sh-hr-stack">
+                <span className="sh-pill sh-pill-sm" title="AI usage this session — drawn from your monthly allowance ($15 included, then $50 auto top-ups)">
+                  Usage <strong>${sessionBilled.toFixed(2)}</strong>
+                </span>
+                <span className="sh-pill sh-pill-sm">{activePlan === "managed" ? "Managed AI" : "BYOK"}</span>
+              </div>
+              <div className="sh-hr-stack">
+                <button className="sh-icon-btn sh-icon-btn-sm" title="How it works" onClick={() => setTourOpen(true)}>?</button>
+                <button className="sh-icon-btn sh-icon-btn-sm" title="Version history" onClick={openHistory}>🕘</button>
+              </div>
               {activePlan === "byok" && (
-                <button className="sh-icon-btn" title="Settings" onClick={() => navigate("/app/settings")}>
-                  ⚙
-                </button>
+                <button className="sh-icon-btn" title="Settings" onClick={() => navigate("/app/settings")}>⚙</button>
               )}
             </div>
           </div>
