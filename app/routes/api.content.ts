@@ -33,7 +33,7 @@ export async function action({ request }: ActionFunctionArgs) {
         .create({ data: { shop: session.shop, plan, kind: "content", costUsd, billedUsd: plan === "managed" ? costUsd * 3 : 0 } })
         .catch(() => {});
     }
-    return Response.json({ drafts, total });
+    return Response.json({ drafts, total, costUsd });
   }
 
   if (op === "apply") {

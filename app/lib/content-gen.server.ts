@@ -35,6 +35,11 @@ function stripHtml(s: string | null | undefined): string {
   return (s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/** Strip a markdown code fence the model sometimes wraps the HTML in. */
+function cleanHtml(s: string): string {
+  return s.trim().replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
+}
+
 async function adminGql<T>(admin: AdminApiContext, query: string, variables?: Record<string, unknown>): Promise<T | null> {
   try {
     const r = await admin.graphql(query, variables ? { variables } : undefined);
@@ -98,7 +103,7 @@ export async function generateDescriptions(
     try {
       const res = await complete({ system: DESC_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 700, tier: "cheap" });
       costUsd += res.costUsd;
-      drafts.push({ id: p.id, title: p.title, before, after: res.text.trim() });
+      drafts.push({ id: p.id, title: p.title, before, after: cleanHtml(res.text) });
     } catch {
       /* skip this one; others continue */
     }

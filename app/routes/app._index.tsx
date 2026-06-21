@@ -638,8 +638,9 @@ export default function Index() {
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Direct content generation (no agent) — descriptions task.
-  const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; applied?: number; failed?: number; error?: string }>();
+  const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; costUsd?: number; applied?: number; failed?: number; error?: string }>();
   const [contentDrafts, setContentDrafts] = useState<ContentDraft[] | null>(null);
+  const [contentCost, setContentCost] = useState(0);
   const [contentSkip, setContentSkip] = useState<Set<string>>(new Set());
   const [descWhich, setDescWhich] = useState("Products with thin/missing descriptions");
   const [descNotes, setDescNotes] = useState("");
@@ -1184,6 +1185,7 @@ export default function Index() {
     const d = contentFetcher.data;
     if (d.drafts) {
       setContentDrafts(d.drafts);
+      setContentCost(d.costUsd ?? 0);
     } else if (typeof d.applied === "number") {
       setContentDrafts(null);
       setActiveTask(null);
@@ -1418,11 +1420,10 @@ export default function Index() {
     const keepCount = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id)).length;
     const reviewing = !!contentDrafts;
     return (
-      <div className="sh-task-panel">
+      <div className="sh-task">
         <div className="sh-task-head">
           <div>
-            <div className="sh-task-emoji">✍️</div>
-            <div className="sh-task-title">Rewrite Product Descriptions</div>
+            <div className="sh-task-title">✍️ Rewrite Product Descriptions</div>
             <div className="sh-task-desc">Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish.</div>
           </div>
           <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
@@ -1445,7 +1446,7 @@ export default function Index() {
             <div className="sh-opt-loading">No products needed rewriting — they already have solid descriptions. ✅</div>
           ) : (
             <div className="sh-draft-list">
-              <p className="sh-task-desc">Wrote {contentDrafts!.length} description{contentDrafts!.length === 1 ? "" : "s"}. Untick any you don't want, then publish.</p>
+              <p className="sh-task-desc">Wrote {contentDrafts!.length} description{contentDrafts!.length === 1 ? "" : "s"} · total cost <strong>~${(contentCost * MARKUP).toFixed(2)}</strong>. Untick any you don't want, then publish (publishing is free).</p>
               {contentDrafts!.map((d) => {
                 const skipped = contentSkip.has(d.id);
                 return (
