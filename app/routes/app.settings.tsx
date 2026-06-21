@@ -2,7 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useFetcher, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getActivePlan } from "../lib/billing.server";
-import { encrypt, isValidAnthropicKey } from "../lib/crypto.server";
+import { encrypt, isValidAnthropicKey, isValidThemeToken } from "../lib/crypto.server";
+import { clearThemeTokenCache } from "../lib/theme.server";
 import db from "../db.server";
 import "../styles/shophero.css";
 
@@ -10,7 +11,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const activePlan = await getActivePlan(admin);
   const record = await db.session.findFirst({ where: { shop: session.shop } });
-  return { activePlan, hasKey: !!record?.anthropicApiKey, shop: session.shop };
+  return { activePlan, hasKey: !!record?.anthropicApiKey, hasThemeToken: !!record?.themeToken, shop: session.shop };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -41,14 +42,41 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ success: true });
   }
 
+  if (intent === "saveTheme") {
+    const rawToken = String(form.get("themeToken") ?? "").trim();
+    if (!isValidThemeToken(rawToken)) {
+      return Response.json(
+        { error: "Invalid token. Custom-app Admin API tokens start with shpat_" },
+        { status: 400 },
+      );
+    }
+    await db.session.updateMany({
+      where: { shop: session.shop },
+      data: { themeToken: encrypt(rawToken) },
+    });
+    clearThemeTokenCache(session.shop);
+    return Response.json({ success: true });
+  }
+
+  if (intent === "removeTheme") {
+    await db.session.updateMany({
+      where: { shop: session.shop },
+      data: { themeToken: null },
+    });
+    clearThemeTokenCache(session.shop);
+    return Response.json({ success: true });
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 }
 
 export default function Settings() {
-  const { activePlan, hasKey } = useLoaderData<typeof loader>();
+  const { activePlan, hasKey, hasThemeToken } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<{ error?: string; success?: boolean }>();
+  const themeFetcher = useFetcher<{ error?: string; success?: boolean }>();
   const navigate = useNavigate();
   const saving = fetcher.state !== "idle";
+  const savingTheme = themeFetcher.state !== "idle";
 
   return (
     <div className="sh-docbg">
@@ -74,6 +102,45 @@ export default function Settings() {
               View usage &amp; billing
             </button>
           </div>
+        </div>
+
+        <div className="sh-card">
+          <h3><span className="sh-card-emoji">🎨</span> Theme editing access</h3>
+          {hasThemeToken ? (
+            <div>
+              <p style={{ marginBottom: 12 }}>This store&apos;s theme token is saved and encrypted. ShopHero can build and preview theme changes here.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <span className="sh-keymask">shpat_••••••••••••••••••••</span>
+                <themeFetcher.Form method="post" style={{ display: "inline" }}>
+                  <input type="hidden" name="intent" value="removeTheme" />
+                  <button className="sh-btn" style={{ background: "linear-gradient(180deg,#fff,#f7eceb)", color: "#c0392b" }} type="submit" disabled={savingTheme}>
+                    Remove token
+                  </button>
+                </themeFetcher.Form>
+              </div>
+            </div>
+          ) : (
+            <themeFetcher.Form method="post" className="sh-field">
+              <input type="hidden" name="intent" value="saveTheme" />
+              <p style={{ marginBottom: 10 }}>
+                To let ShopHero edit this store&apos;s theme, paste a custom-app Admin API token with the <strong>write_themes</strong> scope.
+              </p>
+              <label className="sh-label" htmlFor="themeToken">Theme token</label>
+              <input id="themeToken" name="themeToken" type="password" className="sh-text-input" placeholder="shpat_..." autoComplete="off" required />
+              <p className="sh-hint">
+                Create it in this store: <strong>Settings → Apps and sales channels → Develop apps → Create an app</strong>,
+                enable <strong>write_themes</strong> + <strong>read_themes</strong>, Install, then copy the Admin API access token.
+                It&apos;s encrypted at rest.
+              </p>
+              {themeFetcher.data?.error && <div className="sh-err">{themeFetcher.data.error}</div>}
+              {themeFetcher.data?.success && <div className="sh-ok">Theme token saved. Reload the editor to start making changes.</div>}
+              <div>
+                <button className="sh-btn sh-btn-dark" type="submit" disabled={savingTheme}>
+                  {savingTheme ? "Saving…" : "Save token"}
+                </button>
+              </div>
+            </themeFetcher.Form>
+          )}
         </div>
 
         {activePlan === "managed" ? (

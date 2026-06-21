@@ -1579,12 +1579,15 @@ export default function Index() {
             <div className="sh-theme-gate-steps">
               <div className="sh-theme-gate-step"><span>1</span><div>In your store admin, open <strong>Settings → Apps and sales channels → Develop apps</strong> and create (or open) a custom app with the <strong>write_themes</strong> and <strong>read_themes</strong> scopes.</div></div>
               <div className="sh-theme-gate-step"><span>2</span><div>Install it and copy the <strong>Admin API access token</strong> (<code>shpat_…</code>).</div></div>
-              <div className="sh-theme-gate-step"><span>3</span><div>Add it to ShopHero's hosting as <code>DRIFT_THEME_TOKEN</code>, then reload this page.</div></div>
+              <div className="sh-theme-gate-step"><span>3</span><div>Paste it into ShopHero under <strong>Settings → Theme editing access</strong>, then reload this page.</div></div>
             </div>
             <p className="sh-theme-gate-note">
               For a full App Store launch, request Shopify's theme-write exemption instead — then no per-store token is needed.
             </p>
-            <button className="sh-btn sh-btn-primary" onClick={() => window.location.reload()}>Reload</button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="sh-btn sh-btn-primary" onClick={() => navigate("/app/settings")}>Open Settings →</button>
+              <button className="sh-btn" style={{ background: "linear-gradient(180deg,#fff,#eef1f5)", color: "var(--sh-ink)" }} onClick={() => window.location.reload()}>Reload</button>
+            </div>
           </div>
         </div>
       </div>

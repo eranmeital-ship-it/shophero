@@ -34,6 +34,7 @@ model Session {
   refreshTokenExpires DateTime?
   plan            String?
   anthropicApiKey String?
+  themeToken      String?  // encrypted custom-app token for theme writes on this shop
 }
 
 // One row per agent turn — powers usage, cost, and revenue reporting.

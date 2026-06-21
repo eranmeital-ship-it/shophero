@@ -1,5 +1,28 @@
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import db from "../db.server";
+import { decrypt } from "./crypto.server";
+
+// Per-shop theme-write token (a custom-app token the merchant pastes in Settings),
+// resolved from the DB and cached briefly so a bootstrap copy doesn't re-read it
+// per file. Falls back to the global env token, then the OAuth token.
+const themeTokenCache = new Map<string, { token: string | null; at: number }>();
+export function clearThemeTokenCache(shop: string): void {
+  themeTokenCache.delete(shop);
+}
+async function shopThemeToken(shop: string): Promise<string | null> {
+  const cached = themeTokenCache.get(shop);
+  if (cached && Date.now() - cached.at < 30_000) return cached.token;
+  let token: string | null = null;
+  try {
+    const row = await db.session.findFirst({ where: { shop, themeToken: { not: null } } });
+    token = row?.themeToken ? decrypt(row.themeToken) : null;
+  } catch {
+    token = null;
+  }
+  themeTokenCache.set(shop, { token, at: Date.now() });
+  return token;
+}
 
 /**
  * Theme operations via the Admin REST Asset API. We use REST here because the
@@ -92,7 +115,7 @@ async function graphql<T>(ctx: Ctx, query: string, variables: Record<string, unk
   // gates public-app OAuth tokens. A custom-app token (Settings > Develop apps)
   // is not App-Store-distributed, so it can write themes. Use it when provided;
   // fall back to the OAuth session token (works once an exemption is granted).
-  const token = process.env.DRIFT_THEME_TOKEN || ctx.accessToken;
+  const token = (await shopThemeToken(ctx.shop)) || process.env.DRIFT_THEME_TOKEN || ctx.accessToken;
   const res = await fetch(`${base(ctx.shop)}/graphql.json`, {
     method: "POST",
     headers: {

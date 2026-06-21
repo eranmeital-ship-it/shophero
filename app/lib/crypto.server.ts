@@ -42,3 +42,8 @@ export function decrypt(stored: string): string {
 export function isValidAnthropicKey(key: string): boolean {
   return /^sk-ant-[a-zA-Z0-9\-_]{20,}$/.test(key.trim());
 }
+
+/** Validate that a string looks like a Shopify custom-app Admin API token. */
+export function isValidThemeToken(token: string): boolean {
+  return /^shpat_[a-zA-Z0-9]{20,}$/.test(token.trim());
+}
