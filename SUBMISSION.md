@@ -81,13 +81,16 @@ Implemented + HMAC-verified in `app/routes/webhooks.compliance.tsx`.
 - [x] `/privacy` lists what data is accessed, why, retention, and deletion path. ✅
 - [x] **Anthropic (Claude) disclosed as a subprocessor**, incl. "does not train on
       API data" + the no-customer-PII stance. ✅ (`app/routes/privacy.tsx`)
-- [ ] `/terms` accurate for the service + billing (review against final pricing).
+- [x] `/terms` accurate for the service + billing ($49/mo + included $15 + capped
+      top-ups, cancel anytime, no guaranteed results). Reviewed — no change. ✅
 - [x] `/contact` works (server-side → hello@shophero.io); no public email exposed ✅
 - [ ] Privacy/Terms URLs entered in the Partner Dashboard listing.
 
 ## 6. App Store listing assets
 
-- [ ] App name + tagline.
+> Copy drafted in `docs/listing-copy.md`. Reviewer notes in `docs/reviewer-instructions.md`.
+
+- [x] App name + tagline (draft in docs/listing-copy.md).
 - [ ] App icon (1200×1200, no text-heavy clutter).
 - [ ] 3–6 screenshots (1600×900) of real flows: onboarding, editor + preview,
       optimize scorecard, revenue plan, activity/rollback.
@@ -99,8 +102,8 @@ Implemented + HMAC-verified in `app/routes/webhooks.compliance.tsx`.
 
 ## 7. Reviewer experience [BLOCKER]
 
-- [ ] **Test instructions** for the reviewer: how to install, what to try, and any
-      setup (e.g. if theme exemption isn't granted yet, how theme access is handled).
+- [x] **Test instructions** drafted in `docs/reviewer-instructions.md` (install,
+      billing test mode, what to try, theme access during review, demo store).
 - [ ] A **demo/test store** in good shape (products, a theme) the reviewer can use,
       or clear steps to set one up.
 - [ ] If billing test mode is on, tell the reviewer charges are test charges.
