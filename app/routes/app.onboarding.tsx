@@ -182,6 +182,16 @@ const DEFAULT_LEAKS: Leak[] = [
   { title: "SEO metadata incomplete", impactUsd: 4700 },
 ];
 
+// The building screen breaks the final, revenue-anchored upside into these named
+// opportunities (proportions sum to 1). This keeps the animated running total
+// identical to the headline number on the "ready" card.
+const OPPORTUNITY_BUCKETS: { title: string; pct: number }[] = [
+  { title: "Product page friction", pct: 0.36 },
+  { title: "Low average order value", pct: 0.24 },
+  { title: "SEO opportunity", pct: 0.2 },
+  { title: "Missing trust builders", pct: 0.2 },
+];
+
 export default function Onboarding() {
   const { shop } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -205,8 +215,21 @@ export default function Onboarding() {
   const [radarMsg, setRadarMsg] = useState(0);
 
   const building = submitting || !!ad?.ok;
-  const buildCards = leaks.length ? leaks : DEFAULT_LEAKS;
   const [reveal, setReveal] = useState(0);
+  const [loadMsg, setLoadMsg] = useState(0);
+
+  // Opportunity cards on the building screen are a breakdown of the SAME revenue-
+  // anchored total shown on the "ready" card, so the running total and the final
+  // number always agree (no more $116k animating down to $7k).
+  const round100 = (n: number) => Math.max(0, Math.round(n / 100) * 100);
+  const planLeaks: Leak[] = (() => {
+    if (!ad?.ok) return [];
+    const total = ad.annualUsd ?? 0;
+    const cards = OPPORTUNITY_BUCKETS.map((b) => ({ title: b.title, impactUsd: round100(total * b.pct) }));
+    const diff = total - cards.reduce((s, c) => s + c.impactUsd, 0);
+    if (cards.length) cards[0].impactUsd = Math.max(0, cards[0].impactUsd + diff);
+    return cards;
+  })();
 
   // Radar: animate progress + rotate messages while the scan runs.
   useEffect(() => {
@@ -241,16 +264,23 @@ export default function Onboarding() {
     return () => clearTimeout(t);
   }, [step, scanStarted, scan.state, scan.data]);
 
-  // Building screen: reveal opportunity cards one at a time.
+  // Rotate loader messages while the plan is being generated (the action runs).
   useEffect(() => {
-    if (!building) {
+    if (!(submitting && !ad?.ok)) return;
+    const id = setInterval(() => setLoadMsg((m) => m + 1), 1100);
+    return () => clearInterval(id);
+  }, [submitting, ad?.ok]);
+
+  // Once the plan returns, reveal its opportunity cards one at a time.
+  useEffect(() => {
+    if (!ad?.ok) {
       setReveal(0);
       return;
     }
-    if (reveal >= buildCards.length) return;
+    if (reveal >= planLeaks.length) return;
     const t = setTimeout(() => setReveal((r) => r + 1), 680);
     return () => clearTimeout(t);
-  }, [building, reveal, buildCards.length]);
+  }, [ad?.ok, reveal, planLeaks.length]);
 
   const next = () => setStep((s) => s + 1);
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -263,8 +293,8 @@ export default function Onboarding() {
     setStep(1);
   };
 
-  const ready = !!ad?.ok && reveal >= buildCards.length;
-  const runningTotal = buildCards.slice(0, reveal).reduce((s, l) => s + l.impactUsd, 0);
+  const ready = !!ad?.ok && reveal >= planLeaks.length;
+  const runningTotal = planLeaks.slice(0, reveal).reduce((s, l) => s + l.impactUsd, 0);
   const finalAnnual = useCountUp(ad?.annualUsd ?? 0, ready);
   const leakTotal = leaks.reduce((s, l) => s + l.impactUsd, 0);
 
@@ -273,12 +303,18 @@ export default function Onboarding() {
     return (
       <div className="sh-ob">
         <div className="sh-ob-card sh-ob-build">
-          {!ready ? (
+          {!ad?.ok ? (
+            <div className="sh-ob-build-loading">
+              <div className="sh-spinner sh-ob-build-spinner" />
+              <h2>Building your growth plan</h2>
+              <p className="sh-ob-sub">{RADAR_MSGS[loadMsg % RADAR_MSGS.length]}</p>
+            </div>
+          ) : !ready ? (
             <>
               <h2>Building your growth plan</h2>
-              <p className="sh-ob-sub">Scanning every corner of your store for opportunities…</p>
+              <p className="sh-ob-sub">Prioritizing the opportunities we found for your store…</p>
               <div className="sh-ob-build-list">
-                {buildCards.slice(0, reveal).map((l, i) => (
+                {planLeaks.slice(0, reveal).map((l, i) => (
                   <div key={i} className="sh-ob-build-card">
                     <div>
                       <div className="sh-ob-build-kicker">Opportunity found</div>
@@ -292,7 +328,7 @@ export default function Onboarding() {
                 <span>Revenue opportunity found</span>
                 <strong>{money(runningTotal)}</strong>
               </div>
-              {reveal >= buildCards.length && <div className="sh-ob-build-fin"><span className="sh-dot" /> Finalizing your plan…</div>}
+              {reveal >= planLeaks.length && <div className="sh-ob-build-fin"><span className="sh-dot" /> Finalizing your plan…</div>}
             </>
           ) : (
             <div className="sh-ob-ready">

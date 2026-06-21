@@ -320,12 +320,19 @@ export interface AutofillResult {
 
 const nice = (n: number): number => Math.max(0, Math.round(n / 100) * 100);
 
-/** Rough annual revenue baseline from catalog signals (no order data needed). */
+/**
+ * Conservative annual-revenue baseline from catalog signals only (we have no
+ * order-read scope). Deliberately cautious: a new or small store likely has
+ * little to no sales, so we assume a modest order volume that scales gently with
+ * catalog size and cap the result — we'd rather under-promise than show a brand
+ * new store a fabricated six-figure number. When the merchant states their real
+ * revenue, that value is used instead (see finalizePlan / the action).
+ */
 function baselineAnnual(snap: StoreSnapshot, signals: CatalogSignals): number {
   const avg = signals.priceMedian ?? 40;
   const pc = snap.productCount ?? signals.sampleTitles.length ?? 10;
-  const ordersMo = pc >= 500 ? 900 : pc >= 100 ? 380 : pc >= 20 ? 150 : 60;
-  return ordersMo * (avg * 1.3) * 12;
+  const ordersMo = pc >= 500 ? 200 : pc >= 100 ? 80 : pc >= 20 ? 25 : 8;
+  return Math.min(ordersMo * avg * 12, 500_000);
 }
 
 /** "Here's what we already learned" — real facts + reasonable inferences. */
