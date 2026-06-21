@@ -6,7 +6,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { authenticate } from "../shopify.server";
-import { ensureReady } from "../lib/bootstrap.server";
+import { ensureReady, isReady, startBootstrap, bootstrapState } from "../lib/bootstrap.server";
 import { getActivePlan } from "../lib/billing.server";
 import { workspaceDir } from "../lib/workspace.server";
 import { getShopProfile, parseRecommendations, revenueFromBucket, type Recommendation } from "../lib/onboarding.server";
@@ -151,20 +151,34 @@ export async function loader({ request }: LoaderFunctionArgs) {
     plan: await getPlan(session.shop).catch(() => null),
   };
 
-  // Theme setup (duplicating the live theme into our working copy) can fail —
-  // most often because Shopify requires a theme-write exemption / a custom-app
-  // token (DRIFT_THEME_TOKEN). Degrade gracefully instead of bricking the whole
-  // dashboard with a blank "Application Error".
+  // Theme setup duplicates the whole live theme into our working copy — slow on
+  // first run (Shopify rate-limits asset reads). Run it in the BACKGROUND and show
+  // a "getting ready" screen that polls, so we never hold the request long enough
+  // to trip an embedded-app timeout. It can also fail (e.g. Shopify requires a
+  // theme-write exemption / custom-app token) — in that case show the access gate.
+  const ctx = { shop: session.shop, accessToken: session.accessToken! };
+  const errState = bootstrapState(session.shop);
+  if (errState?.status === "error") {
+    const msg = errState.error ?? "";
+    const kind = /themeFilesUpsert|write_themes|exemption|Access denied|ACCESS_DENIED/i.test(msg) ? "access" : "setup";
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false };
+  }
+
+  if (!(await isReady(session.shop))) {
+    startBootstrap(ctx);
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: null as null | string, preparing: true };
+  }
+
+  // Ready (or self-heals quickly) — load the editor.
   try {
-    const ctx = { shop: session.shop, accessToken: session.accessToken! };
     const { themeId } = await ensureReady(ctx);
     const previews = await buildPreviews(admin, session.shop, themeId);
-    return { ...base, themeId, previews, themeError: null as null | string };
+    return { ...base, themeId, previews, themeError: null as null | string, preparing: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[app] theme setup failed — serving dashboard in limited mode:", msg);
     const kind = /themeFilesUpsert|write_themes|exemption|Access denied|ACCESS_DENIED/i.test(msg) ? "access" : "setup";
-    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind };
+    return { ...base, themeId: 0, previews: [] as PreviewGroup[], themeError: kind, preparing: false };
   }
 }
 
@@ -184,6 +198,15 @@ interface ApplyData { applied: number; message?: string }
 const MARKUP = 3;
 
 const money = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+
+// Shown on the first-run "getting ready" screen while the theme copies in the bg.
+const PREP_MSGS = [
+  "Connecting to your store…",
+  "Making a safe working copy of your theme…",
+  "Copying your theme files…",
+  "Setting up version history so every change is reversible…",
+  "Almost there…",
+];
 
 // Guided walkthrough — welcome popup, then spotlight coach-marks.
 const TOUR_STEPS: TourStep[] = [
@@ -531,7 +554,17 @@ const ISSUES: Issue[] = [
 const impactClass = (i: string) => (i === "high" ? "sh-impact-high" : i === "med" ? "sh-impact-med" : "sh-impact-low");
 
 export default function Index() {
-  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError } = useLoaderData<typeof loader>();
+  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing } = useLoaderData<typeof loader>();
+
+  // First-run theme setup runs in the background — poll until it's ready and
+  // rotate reassuring messages so the wait feels intentional, not stuck.
+  const [prepMsg, setPrepMsg] = useState(0);
+  useEffect(() => {
+    if (!preparing) return;
+    const reload = setTimeout(() => window.location.reload(), 4500);
+    const rotate = setInterval(() => setPrepMsg((m) => m + 1), 1600);
+    return () => { clearTimeout(reload); clearInterval(rotate); };
+  }, [preparing]);
   const planFetcher = useFetcher<{ plan: PlanData | null; error?: string }>();
   const [plan, setPlan] = useState<PlanData | null>((initialPlan as PlanData | null) ?? null);
   const [planReview, setPlanReview] = useState(false);
@@ -1438,6 +1471,26 @@ export default function Index() {
       setThinking(false);
       setLive({ text: "", tools: [] });
     }
+  }
+
+  // First-run theme setup is still copying in the background — friendly loader.
+  if (preparing) {
+    return (
+      <div className="sh-shell">
+        <div className="sh-prep">
+          <div className="sh-prep-card">
+            <div className="sh-spinner sh-prep-spinner" />
+            <h1>Getting your store ready…</h1>
+            <p className="sh-prep-msg">{PREP_MSGS[prepMsg % PREP_MSGS.length]}</p>
+            <p className="sh-prep-sub">
+              We're making a safe working copy of your theme so ShopHero can build and preview
+              changes without ever touching your live store. This one-time setup takes about a minute.
+            </p>
+            <div className="sh-prep-hint">You can keep this open — it continues automatically.</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Theme setup failed (e.g. Shopify theme-write exemption / custom-app token

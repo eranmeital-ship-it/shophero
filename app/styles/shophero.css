@@ -756,6 +756,15 @@
 .sh-ob-perm { font-size: 13px; font-weight: 580; color: var(--sh-ink); padding: 8px 13px; border-radius: 11px; background: linear-gradient(180deg, #fff, #f1faf3); border: 1px solid var(--sh-line); box-shadow: var(--sh-shadow-sm); }
 
 /* Building screen */
+/* First-run "getting ready" loader while the theme copies in the background */
+.sh-prep { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 40px 20px; width: 100%; }
+.sh-prep-card { max-width: 480px; text-align: center; background: #fff; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 18px; padding: 40px 34px; box-shadow: var(--sh-shadow-sm, 0 8px 30px rgba(0,0,0,0.06)); }
+.sh-prep-spinner { width: 46px; height: 46px; border-width: 4px; margin: 0 auto 20px; }
+.sh-prep-card h1 { font-size: 22px; font-weight: 850; margin: 0 0 10px; }
+.sh-prep-msg { font-size: 15px; font-weight: 700; color: var(--sh-accent, #0a84ff); margin: 0 0 14px; min-height: 20px; transition: opacity 0.3s; }
+.sh-prep-sub { font-size: 13.5px; line-height: 1.6; color: var(--sh-ink-soft, #5a6472); margin: 0 0 16px; }
+.sh-prep-hint { font-size: 12.5px; color: var(--sh-ink-faint, #98a1ad); }
+
 /* Theme-access gate — friendly fallback when theme writes are blocked */
 .sh-theme-gate { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 40px 20px; width: 100%; }
 .sh-theme-gate-card { max-width: 560px; background: #fff; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 18px; padding: 34px 32px; box-shadow: var(--sh-shadow-sm, 0 8px 30px rgba(0,0,0,0.06)); }
