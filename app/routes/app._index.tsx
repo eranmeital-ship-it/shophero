@@ -1455,7 +1455,7 @@ export default function Index() {
                       <strong>{d.title}</strong>
                       <button className="sh-linkbtn" onClick={() => toggleSkip(d.id)}>{skipped ? "Include" : "Skip"}</button>
                     </div>
-                    <div className="sh-draft-after" dangerouslySetInnerHTML={{ __html: d.after }} />
+                    <div className="sh-draft-after" dangerouslySetInnerHTML={{ __html: d.after.replace(/```+\s*html/gi, "").replace(/```+/g, "").trim() }} />
                   </div>
                 );
               })}

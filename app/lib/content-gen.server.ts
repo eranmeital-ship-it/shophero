@@ -28,16 +28,16 @@ const DESC_SYSTEM = `You are an expert Shopify product copywriter. Write a produ
 
 Rules:
 - Benefit-led, concrete, skimmable. Match the brand voice if one is provided.
-- Output ONLY the HTML — no markdown, no <h*> tags, no preamble or sign-off.
+- Output ONLY raw HTML — NO markdown, NO code fences or backticks (never write \`\`\` or \`\`\`html), no <h*> tags, no preamble or sign-off.
 - NEVER invent statistics, review counts, or claims. If you don't have a real number, use a qualitative trust line instead (e.g. "Loved by our customers").`;
 
 function stripHtml(s: string | null | undefined): string {
   return (s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-/** Strip a markdown code fence the model sometimes wraps the HTML in. */
+/** Remove any markdown code fences the model adds (anywhere, not just the ends). */
 function cleanHtml(s: string): string {
-  return s.trim().replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  return s.replace(/```+\s*html/gi, "").replace(/```+/g, "").trim();
 }
 
 async function adminGql<T>(admin: AdminApiContext, query: string, variables?: Record<string, unknown>): Promise<T | null> {
@@ -122,7 +122,7 @@ export async function applyDescriptions(
     const data = await adminGql<{ productUpdate?: { userErrors?: { message: string }[] } }>(
       admin,
       `mutation($input: ProductInput!){ productUpdate(input:$input){ product{ id } userErrors{ message } } }`,
-      { input: { id: d.id, descriptionHtml: d.after } },
+      { input: { id: d.id, descriptionHtml: cleanHtml(d.after) } },
     );
     if (data?.productUpdate && !(data.productUpdate.userErrors?.length)) applied++;
     else failed++;
