@@ -30,14 +30,18 @@ function startTier(prompt: string): string {
 }
 
 /**
- * Escalation ladder for a prompt: [start, …stronger tiers]. The agent loop tries
- * each in order, moving up only when the previous model errors/stalls. Duplicate
- * tiers (when env vars collapse them to the same model) are removed.
+ * Escalation ladder for a prompt. The agent loop tries each model in order,
+ * moving up only when the previous one errors/stalls — but each escalation
+ * RE-RUNS the whole task from scratch, so the ladder is a cost multiplier. To
+ * keep costs sane we CAP it:
+ *  - routine edits (start = cheap): cheap → smart only (never the priciest tier),
+ *  - complex/creative tasks (start = smart): smart → max.
+ * So the priciest tier is reserved for work that genuinely starts there, instead
+ * of a routine edit quietly climbing to it on a couple of stumbles. Duplicate
+ * tiers (when env vars collapse them) are removed.
  */
 export function modelChain(prompt: string): string[] {
-  const ladder = [TIERS.cheap, TIERS.smart, TIERS.max];
   const start = startTier(prompt);
-  const from = ladder.indexOf(start);
-  const chain = from === -1 ? [start] : ladder.slice(from);
+  const chain = start === TIERS.cheap ? [TIERS.cheap, TIERS.smart] : [TIERS.smart, TIERS.max];
   return [...new Set(chain)];
 }
