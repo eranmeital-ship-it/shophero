@@ -102,6 +102,16 @@ export async function action({ request }: ActionFunctionArgs) {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
       send({ type: "start" }); // flush headers immediately
+      // Heartbeat: keep the connection alive during silent "thinking" stretches
+      // (no tool/text events) so the proxy doesn't idle-timeout into a 502/524.
+      // The client ignores unknown event types, so "ping" is a safe no-op.
+      const heartbeat = setInterval(() => {
+        try {
+          send({ type: "ping" });
+        } catch {
+          /* stream closed */
+        }
+      }, 15_000);
       try {
         const r = await runAgentTurn({
           cwd: dir,
@@ -170,6 +180,7 @@ export async function action({ request }: ActionFunctionArgs) {
           .catch(() => {});
         send({ type: "error", error: message });
       } finally {
+        clearInterval(heartbeat);
         controller.close();
       }
     },
