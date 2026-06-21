@@ -186,7 +186,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 interface Deliverable { type: string; title?: string; adminUrl: string; storeUrl?: string }
-interface ContentDraft { id: string; title: string; before: string; after: string; seoTitle?: string; metaDescription?: string; beforeTitle?: string; beforeMeta?: string }
+interface ContentDraft { id: string; title: string; before: string; after: string; seoTitle?: string; metaDescription?: string; beforeTitle?: string; beforeMeta?: string; mediaIds?: string[] }
 interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string; deliverables?: Deliverable[] }
 interface Billing { consumed: number; included: number; balanceUsed: number; cap: number; covered: number; needsCapRaise: boolean }
 interface Version { sha: string; date: string; label: string; files: number }
@@ -265,6 +265,7 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "📈", label: "Boost Conversions", genius: true, taskId: "cro-boost" },
   { emoji: "🛡️", label: "Trust Builder", taskId: "trust-builder" },
   { emoji: "✍️", label: "Rewrite Descriptions", taskId: "bulk-descriptions" },
+  { emoji: "🖼️", label: "Alt Text", taskId: "alt-text" },
   { emoji: "📱", label: "Mobile Optimize", taskId: "mobile-opt" },
   { emoji: "⚡", label: "Speed Boost", taskId: "speed-boost" },
   { emoji: "🏷️", label: "Launch Campaign", taskId: "launch-campaign" },
@@ -283,6 +284,7 @@ const TASK_ESTIMATE: Record<string, { usd: number; secs: number }> = {
   "cro-boost": { usd: 0.8, secs: 90 },
   "trust-builder": { usd: 0.45, secs: 50 },
   "bulk-descriptions": { usd: 0.6, secs: 70 },
+  "alt-text": { usd: 0.3, secs: 40 },
   "mobile-opt": { usd: 0.6, secs: 70 },
   "speed-boost": { usd: 0.5, secs: 60 },
   "launch-campaign": { usd: 0.7, secs: 90 },
@@ -365,6 +367,15 @@ const TASKS: Record<string, TaskConfig> = {
       const notes = sval(v.notes);
       return `Build a high-converting product page for the product "${p?.title}" (handle: ${p?.handle}). Read this product first, then call page_kit and cro_playbook and assemble these sections: ${sections}. Use on-brand copy from my Brand Kit.${notes ? ` Notes: ${notes}.` : ""} Reuse my theme's existing sections and color scheme, keep it fast, never invent reviews or claims, and stage everything for my approval. Summarize the sections you added.`;
     },
+  },
+  "alt-text": {
+    id: "alt-text",
+    emoji: "🖼️",
+    title: "Image Alt Text",
+    desc: "Descriptive alt text for product images — better SEO and accessibility.",
+    areas: ["SEO"],
+    fields: [],
+    build: () => "",
   },
   "seo-genius": {
     id: "seo-genius",
@@ -1126,7 +1137,11 @@ export default function Index() {
     if (!t) return;
     setContentDrafts(null);
     setContentSkip(new Set());
-    setDescWhich(id === "seo-genius" ? "Products with missing SEO" : "Products with thin/missing descriptions");
+    setDescWhich(
+      id === "seo-genius" ? "Products with missing SEO"
+      : id === "alt-text" ? "Products with images missing alt text"
+      : "Products with thin/missing descriptions",
+    );
     setDescNotes("");
     if (id === "store-manager") {
       const recs = report?.recommendations ?? [];
@@ -1156,7 +1171,8 @@ export default function Index() {
   const taskReady = () => !!activeTask && activeTask.fields.every((f) => !(f.type === "product" && f.required) || !!taskValues[f.key]);
   // ── Direct content generation (descriptions): fast, cheap, no agent loop ──
   const contentBusy = contentFetcher.state !== "idle";
-  const contentTaskType = (): "descriptions" | "seo" => (activeTask?.id === "seo-genius" ? "seo" : "descriptions");
+  const contentTaskType = (): "descriptions" | "seo" | "alt" =>
+    activeTask?.id === "seo-genius" ? "seo" : activeTask?.id === "alt-text" ? "alt" : "descriptions";
   function genContent() {
     setContentDrafts(null);
     setContentSkip(new Set());
@@ -1417,25 +1433,22 @@ export default function Index() {
     );
   }
 
-  function renderContentTask(mode: "descriptions" | "seo") {
+  function renderContentTask(mode: "descriptions" | "seo" | "alt") {
     const keepCount = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id)).length;
     const reviewing = !!contentDrafts;
     const isSeo = mode === "seo";
-    const noun = isSeo ? "SEO update" : "description";
-    const perItem = isSeo ? 0.02 : 0.04;
-    const whichOpts = isSeo
-      ? ["Products with missing SEO", "All products"]
-      : ["Products with thin/missing descriptions", "All products"];
+    const isAlt = mode === "alt";
+    const META = {
+      descriptions: { title: "✍️ Rewrite Product Descriptions", desc: "Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish.", noun: "description", perItem: 0.04, writing: "Writing descriptions…", empty: "No products needed rewriting — they already have solid descriptions. ✅", btn: "Write descriptions →", which: ["Products with thin/missing descriptions", "All products"], notesLabel: "Tone / must-include (optional)", notesPh: "e.g. emphasize craftsmanship, mention free shipping" },
+      seo: { title: "🔍 SEO Titles & Meta", desc: "Optimized SEO page titles + meta descriptions, written directly (no agent wait). Review before/after, then publish.", noun: "SEO update", perItem: 0.02, writing: "Writing SEO…", empty: "No products needed SEO — they're already optimized. ✅", btn: "Write SEO →", which: ["Products with missing SEO", "All products"], notesLabel: "Target keywords / notes (optional)", notesPh: "e.g. focus on 'beginner snowboards'" },
+      alt: { title: "🖼️ Image Alt Text", desc: "Descriptive alt text for product images (SEO + accessibility), written directly. Review, then apply.", noun: "image alt update", perItem: 0.02, writing: "Writing alt text…", empty: "All your product images already have alt text. ✅", btn: "Write alt text →", which: ["Products with images missing alt text", "All product images"], notesLabel: "Notes (optional)", notesPh: "e.g. include the color and material" },
+    }[mode];
     return (
       <div className="sh-task">
         <div className="sh-task-head">
           <div>
-            <div className="sh-task-title">{isSeo ? "🔍 SEO Titles & Meta" : "✍️ Rewrite Product Descriptions"}</div>
-            <div className="sh-task-desc">
-              {isSeo
-                ? "Optimized SEO page titles + meta descriptions, written directly (no agent wait). Review before/after, then publish."
-                : "Fast, on-brand descriptions written directly (no waiting on the agent). Review the before/after, then publish."}
-            </div>
+            <div className="sh-task-title">{META.title}</div>
+            <div className="sh-task-desc">{META.desc}</div>
           </div>
           <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
         </div>
@@ -1445,18 +1458,18 @@ export default function Index() {
             <>
               <label className="sh-label">Which products?</label>
               <select className="sh-ob-input" value={descWhich} onChange={(e) => setDescWhich(e.target.value)} disabled={contentBusy}>
-                {whichOpts.map((o) => <option key={o}>{o}</option>)}
+                {META.which.map((o) => <option key={o}>{o}</option>)}
               </select>
-              <label className="sh-label" style={{ marginTop: 12 }}>{isSeo ? "Target keywords / notes (optional)" : "Tone / must-include (optional)"}</label>
-              <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={descNotes} onChange={(e) => setDescNotes(e.target.value)} placeholder={isSeo ? "e.g. focus on 'beginner snowboards'" : "e.g. emphasize craftsmanship, mention free shipping"} disabled={contentBusy} />
+              <label className="sh-label" style={{ marginTop: 12 }}>{META.notesLabel}</label>
+              <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={descNotes} onChange={(e) => setDescNotes(e.target.value)} placeholder={META.notesPh} disabled={contentBusy} />
               {contentFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{contentFetcher.data.error}</div>}
-              {contentBusy && <div className="sh-opt-loading" style={{ marginTop: 14 }}><div className="sh-spinner" /> {isSeo ? "Writing SEO…" : "Writing descriptions…"} (a few seconds per product)</div>}
+              {contentBusy && <div className="sh-opt-loading" style={{ marginTop: 14 }}><div className="sh-spinner" /> {META.writing} (a few seconds per product)</div>}
             </>
           ) : contentDrafts!.length === 0 ? (
-            <div className="sh-opt-loading">{isSeo ? "No products needed SEO — they're already optimized. ✅" : "No products needed rewriting — they already have solid descriptions. ✅"}</div>
+            <div className="sh-opt-loading">{META.empty}</div>
           ) : (
             <div className="sh-draft-list">
-              <p className="sh-task-desc">Wrote {contentDrafts!.length} {noun}{contentDrafts!.length === 1 ? "" : "s"} · total cost <strong>~${(contentCost * MARKUP).toFixed(2)}</strong>. Untick any you don't want, then publish (publishing is free).</p>
+              <p className="sh-task-desc">Wrote {contentDrafts!.length} {META.noun}{contentDrafts!.length === 1 ? "" : "s"} · total cost <strong>~${(contentCost * MARKUP).toFixed(2)}</strong>. Untick any you don't want, then publish (publishing is free).</p>
               {contentDrafts!.map((d) => {
                 const skipped = contentSkip.has(d.id);
                 return (
@@ -1469,6 +1482,11 @@ export default function Index() {
                       <div className="sh-draft-after">
                         <div className="sh-seo-row"><span className="sh-seo-k">Title</span> {d.seoTitle}</div>
                         <div className="sh-seo-row"><span className="sh-seo-k">Meta</span> {d.metaDescription}</div>
+                      </div>
+                    ) : isAlt ? (
+                      <div className="sh-draft-after">
+                        <div className="sh-seo-row"><span className="sh-seo-k">Alt</span> {d.after}</div>
+                        <div className="sh-seo-row"><span className="sh-seo-k">Images</span> {d.before}</div>
                       </div>
                     ) : (
                       <div className="sh-draft-after" dangerouslySetInnerHTML={{ __html: d.after.replace(/```+\s*html/gi, "").replace(/```+/g, "").trim() }} />
@@ -1483,19 +1501,19 @@ export default function Index() {
         {!reviewing ? (
           <>
             <div className="sh-task-est">
-              <span>Est. cost <strong>~${perItem.toFixed(2)} / product</strong> · a few seconds each</span>
+              <span>Est. cost <strong>~${META.perItem.toFixed(2)} / product</strong> · a few seconds each</span>
               <span className="sh-task-est-note">Direct generation — billed only for what's used. Live changes need your approval.</span>
             </div>
             <div className="sh-task-foot">
               <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
-              <button className="sh-btn sh-btn-primary" disabled={contentBusy} onClick={genContent}>{contentBusy ? "Writing…" : isSeo ? "Write SEO →" : "Write descriptions →"}</button>
+              <button className="sh-btn sh-btn-primary" disabled={contentBusy} onClick={genContent}>{contentBusy ? "Writing…" : META.btn}</button>
             </div>
           </>
         ) : (
           <div className="sh-task-foot">
             <button className="sh-btn sh-btn-ghost" onClick={() => { setContentDrafts(null); setContentSkip(new Set()); }}>Back</button>
             <button className="sh-btn sh-btn-primary" disabled={contentBusy || keepCount === 0} onClick={applyDrafts}>
-              {contentBusy ? "Publishing…" : `Publish ${keepCount} ${noun}${keepCount === 1 ? "" : "s"} →`}
+              {contentBusy ? "Publishing…" : `Publish ${keepCount} ${META.noun}${keepCount === 1 ? "" : "s"} →`}
             </button>
           </div>
         )}
@@ -1509,6 +1527,7 @@ export default function Index() {
     if (activeTask.id === "content-plan") return renderContentPlanSetup();
     if (activeTask.id === "bulk-descriptions") return renderContentTask("descriptions");
     if (activeTask.id === "seo-genius") return renderContentTask("seo");
+    if (activeTask.id === "alt-text") return renderContentTask("alt");
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();

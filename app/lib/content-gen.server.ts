@@ -19,6 +19,8 @@ export interface ContentDraft {
   metaDescription?: string;
   beforeTitle?: string;
   beforeMeta?: string;
+  // Alt-text task fields:
+  mediaIds?: string[]; // product image media ids to set the alt on
 }
 
 const MAX_ITEMS = 20; // interactive cap; bulk-everything routes to scheduled jobs
@@ -196,6 +198,77 @@ export async function applySeo(
     );
     if (data?.productUpdate && !(data.productUpdate.userErrors?.length)) applied++;
     else failed++;
+  }
+  return { applied, failed };
+}
+
+const ALT_SYSTEM = `You write concise, descriptive image alt text for SEO and accessibility. Given a product, write ONE natural alt-text phrase (max 120 characters) describing the product image — include the product type and a key visual or feature. Output ONLY the phrase: no quotes, no "image of", no markdown.`;
+
+type MediaRow = { id: string; alt?: string | null };
+type ProductMedia = { id: string; title: string; descriptionHtml?: string; media?: { nodes?: MediaRow[] } };
+
+/** Generate alt text for product images that are missing it (direct cheap calls). */
+export async function generateAlt(
+  admin: AdminApiContext,
+  shop: string,
+  opts: GenerateOpts,
+): Promise<{ drafts: ContentDraft[]; costUsd: number; total: number }> {
+  const brand = await buildBrandContext(shop).catch(() => "");
+  const MEDIA = `id title descriptionHtml media(first:20){ nodes { ... on MediaImage { id alt } } }`;
+  let all: ProductMedia[];
+  if (opts.which === "A specific product" && opts.productId) {
+    const d = await adminGql<{ product?: ProductMedia }>(admin, `query($id:ID!){ product(id:$id){ ${MEDIA} } }`, { id: opts.productId });
+    all = d?.product ? [d.product] : [];
+  } else {
+    const d = await adminGql<{ products?: { nodes?: ProductMedia[] } }>(admin, `{ products(first:50, sortKey:UPDATED_AT, reverse:true){ nodes { ${MEDIA} } } }`);
+    all = d?.products?.nodes ?? [];
+  }
+
+  // Products with at least one image; "missing" mode keeps only images lacking alt.
+  const onlyMissing = opts.which !== "All product images";
+  const candidates = all
+    .map((p) => {
+      const imgs = (p.media?.nodes ?? []).filter((m) => m && m.id);
+      const targetIds = (onlyMissing ? imgs.filter((m) => !m.alt?.trim()) : imgs).map((m) => m.id);
+      return { p, targetIds };
+    })
+    .filter((c) => c.targetIds.length > 0);
+
+  const targets = candidates.slice(0, MAX_ITEMS);
+  const drafts: ContentDraft[] = [];
+  let costUsd = 0;
+  for (const { p, targetIds } of targets) {
+    const user = [`Product: ${p.title}`, `Description: ${stripHtml(p.descriptionHtml).slice(0, 300) || "(none)"}`, opts.notes ? `Notes: ${opts.notes}` : "", "", "Write the alt text now."].filter(Boolean).join("\n");
+    try {
+      const res = await complete({ system: ALT_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 120, tier: "cheap" });
+      costUsd += res.costUsd;
+      const alt = cleanHtml(res.text).replace(/^["']|["']$/g, "").slice(0, 120);
+      if (!alt) continue;
+      drafts.push({ id: p.id, title: p.title, before: `${targetIds.length} image${targetIds.length === 1 ? "" : "s"}`, after: alt, mediaIds: targetIds });
+    } catch {
+      /* skip */
+    }
+  }
+  return { drafts, costUsd, total: candidates.length };
+}
+
+/** Write approved alt text to product images via the Admin API. */
+export async function applyAlt(
+  admin: AdminApiContext,
+  drafts: { mediaIds?: string[]; after: string }[],
+): Promise<{ applied: number; failed: number }> {
+  let applied = 0;
+  let failed = 0;
+  for (const d of drafts) {
+    const files = (d.mediaIds ?? []).map((id) => ({ id, alt: d.after }));
+    if (!files.length) continue;
+    const data = await adminGql<{ fileUpdate?: { userErrors?: { message: string }[] } }>(
+      admin,
+      `mutation($files:[FileUpdateInput!]!){ fileUpdate(files:$files){ files{ id } userErrors{ message } } }`,
+      { files },
+    );
+    if (data?.fileUpdate && !(data.fileUpdate.userErrors?.length)) applied += files.length;
+    else failed += files.length;
   }
   return { applied, failed };
 }

@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
-import { generateDescriptions, applyDescriptions, generateSeo, applySeo, type ContentDraft } from "../lib/content-gen.server";
+import { generateDescriptions, applyDescriptions, generateSeo, applySeo, generateAlt, applyAlt, type ContentDraft } from "../lib/content-gen.server";
 
 /**
  * Direct content generation/apply — bypasses the agent loop for commodity content
@@ -15,19 +15,20 @@ export async function action({ request }: ActionFunctionArgs) {
   const op = String(form.get("op") ?? "");
   const task = String(form.get("task") ?? "descriptions");
 
-  if (task !== "descriptions" && task !== "seo") {
+  if (task !== "descriptions" && task !== "seo" && task !== "alt") {
     return Response.json({ error: "Unsupported content task" }, { status: 400 });
   }
 
   if (op === "generate") {
     const genOpts = {
-      which: String(form.get("which") ?? (task === "seo" ? "Products with missing SEO" : "Products with thin/missing descriptions")),
+      which: String(form.get("which") ?? ""),
       productId: String(form.get("productId") ?? "") || undefined,
       tone: String(form.get("tone") ?? "") || undefined,
       notes: String(form.get("notes") ?? "") || undefined,
     };
-    const { drafts, costUsd, total } = task === "seo"
-      ? await generateSeo(admin, session.shop, genOpts)
+    const { drafts, costUsd, total } =
+      task === "seo" ? await generateSeo(admin, session.shop, genOpts)
+      : task === "alt" ? await generateAlt(admin, session.shop, genOpts)
       : await generateDescriptions(admin, session.shop, genOpts);
     // Meter the generation cost (billed 3x on managed) for the Usage view.
     const plan = await getActivePlan(admin).catch(() => null);
@@ -47,11 +48,13 @@ export async function action({ request }: ActionFunctionArgs) {
       return Response.json({ error: "Invalid drafts" }, { status: 400 });
     }
     if (!drafts.length) return Response.json({ applied: 0, failed: 0 });
-    const res = task === "seo"
-      ? await applySeo(admin, drafts.map((d) => ({ id: d.id, seoTitle: d.seoTitle, metaDescription: d.metaDescription })))
+    const res =
+      task === "seo" ? await applySeo(admin, drafts.map((d) => ({ id: d.id, seoTitle: d.seoTitle, metaDescription: d.metaDescription })))
+      : task === "alt" ? await applyAlt(admin, drafts.map((d) => ({ mediaIds: d.mediaIds, after: d.after })))
       : await applyDescriptions(admin, drafts.map((d) => ({ id: d.id, after: d.after })));
+    const label = task === "seo" ? "product SEO update(s)" : task === "alt" ? "image alt text update(s)" : "product description(s)";
     await db.appEvent
-      .create({ data: { shop: session.shop, level: "info", type: "content", message: `Applied ${res.applied} ${task === "seo" ? "product SEO update(s)" : "product description(s)"}` } })
+      .create({ data: { shop: session.shop, level: "info", type: "content", message: `Applied ${res.applied} ${label}` } })
       .catch(() => {});
     return Response.json(res);
   }
