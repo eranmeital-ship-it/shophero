@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
-import { generateDescriptions, applyDescriptions, type ContentDraft } from "../lib/content-gen.server";
+import { generateDescriptions, applyDescriptions, generateSeo, applySeo, type ContentDraft } from "../lib/content-gen.server";
 
 /**
  * Direct content generation/apply — bypasses the agent loop for commodity content
@@ -15,17 +15,20 @@ export async function action({ request }: ActionFunctionArgs) {
   const op = String(form.get("op") ?? "");
   const task = String(form.get("task") ?? "descriptions");
 
-  if (task !== "descriptions") {
+  if (task !== "descriptions" && task !== "seo") {
     return Response.json({ error: "Unsupported content task" }, { status: 400 });
   }
 
   if (op === "generate") {
-    const { drafts, costUsd, total } = await generateDescriptions(admin, session.shop, {
-      which: String(form.get("which") ?? "Products with thin/missing descriptions"),
+    const genOpts = {
+      which: String(form.get("which") ?? (task === "seo" ? "Products with missing SEO" : "Products with thin/missing descriptions")),
       productId: String(form.get("productId") ?? "") || undefined,
       tone: String(form.get("tone") ?? "") || undefined,
       notes: String(form.get("notes") ?? "") || undefined,
-    });
+    };
+    const { drafts, costUsd, total } = task === "seo"
+      ? await generateSeo(admin, session.shop, genOpts)
+      : await generateDescriptions(admin, session.shop, genOpts);
     // Meter the generation cost (billed 3x on managed) for the Usage view.
     const plan = await getActivePlan(admin).catch(() => null);
     if (costUsd > 0) {
@@ -37,16 +40,18 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (op === "apply") {
-    let drafts: { id: string; after: string }[] = [];
+    let drafts: ContentDraft[] = [];
     try {
-      drafts = (JSON.parse(String(form.get("drafts") ?? "[]")) as ContentDraft[]).map((d) => ({ id: d.id, after: d.after }));
+      drafts = JSON.parse(String(form.get("drafts") ?? "[]")) as ContentDraft[];
     } catch {
       return Response.json({ error: "Invalid drafts" }, { status: 400 });
     }
     if (!drafts.length) return Response.json({ applied: 0, failed: 0 });
-    const res = await applyDescriptions(admin, drafts);
+    const res = task === "seo"
+      ? await applySeo(admin, drafts.map((d) => ({ id: d.id, seoTitle: d.seoTitle, metaDescription: d.metaDescription })))
+      : await applyDescriptions(admin, drafts.map((d) => ({ id: d.id, after: d.after })));
     await db.appEvent
-      .create({ data: { shop: session.shop, level: "info", type: "content", message: `Applied ${res.applied} product description(s)` } })
+      .create({ data: { shop: session.shop, level: "info", type: "content", message: `Applied ${res.applied} ${task === "seo" ? "product SEO update(s)" : "product description(s)"}` } })
       .catch(() => {});
     return Response.json(res);
   }
