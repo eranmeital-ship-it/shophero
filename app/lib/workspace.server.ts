@@ -71,6 +71,13 @@ export async function changedFiles(dir: string): Promise<string[]> {
     .filter(Boolean);
 }
 
+/** Throw away all uncommitted (staged-but-not-applied) edits — the "Discard" action. */
+export async function discardChanges(dir: string): Promise<void> {
+  if (!(await isInitialized(dir))) return;
+  await git(dir, "checkout", "--", ".").catch(() => {}); // revert edits to tracked files
+  await git(dir, "clean", "-fd").catch(() => {}); // remove newly-created files
+}
+
 /** Unified diff of all pending changes vs the baseline (incl. new files). */
 export async function workspaceDiff(dir: string): Promise<string> {
   // intent-to-add marks new files so they appear in the diff; non-destructive.

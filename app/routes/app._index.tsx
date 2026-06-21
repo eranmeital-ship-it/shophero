@@ -7,7 +7,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { authenticate } from "../shopify.server";
 import { ensureReady, isReady, startBootstrap, bootstrapState } from "../lib/bootstrap.server";
-import { getActivePlan } from "../lib/billing.server";
+import { getActivePlan, getCycleUsage } from "../lib/billing.server";
 import { workspaceDir } from "../lib/workspace.server";
 import { getShopProfile, parseRecommendations, revenueFromBucket, type Recommendation } from "../lib/onboarding.server";
 import { getCachedReport } from "../lib/report.server";
@@ -142,6 +142,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     revenueAnnual = revenueFromBucket(d?.answers?.revenue);
   } catch { /* ignore */ }
 
+  const cycle = await getCycleUsage(admin, session.shop).catch(() => null);
   const base = {
     shop: session.shop,
     activePlan,
@@ -149,6 +150,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     report: await getCachedReport(session.shop).catch(() => null),
     revenueAnnual,
     plan: await getPlan(session.shop).catch(() => null),
+    usageThisCycle: cycle?.consumed ?? 0, // $ billed this cycle (persists across reloads)
   };
 
   // Theme setup duplicates the whole live theme into our working copy — slow on
@@ -222,6 +224,24 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 // Friendly labels + relative time for the version-history drawer.
+// Turn a raw agent tool event ("Read /data/.../settings_data.json") into a
+// friendly, human status ("Reading settings_data.json") for the live loader.
+function friendlyStep(t: string): string {
+  const m = t.match(/^(\w+)\s*(.*)$/);
+  const verb = (m?.[1] ?? "").toLowerCase();
+  const arg = (m?.[2] ?? "").trim();
+  const file = arg ? (arg.split("/").filter(Boolean).pop() ?? "") : "";
+  switch (verb) {
+    case "read": return file ? `Reading ${file}` : "Reading your theme";
+    case "write": return file ? `Writing ${file}` : "Writing changes";
+    case "edit": return file ? `Editing ${file}` : "Editing your theme";
+    case "bash": return "Running a task";
+    case "grep":
+    case "glob": return "Searching your theme";
+    default: return t;
+  }
+}
+
 function prettyLabel(s: string): string {
   if (/^rolled back/i.test(s)) return "Rolled back";
   if (/auto-saved/i.test(s)) return "Auto-saved (before rollback)";
@@ -555,7 +575,7 @@ const ISSUES: Issue[] = [
 const impactClass = (i: string) => (i === "high" ? "sh-impact-high" : i === "med" ? "sh-impact-med" : "sh-impact-low");
 
 export default function Index() {
-  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing, themeInfo } = useLoaderData<typeof loader>();
+  const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing, themeInfo, usageThisCycle } = useLoaderData<typeof loader>();
 
   // First-run theme setup runs in the background — poll until it's ready and
   // rotate reassuring messages so the wait feels intentional, not stuck.
@@ -589,6 +609,8 @@ export default function Index() {
   const [mode, setMode] = useState<"edit" | "optimize">("edit");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [pending, setPending] = useState<string[]>([]);
+  const [discarding, setDiscarding] = useState(false);
+  const [gateMsg, setGateMsg] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [frameKey, setFrameKey] = useState(0);
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
@@ -625,7 +647,9 @@ export default function Index() {
   const scroller = useRef<HTMLDivElement>(null);
 
   const applying = apply.state !== "idle";
+  // Cycle usage from the DB (persists across reloads) + this session's live spend.
   const sessionBilled = messages.reduce((s, m) => s + (m.cost ?? 0), 0) * MARKUP;
+  const usageDisplay = (usageThisCycle ?? 0) + sessionBilled;
   // Real site-speed comes from the live PageSpeed audit (the report layer can't measure it).
   const speedFromAudit = audit.status === "done" ? audit.scores.find((s) => s.label === "Speed") : undefined;
   const liveScores = report?.scores?.length
@@ -730,9 +754,35 @@ export default function Index() {
     scroller.current?.scrollTo(0, scroller.current.scrollHeight);
   }, [messages, thinking, live]);
 
+  // Gate: a staged change must be accepted or discarded before starting another.
+  function blockedByChange(): boolean {
+    if (pending.length > 0) {
+      setGateMsg("Please accept or discard the staged change before starting a new one.");
+      return true;
+    }
+    return false;
+  }
+  // Clear the gate notice once the staged change is resolved.
+  useEffect(() => { if (pending.length === 0) setGateMsg(null); }, [pending]);
+
+  async function discardStaged() {
+    setDiscarding(true);
+    try {
+      await fetch("/api/discard", { method: "post" });
+      setPending([]);
+      setGateMsg(null);
+      setMessages((m) => [...m, { role: "assistant", text: "↩︎ Change discarded — nothing was applied to your theme." }]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't discard the change. Please try again." }]);
+    } finally {
+      setDiscarding(false);
+    }
+  }
+
   function send() {
     const text = input.trim();
     if (!text || thinking || refining) return;
+    if (blockedByChange()) return;
     setInput("");
     // Answering an open clarification → combine and run, no second triage.
     if (clarify) {
@@ -770,6 +820,7 @@ export default function Index() {
   }
   function pickClarify(option: string) {
     if (!clarify || thinking) return;
+    if (blockedByChange()) return;
     const combined = `${clarify.original} — ${option}`;
     setClarify(null);
     void runChat(combined, false);
@@ -782,6 +833,7 @@ export default function Index() {
 
   // From an Optimize-checklist card → jump to Edit and run the fix.
   function fixIssue(prompt: string) {
+    if (blockedByChange()) return;
     setMode("edit");
     if (!thinking) void runChat(prompt, false);
   }
@@ -1026,6 +1078,7 @@ export default function Index() {
 
   // ── Task launcher ──────────────────────────────────────────────────────────
   function openTask(id: string) {
+    if (blockedByChange()) return;
     const t = TASKS[id];
     if (!t) return;
     if (id === "store-manager") {
@@ -1056,6 +1109,7 @@ export default function Index() {
   const taskReady = () => !!activeTask && activeTask.fields.every((f) => !(f.type === "product" && f.required) || !!taskValues[f.key]);
   function runTask() {
     if (!activeTask || !taskReady() || thinking) return;
+    if (blockedByChange()) return;
     let prompt = activeTask.build(taskValues);
     // Ground every task in the store's real, already-scanned facts so the agent
     // targets actual issues (and the brand kit/memory ride along via the system
@@ -1085,6 +1139,7 @@ export default function Index() {
     const recs = report?.recommendations ?? [];
     const idxs = recs.map((_, i) => i).filter((i) => selectedRecs.has(i));
     if (!idxs.length || thinking) return;
+    if (blockedByChange()) return;
     setMode("edit");
     batchActiveRef.current = true;
     setBatch({ running: true, total: idxs.length, currentOrig: idxs[0], doneIds: [] });
@@ -1547,7 +1602,7 @@ export default function Index() {
             <div className="sh-header-right" data-tour="header">
               <div className="sh-hr-stack">
                 <span className="sh-pill sh-pill-sm" title="AI usage this session — drawn from your monthly allowance ($15 included, then $50 auto top-ups)">
-                  Usage <strong>${sessionBilled.toFixed(2)}</strong>
+                  Usage <strong>${usageDisplay.toFixed(2)}</strong>
                 </span>
                 <span className="sh-pill sh-pill-sm">{activePlan === "managed" ? "Managed AI" : "BYOK"}</span>
               </div>
@@ -1648,7 +1703,7 @@ export default function Index() {
                   <div>{m.text}</div>
                   {(m.tools?.length || m.cost != null || m.model) && (
                     <div className="sh-meta">
-                      {m.tools && m.tools.length > 0 && <span className="sh-tools">{m.tools.join("  ·  ")}</span>}
+                      {m.tools && m.tools.length > 0 && <span className="sh-tools">{m.tools.map(friendlyStep).join("  ·  ")}</span>}
                       {(m.cost != null || m.model) && (
                         <span className="sh-cost">
                           {m.model ? `${m.model.replace("claude-", "")} · ` : ""}
@@ -1664,16 +1719,15 @@ export default function Index() {
                 <div className="sh-loader">
                   <div className="sh-loader-bar" />
                   <div className="sh-loader-text">
-                    <span className="sh-dot" /> {live.tools.length || live.text ? "Working…" : "Thinking…"}
+                    <span className="sh-dot" /> {live.tools.length || live.text ? "Working on your store…" : "Thinking…"}
                   </div>
                   {live.tools.length > 0 && (
                     <div className="sh-steps">
                       {live.tools.slice(-5).map((t, i) => (
-                        <div key={`${i}-${t}`} className="sh-step">↳ {t}</div>
+                        <div key={`${i}-${t}`} className="sh-step">↳ {friendlyStep(t)}</div>
                       ))}
                     </div>
                   )}
-                  {live.text && <div className="sh-think">{live.text.slice(-240)}</div>}
                 </div>
               )}
             </div>
@@ -1715,7 +1769,7 @@ export default function Index() {
             {pending.length > 0 && (
               <div className="sh-bar sh-bar-apply">
                 <span className="sh-bar-label">
-                  <strong>{pending.length}</strong> theme file(s) staged
+                  <strong>{pending.length}</strong> change(s) staged — accept or discard to continue
                 </span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
@@ -1723,18 +1777,27 @@ export default function Index() {
                     style={{ background: "linear-gradient(180deg,#fff,#eef1f5)", color: "var(--sh-ink)" }}
                     onClick={openDiff}
                   >
-                    View changes
+                    View
+                  </button>
+                  <button
+                    className="sh-btn sh-btn-discard"
+                    disabled={applying || discarding}
+                    onClick={discardStaged}
+                  >
+                    {discarding ? "Discarding…" : "Discard"}
                   </button>
                   <button
                     className="sh-btn sh-btn-primary"
-                    disabled={applying}
+                    disabled={applying || discarding}
                     onClick={applyChanges}
                   >
-                    {applying ? "Applying…" : "Apply to dev theme"}
+                    {applying ? "Accepting…" : "Accept change"}
                   </button>
                 </div>
               </div>
             )}
+
+            {gateMsg && <div className="sh-gate-msg">⚠️ {gateMsg}</div>}
 
             {refining && (
               <div className="sh-refining"><span className="sh-dot" /> Refining your request…</div>
