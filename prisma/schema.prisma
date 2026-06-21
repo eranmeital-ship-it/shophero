@@ -9,8 +9,9 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Supabase pooler (port 6543, pgbouncer) — runtime
+  directUrl = env("DIRECT_URL")   // Supabase direct (port 5432) — migrations
 }
 
 model Session {
@@ -31,4 +32,130 @@ model Session {
   emailVerified Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
+  plan            String?
+  anthropicApiKey String?
+}
+
+// One row per agent turn — powers usage, cost, and revenue reporting.
+model UsageEvent {
+  id              String   @id @default(cuid())
+  shop            String
+  plan            String?
+  model           String?
+  kind            String?  // "chat" | "approve" | ...
+  costUsd         Float?   // raw API cost (what it cost us)
+  billedUsd       Float?   // what the merchant is charged (3x on managed)
+  inputTokens     Int?
+  outputTokens    Int?
+  cacheReadTokens Int?
+  createdAt       DateTime @default(now())
+
+  @@index([shop])
+  @@index([createdAt])
+}
+
+// Per-shop onboarding profile: goals, what they told us, and the personalized
+// recommendations the analysis produced. One row per shop (a shop can have
+// several Session rows, so this is keyed separately and kept clean).
+model ShopProfile {
+  shop            String    @id
+  onboardedAt     DateTime? // set when the wizard completes
+  dataConsentAt   DateTime? // when the merchant agreed to data access/analysis
+  goals           String?   // JSON string[] — selected growth goals
+  data            String?   // JSON { answers, snapshot } captured at onboarding
+  recommendations String?   // JSON Recommendation[] — personalized plan
+  brandKit        String?   // JSON BrandKit — colors, fonts, voice, dos/don'ts the agent respects
+  memory          String?   // JSON string[] — durable facts the agent remembers about this store
+  agentSessionId  String?   // last Claude Agent SDK session id, for resume across restarts
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Cached per-shop store report. Regenerated only when the store changes
+// (content hash) or on a throttled refresh — every session reads this instead
+// of calling the model live. The big cost saver.
+model StoreReport {
+  shop            String   @id
+  hash            String?  // content hash of the store inputs; skip AI regen if unchanged
+  scores          String?  // JSON Score[] — deterministic health scores
+  health          Int?     // overall Site-Health % (0–100)
+  breakdowns      String?  // JSON Record<area, {factor,points}[]> — how each score is computed
+  history         String?  // JSON {date, SEO, Content, Catalog, "AI Ready", health}[] — score over time
+  issues          String?  // JSON Issue[] — itemized audit ledger (severity, count, why, fix)
+  findings        String?  // JSON string[] — deterministic checks (no AI)
+  summary         String?  // short AI narrative
+  recommendations String?  // JSON Recommendation[] — cached AI plan
+  model           String?
+  costUsd         Float?
+  generatedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// A recurring content plan: ShopHero drafts the next best article on a cadence;
+// the merchant approves & publishes each day (no unattended publishing).
+model ContentPlan {
+  shop           String    @id
+  strategy       String?   // topic/strategy notes from setup
+  perDay         Int       @default(1)
+  days           Int       @default(30)
+  publishedCount Int       @default(0)
+  status         String    @default("active") // active | paused | done
+  // the current generated-but-unpublished draft (today's article)
+  draftTitle     String?
+  draftBody      String?   // HTML
+  draftMeta      String?
+  draftTopic     String?
+  draftDate      DateTime? // when the current draft was generated
+  startedAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Per-shop "brain bible": custom knowledge the merchant feeds a brain module.
+// Appended (highest priority) to that brain's base doc when the agent calls it.
+model BrainDoc {
+  id        String   @id @default(cuid())
+  shop      String
+  brain     String   // brain module name: cro | page | content | seo | email | ...
+  content   String
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, brain])
+}
+
+// A long-running, slow-release job spread over days (bulk product-page edits,
+// bulk descriptions, scheduled articles, etc.). A bulk ask that exceeds the
+// daily quota becomes one of these instead of running all at once. The runner
+// advances each active job by `perDay` items per day until complete.
+model Job {
+  id         String   @id @default(cuid())
+  shop       String
+  type       String // bulk_product_pages | bulk_descriptions | content_articles | bulk_seo | bulk_mobile | ...
+  title      String
+  params     String? // JSON — scope + instructions for the runner
+  status     String   @default("scheduled") // scheduled | running | paused | done | canceled | error
+  total      Int      @default(0)
+  completed  Int      @default(0)
+  perDay     Int      @default(50)
+  dedupeKey  String // shop + type + scope hash → "already scheduled" detection
+  lastRunOn  String? // YYYY-MM-DD the last daily batch ran
+  doneToday  Int      @default(0)
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([shop])
+  @@index([dedupeKey])
+}
+
+// Notable events + errors for the admin log/error views.
+model AppEvent {
+  id        String   @id @default(cuid())
+  shop      String?
+  level     String   @default("info") // "info" | "warn" | "error"
+  type      String?  // "chat_error" | "apply" | ...
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
 }

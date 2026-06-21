@@ -15,7 +15,10 @@ import path from "node:path";
  */
 
 const API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-07";
-const WORKING_THEME_NAME = "Drift Working Copy";
+// The unpublished theme Drift edits. Override with DRIFT_THEME_NAME to point at
+// an existing theme (e.g. a native "Duplicate" of the live theme) — far more
+// reliable than the asset-by-asset copy used when creating one from scratch.
+const WORKING_THEME_NAME = process.env.DRIFT_THEME_NAME ?? "Drift Working Copy";
 
 interface Ctx {
   shop: string; // e.g. my-store.myshopify.com
@@ -41,6 +44,37 @@ async function rest<T>(ctx: Ctx, p: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Admin GraphQL call. Theme-asset *writes* must go through GraphQL
+ * (`themeFilesUpsert`) — the REST asset PUT endpoint was removed and now 404s.
+ */
+async function graphql<T>(ctx: Ctx, query: string, variables: Record<string, unknown>): Promise<T> {
+  // Theme-file writes need write_themes WITHOUT the App-Store exemption that
+  // gates public-app OAuth tokens. A custom-app token (Settings > Develop apps)
+  // is not App-Store-distributed, so it can write themes. Use it when provided;
+  // fall back to the OAuth session token (works once an exemption is granted).
+  const token = process.env.DRIFT_THEME_TOKEN || ctx.accessToken;
+  const res = await fetch(`${base(ctx.shop)}/graphql.json`, {
+    method: "POST",
+    headers: {
+      "X-Shopify-Access-Token": token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`Shopify GraphQL -> ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as { data?: T; errors?: unknown };
+  if (json.errors) throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
+  return json.data as T;
+}
+
+const THEME_FILES_UPSERT = `
+  mutation ThemeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
+    themeFilesUpsert(themeId: $themeId, files: $files) {
+      userErrors { field message code }
+    }
+  }`;
+
 interface Theme { id: number; name: string; role: string; }
 
 async function listThemes(ctx: Ctx): Promise<Theme[]> {
@@ -58,22 +92,35 @@ export async function liveThemeId(ctx: Ctx): Promise<number> {
 export async function ensureWorkingTheme(ctx: Ctx): Promise<number> {
   const themes = await listThemes(ctx);
   const existing = themes.find((t) => t.name === WORKING_THEME_NAME);
-  if (existing) return existing.id;
+  if (existing) {
+    // Self-heal: an earlier failed/partial bootstrap can leave this theme
+    // empty or incomplete (=> "missing layout/theme.liquid" and unpreviewable).
+    // If the required layout is absent, (re)copy the live assets — putAsset is
+    // idempotent, so this also completes a partial copy.
+    const keys = await listAssetKeys(ctx, existing.id);
+    if (!keys.includes("layout/theme.liquid")) {
+      await copyLiveAssets(ctx, themes, existing.id);
+    }
+    return existing.id;
+  }
 
-  // Create a blank unpublished theme...
+  // Create a blank unpublished theme, then copy every live asset into it.
   const { theme } = await rest<{ theme: Theme }>(ctx, "/themes.json", {
     method: "POST",
     body: JSON.stringify({ theme: { name: WORKING_THEME_NAME, role: "unpublished" } }),
   });
+  await copyLiveAssets(ctx, themes, theme.id);
+  return theme.id;
+}
 
-  // ...then copy every live asset into it.
+/** Copy every asset from the live (main) theme into the target theme. */
+async function copyLiveAssets(ctx: Ctx, themes: Theme[], targetId: number): Promise<void> {
   const liveId = themes.find((t) => t.role === "main")!.id;
   const keys = await listAssetKeys(ctx, liveId);
   for (const key of keys) {
     const value = await getAsset(ctx, liveId, key);
-    await putAsset(ctx, theme.id, key, value);
+    await putAsset(ctx, targetId, key, value);
   }
-  return theme.id;
 }
 
 async function listAssetKeys(ctx: Ctx, themeId: number): Promise<string[]> {
@@ -97,10 +144,16 @@ async function putAsset(ctx: Ctx, themeId: number, key: string, value: string): 
   const maxRetries = 3;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      await rest(ctx, `/themes/${themeId}/assets.json`, {
-        method: "PUT",
-        body: JSON.stringify({ asset: { key, value } }),
+      const data = await graphql<{
+        themeFilesUpsert: { userErrors: { field: string[]; message: string; code: string }[] };
+      }>(ctx, THEME_FILES_UPSERT, {
+        themeId: `gid://shopify/OnlineStoreTheme/${themeId}`,
+        files: [{ filename: key, body: { type: "TEXT", value } }],
       });
+      const errs = data.themeFilesUpsert.userErrors;
+      if (errs.length) {
+        throw new Error(errs.map((e) => `${(e.field ?? []).join(".")}: ${e.message}`).join("; "));
+      }
       return;
     } catch (err) {
       const isLast = attempt === maxRetries - 1;

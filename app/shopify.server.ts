@@ -12,7 +12,10 @@ const shopify = shopifyApp({
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.October25,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || "",
+  // The Shopify CLI injects the dev tunnel as HOST (and APP_URL), not
+  // SHOPIFY_APP_URL. Fall back to those so appUrl is never empty in dev —
+  // an empty appUrl makes embedded auth dead-end at /oauth/install.
+  appUrl: process.env.SHOPIFY_APP_URL || process.env.HOST || "",
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,

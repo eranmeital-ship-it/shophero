@@ -16,6 +16,9 @@ database.sqlite
 .env
 .env.*
 
+# Drift scratch workspaces (one git repo per shop's pulled theme)
+/.drift-workspaces
+
 
 
 

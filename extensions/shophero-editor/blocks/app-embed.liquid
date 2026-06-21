@@ -1,0 +1,15 @@
+{% comment %}
+  ShopHero visual editor bridge. App-embed block: when enabled, it injects the
+  click-to-edit script into the storefront. The script stays dormant until
+  ShopHero's preview iframe tells it to enter edit mode, so it has zero effect
+  on real shoppers.
+{% endcomment %}
+<script src="{{ 'shophero-editor.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "ShopHero Editor",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

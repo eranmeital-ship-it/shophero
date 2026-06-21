@@ -21,8 +21,15 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ applied: 0, message: "Nothing to apply" });
   }
 
+  // Label the restore point with WHAT changed: prefer the agent's plain-English
+  // summary (sent by the client), else fall back to the changed file names.
+  const form = await request.formData().catch(() => null);
+  const summary = String(form?.get("summary") ?? "").trim();
+  const fileList = pending.length <= 4 ? pending.join(", ") : `${pending.slice(0, 3).join(", ")} +${pending.length - 3} more`;
+  const label = (summary || `Applied ${fileList}`).slice(0, 200);
+
   const applied = await pushWorkspaceChanges(ctx, themeId, dir, pending);
-  await commitBaseline(dir, `applied ${applied} file(s) to dev theme`);
+  await commitBaseline(dir, label);
 
   return Response.json({ applied });
 }

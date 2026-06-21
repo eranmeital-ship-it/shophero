@@ -1,57 +1,675 @@
-import type { LoaderFunctionArgs } from "react-router";
+import { useEffect, useState } from "react";
+import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
 
 import styles from "./styles.module.css";
 
+export const meta: MetaFunction = () => [
+  { title: "ShopHero - Unleash Claude AI inside your Shopify store" },
+  {
+    name: "description",
+    content:
+      "ShopHero diagnoses your Shopify store like a business, shows you a Revenue Leak Map, and fixes what's costing you sales - with your approval on every change. Agency-level growth, without the agency.",
+  },
+  { property: "og:title", content: "ShopHero - Unleash Claude AI inside your Shopify store" },
+  {
+    property: "og:description",
+    content:
+      "Diagnosed like a business. A Revenue Leak Map of what's costing you sales - fixed with one click, fully reversible.",
+  },
+  { property: "og:type", content: "website" },
+];
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-
   if (url.searchParams.get("shop")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
-
   return { showForm: Boolean(login) };
 };
 
-export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
+const BADGES = [
+  { lines: ["Powered by", "Claude AI"], sub: "ANTHROPIC ENGINE", c1: "#5fb024", c2: "#34e0a1" },
+  { lines: ["Agentic-AI", "Ready"], sub: "OPTIMIZED FOR AI SEARCH", c1: "#7b6cf6", c2: "#9d7bff" },
+  { lines: ["Replaces", "5–10 Apps"], sub: "ALL-IN-ONE VALUE", c1: "#1ca7c4", c2: "#34e0a1" },
+  { lines: ["7 Specialist", "AI Brains"], sub: "CRO · SEO · CONTENT", c1: "#e8941a", c2: "#ffce54" },
+  { lines: ["One-Click", "Rollback"], sub: "100% REVERSIBLE", c1: "#e0457f", c2: "#f472b6" },
+  { lines: ["Approval", "First"], sub: "YOU APPROVE EVERYTHING", c1: "#2f74e0", c2: "#60a5fa" },
+  { lines: ["30-Second", "Setup"], sub: "INSTALL & GO", c1: "#cf6242", c2: "#f0a07c" },
+];
+
+const SCENARIOS = [
+  {
+    prompt: "Make my homepage hero mobile-friendly",
+    thinking: ["Scanning your homepage layout…", "Checking mobile breakpoints…", "Measuring hero image weight…"],
+    steps: ["Compressed the hero image (1.8 MB → 240 KB)", "Added responsive sizing for mobile", "Lazy-loaded below-the-fold sections", "Preloaded the hero for a faster LCP"],
+    metric: "Est. mobile load: 4.2s → 1.9s",
+  },
+  {
+    prompt: "Make my product page more converting",
+    thinking: ["Reading your product template…", "Comparing to high-converting PDPs…", "Spotting trust & CTA gaps…"],
+    steps: ["Moved the buy box & CTA above the fold", "Added benefit-led bullets + social proof", "Added a sticky add-to-cart on mobile", "Inserted a guarantee & shipping reassurance"],
+    metric: "Projected add-to-cart: +18%",
+  },
+  {
+    prompt: "Write 5 product descriptions",
+    thinking: ["Learning your brand voice…", "Pulling key specs & benefits…", "Matching buyer search intent…"],
+    steps: ["Drafted 5 unique, on-brand descriptions", "Led with benefits, backed by specs", "Wove in keywords buyers actually search", "Staged all 5 for your review"],
+    metric: "5 descriptions ready to publish",
+  },
+  {
+    prompt: "Speed up my store",
+    thinking: ["Running a Core Web Vitals audit…", "Finding render-blocking scripts…", "Hunting unused app code…"],
+    steps: ["Deferred 3 non-critical scripts", "Compressed 24 oversized images", "Removed leftover code from 2 old apps", "Lazy-loaded offscreen media"],
+    metric: "Est. LCP: 3.6s → 1.8s",
+  },
+  {
+    prompt: "Add trust badges near checkout",
+    thinking: ["Reviewing your cart & checkout…", "Checking trust-signal placement…"],
+    steps: ["Added secure-checkout & guarantee badges", "Surfaced reviews near the buy button", "Added clear returns & shipping info"],
+    metric: "Checkout friction reduced",
+  },
+  {
+    prompt: "Find what's hurting my conversions",
+    thinking: ["Mapping your funnel…", "Comparing against CRO benchmarks…", "Ranking issues by revenue impact…"],
+    steps: ["Flagged a slow mobile hero (high impact)", "Found weak PDP copy on 12 pages", "Spotted a missing cart-recovery flow"],
+    metric: "Top 3 leaks ≈ $910/mo recoverable",
+  },
+  {
+    prompt: "Optimize my titles for SEO",
+    thinking: ["Pulling current titles & metas…", "Researching buyer-intent keywords…"],
+    steps: ["Rewrote 18 title tags with target keywords", "Tightened metas under 155 chars + CTA", "Fixed duplicate & thin titles"],
+    metric: "18 pages SEO-optimized",
+  },
+  {
+    prompt: "Plan a week of blog posts",
+    thinking: ["Studying your niche & top products…", "Checking real search demand…"],
+    steps: ["Built a 7-day editorial calendar", "Each post targets a buyer-intent keyword", "Linked every post to a money page"],
+    metric: "7 posts planned & ready to draft",
+  },
+  {
+    prompt: "Rewrite my About page",
+    thinking: ["Reading your current About page…", "Learning your brand story & voice…"],
+    steps: ["Rewrote it around a clear brand story", "Added trust, mission & social proof", "Ended with a conversion-focused CTA"],
+    metric: "About page rebuilt for trust",
+  },
+];
+
+const STEPS = [
+  {
+    icon: "💰",
+    title: "Ranked by real money",
+    desc: "Every issue is scored by the revenue it's draining - not a vague “health score” you can't act on.",
+  },
+  {
+    icon: "🎯",
+    title: "Your next best move",
+    desc: "You always know the single highest-impact fix to make right now, and the lift to expect from it.",
+  },
+  {
+    icon: "🔁",
+    title: "Always up to date",
+    desc: "It re-scans as your catalog, traffic and theme change - so your plan is never stale and never guessed.",
+  },
+];
+
+const LEAK_MAP = [
+  { issue: "Slow product images", detail: "LCP ~2.1s on mobile", sev: "High", impact: "~$420/mo" },
+  { issue: "Weak product descriptions", detail: "12 pages, manufacturer copy", sev: "High", impact: "~$310/mo" },
+  { issue: "No abandoned-cart flow", detail: "recoverable revenue leaking", sev: "Medium", impact: "~$180/mo" },
+  { issue: "Missing trust signals", detail: "no reviews above the fold", sev: "Medium", impact: "~$140/mo" },
+  { issue: "Thin meta titles", detail: "8 pages under-optimized", sev: "Low", impact: "~$60/mo" },
+];
+
+const COMPARE_ROWS: [string, string][] = [
+  ["Hire a Shopify developer", "Build features, sections & theme changes with a prompt"],
+  ["Pay for SEO experts", "One-click SEO optimization across your entire store"],
+  ["Hire a CRO consultant", "Instant conversion audits & optimization recommendations"],
+  ["Hire a content writer", "Generate product descriptions, blogs, landing pages & FAQs"],
+  ["Pay an email marketer", "Create campaigns, abandoned-cart flows & newsletters"],
+  ["Hire a UX designer", "Improve layouts, navigation & customer experience instantly"],
+  ["Pay for speed optimization", "One-click store speed improvements & diagnostics"],
+  ["Hire a merchandising expert", "Discover winning products, bundles & upsell opportunities"],
+  ["Pay for store audits", "Full AI-powered store health checks, anytime"],
+  ["Learn Shopify Liquid code", "Describe what you want and let ShopHero build it"],
+  ["Wait days or weeks for changes", "Get results in minutes"],
+  ["Pay agency retainers", "Your AI growth team, available 24/7"],
+  ["Juggle 10 different apps", "One platform that does it all"],
+  ["Guess what's hurting sales", "Know exactly what to fix and why"],
+  ["Manage developers & consultants", "Manage everything from one dashboard"],
+];
+
+const BRAINS = [
+  { icon: "🎯", name: "Conversion (CRO)", desc: "Studies how shoppers really move through your store, then rebuilds layout, offers, trust and checkout to erase hesitation and lift every conversion." },
+  { icon: "🛍️", name: "Product Pages", desc: "Engineers each page around proven buying psychology - hero, benefits, proof, objection-busting, CTA - so far more visitors hit add-to-cart." },
+  { icon: "✍️", name: "Content", desc: "Plans and writes search-winning articles that pull in ready-to-buy traffic and route it straight to the products that make you money." },
+  { icon: "🔍", name: "SEO", desc: "Maps the exact terms your buyers search, then fixes on-page and technical SEO so you rank where the purchases actually happen." },
+  { icon: "✉️", name: "Email", desc: "Builds the flows top brands live on - welcome, abandoned cart, win-back - to recover lost sales and turn one-time buyers into regulars." },
+  { icon: "🤖", name: "AI Visibility (AEO)", desc: "Structures your store so ChatGPT, Claude, Gemini and Perplexity understand it - and recommend you when shoppers ask them what to buy." },
+  { icon: "⚡", name: "Speed", desc: "Hunts down every drag - heavy images, app bloat, render-blocking code - and tunes Core Web Vitals so pages load fast and sell." },
+];
+
+const SAFETY = [
+  { icon: "✅", title: "Approval-first", desc: "Nothing goes live until you say so. Every change is staged for your review." },
+  { icon: "↩️", title: "One-click rollback", desc: "Don't like a change? Restore any previous version instantly, with full history." },
+  { icon: "🗂️", title: "Auto-backup", desc: "Your theme is duplicated before any edit - your live store is never at risk." },
+  { icon: "🔒", title: "Your store, your data", desc: "ShopHero acts through Shopify's official API, using only the permissions you grant." },
+];
+
+const FAQ = [
+  {
+    q: "Will it break my theme?",
+    a: "No. ShopHero duplicates your theme before any edit and stages every change for your approval. Nothing goes live until you publish, and you can roll back any change in one click.",
+  },
+  {
+    q: "Do I need to know how to code?",
+    a: "Not at all. You describe what you want in plain English - “make my homepage faster,” “rewrite my product descriptions” - and ShopHero does the technical work.",
+  },
+  {
+    q: "What does it actually cost?",
+    a: "$49/month includes $15 of AI usage. Beyond that, you pay per AI request: each Anthropic API call runs about $0.01-$0.50 depending on how much it has to read and write. Usage is billed pay-as-you-go in capped top-ups, so you're only charged for what you use - and never surprised.",
+  },
+  {
+    q: "Which AI powers it?",
+    a: "ShopHero runs on Claude, Anthropic's frontier AI, with specialist “brains” trained on high-performing ecommerce patterns. We match the model to the task: Claude Opus 4.8 for the heaviest reasoning and agentic theme work, Claude Sonnet 4.6 for everyday optimization, and Claude Haiku 4.5 for fast, simple jobs - so you always get top-tier quality without overpaying on every request.",
+  },
+  {
+    q: "Is my data safe?",
+    a: "ShopHero works through Shopify's official Admin API, using only the permissions you grant, and acts on your store on your behalf - with your approval on every change.",
+  },
+  {
+    q: "What about privacy and my data?",
+    a: "ShopHero only accesses what you authorize through Shopify's official API, and we don't sell your data. Store content is sent to Anthropic's Claude API to generate edits and recommendations - and Anthropic does not use API data to train its models. You can read our Privacy Policy and Terms in the footer, and delete your data anytime by uninstalling or emailing us.",
+  },
+  {
+    q: "What if I don't like what it does?",
+    a: "Every change is reversible in one click through full version history. You're always in control.",
+  },
+];
+
+function ShopifyMark() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <path fill="#95BF47" d="M15.3 4.3c-.1 0-.3 0-.5.1-.3-.9-.9-1.7-1.9-1.7h-.1C12.5 2.3 12.1 2 11.7 2 8.7 2 7.3 5.7 6.8 7.6l-2 .6c-.6.2-.7.2-.7.8L2.5 21.3 14 23l6.3-1.4S15.4 4.3 15.3 4.3zM12.4 5.2l-1.1.3c0-.2 0-.4 0-.6 0-.6-.1-1.1-.2-1.5.6.1 1 .8 1.3 1.8zm-2-1.6c.2.4.3 1 .3 1.7v.2l-2.3.7c.4-1.5 1.2-2.3 2-2.6zM9.7 3c.1 0 .3 0 .4.1-1 .5-2 1.6-2.5 3.9l-1.8.6c.5-1.7 1.7-4.6 3.9-4.6z" />
+      <path fill="#5E8E3E" d="M15.3 4.3c-.1 0-.3 0-.5.1l-.8 12.6 6.3-1.4S15.4 4.3 15.3 4.3z" />
+      <path fill="#fff" d="M11.9 9.1l-.7 2.1s-.6-.3-1.4-.3c-1.1 0-1.2.7-1.2.9 0 1 2.6 1.4 2.6 3.7 0 1.8-1.2 3-2.7 3-1.9 0-2.8-1.2-2.8-1.2l.5-1.6s1 .8 1.8.8c.5 0 .7-.4.7-.7 0-1.3-2.1-1.4-2.1-3.5 0-1.8 1.3-3.5 3.9-3.5 1 0 1.5.3 1.5.3z" />
+    </svg>
+  );
+}
+
+function ClaudeMark() {
+  return (
+    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+      <g stroke="#D97757" strokeWidth="3" strokeLinecap="round">
+        <line x1="16" y1="3" x2="16" y2="29" />
+        <line x1="3" y1="16" x2="29" y2="16" />
+        <line x1="6.6" y1="6.6" x2="25.4" y2="25.4" />
+        <line x1="25.4" y1="6.6" x2="6.6" y2="25.4" />
+      </g>
+    </svg>
+  );
+}
+
+function AwardBadge({ lines, sub, c1, c2, idx }: { lines: string[]; sub: string; c1: string; c2: string; idx: number }) {
+  const rg = `rg${idx}`;
+  const sh = `sh${idx}`;
+  return (
+    <svg className={styles.badgeSvg} viewBox="0 0 200 250" role="img" aria-label={`${lines.join(" ")} - ${sub}`}>
+      <defs>
+        <linearGradient id={rg} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={c1} />
+          <stop offset="1" stopColor={c2} />
+        </linearGradient>
+        <filter id={sh} x="-25%" y="-10%" width="150%" height="140%">
+          <feDropShadow dx="0" dy="9" stdDeviation="9" floodColor="#000000" floodOpacity="0.45" />
+        </filter>
+      </defs>
+      <g filter={`url(#${sh})`}>
+        <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V198 L100 240 L22 198 Z" fill={`url(#${rg})`} />
+      </g>
+      <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V176 L100 214 L22 176 Z" fill="#ffffff" />
+      <text x="34" y="26" fontSize="11" fontWeight="800" fill="#16181c" letterSpacing="0.5">SHOPHERO</text>
+      <text x="34" y="41" fontSize="11" fontWeight="700" fill="#8a8a96" letterSpacing="0.5">2026</text>
+      <rect x="138" y="6" width="38" height="38" rx="5" fill={c1} />
+      <text x="157" y="32" textAnchor="middle" fontSize="20" fontWeight="800" fill="#ffffff">✦</text>
+      <line x1="22" y1="54" x2="178" y2="54" stroke="#e9e9ee" strokeWidth="1.5" />
+      <text x="100" y={lines.length > 1 ? 104 : 120} textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[0]}</text>
+      {lines[1] && <text x="100" y="132" textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[1]}</text>}
+      <text x="100" y="162" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#9a9aa6" letterSpacing="0.8">{sub}</text>
+    </svg>
+  );
+}
+
+const SCAN_TARGETS: [string, number, string][] = [
+  ["Products", 128, "analyzed"],
+  ["Pages", 42, "scanned"],
+  ["Images", 310, "checked"],
+  ["Leaks", 7, "found"],
+];
+
+function Demo() {
+  const [active, setActive] = useState(0);
+  const [phase, setPhase] = useState(0); // 0 = scan, 1 = evaluate, 2 = result
+  const [counts, setCounts] = useState([0, 0, 0, 0]);
+  const sc = SCENARIOS[active];
+
+  // drive the 3-phase sequence whenever the scenario changes
+  useEffect(() => {
+    setPhase(0);
+    setCounts([0, 0, 0, 0]);
+    const t1 = setTimeout(() => setPhase(1), 1700);
+    const t2 = setTimeout(() => setPhase(2), 3100);
+    const t3 = setTimeout(() => setActive((a) => (a + 1) % SCENARIOS.length), 6800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [active]);
+
+  // animate the scan counters up during phase 0
+  useEffect(() => {
+    if (phase !== 0) return;
+    const STEPS = 26;
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      const p = Math.min(i / STEPS, 1);
+      setCounts(SCAN_TARGETS.map(([, target]) => Math.round(target * p)));
+      if (i >= STEPS) clearInterval(id);
+    }, 45);
+    return () => clearInterval(id);
+  }, [phase, active]);
+
+  const progress = phase === 0 ? 34 : phase === 1 ? 72 : 100;
 
   return (
-    <div className={styles.index}>
-      <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
-        <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
-        </p>
-        {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
-            <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
-            </label>
-            <button className={styles.button} type="submit">
-              Log in
-            </button>
-          </Form>
-        )}
-        <ul className={styles.list}>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-        </ul>
+    <>
+      <div className={styles.browser}>
+        <div className={styles.browserBar}>
+          <span className={styles.dotR} />
+          <span className={styles.dotY} />
+          <span className={styles.dotG} />
+          <div className={styles.addressBar}>
+            <span className={styles.lock}>🔒</span> app.shophero.io
+          </div>
+          <span className={styles.demoLive}>● live</span>
+        </div>
+        <div className={styles.demoBody}>
+          <div className={styles.progressTrack}>
+            <span className={styles.progressFill} style={{ width: `${progress}%` }} />
+          </div>
+
+          <div className={styles.demoPrompt}>
+            {sc.prompt}
+            <span className={styles.caret} />
+          </div>
+
+          {phase === 0 && (
+            <div className={styles.scan}>
+              <p className={styles.phaseLabel}>
+                <span className={styles.spinner} /> Reading your store…
+              </p>
+              <div className={styles.statGrid}>
+                {SCAN_TARGETS.map(([label, , verb], i) => (
+                  <div className={styles.statCell} key={label}>
+                    <strong>
+                      {counts[i]}
+                      {label === "Leaks" ? "" : "+"}
+                    </strong>
+                    <span>
+                      {label} {verb}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {phase === 1 && (
+            <div className={styles.demoThinking}>
+              <span className={styles.spinner} />
+              <div>
+                <p className={styles.thinkingLabel}>Calculating &amp; evaluating…</p>
+                <ul className={styles.thinkingList}>
+                  {sc.thinking.map((t, i) => (
+                    <li key={t} style={{ animationDelay: `${i * 0.22}s` }}>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {phase === 2 && (
+            <>
+              <div className={styles.demoResp}>
+                <p className={styles.demoRespLead}>Done - here's what I changed:</p>
+                <ul>
+                  {sc.steps.map((s, i) => (
+                    <li key={s} style={{ animationDelay: `${i * 0.1}s` }}>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+                <div className={styles.demoMetric}>{sc.metric}</div>
+              </div>
+              <div className={styles.demoActions}>
+                <span className={styles.demoApprove}>✓ Approve &amp; publish</span>
+                <span className={styles.demoRollback}>↩ Roll back</span>
+                <span className={styles.demoStaged}>Staged · not live yet</span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      <p className={styles.promptLabel}>Things you can just ask — tap any:</p>
+      <div className={styles.promptChips}>
+        {SCENARIOS.map((s, i) => (
+          <button
+            key={s.prompt}
+            type="button"
+            className={`${styles.promptChip} ${i === active ? styles.promptChipActive : ""}`}
+            onClick={() => setActive(i)}
+          >
+            {s.prompt}
+          </button>
+        ))}
+      </div>
+      <p className={styles.demoNote}>Illustrative example - your store, your results.</p>
+    </>
+  );
+}
+
+export default function LandingV2() {
+  const { showForm } = useLoaderData<typeof loader>();
+
+  const StartForm = () =>
+    showForm ? (
+      <Form className={styles.form} method="post" action="/auth/login">
+        <input className={styles.input} type="text" name="shop" placeholder="your-store.myshopify.com" aria-label="Your Shopify store domain" />
+        <button className={styles.btnPrimary} type="submit">Upgrade my store →</button>
+      </Form>
+    ) : (
+      <a href="https://apps.shopify.com" className={styles.btnPrimary}>Add to Shopify →</a>
+    );
+
+  return (
+    <div className={styles.page}>
+      {/* NAV */}
+      <header className={styles.nav}>
+        <a href="#top" className={styles.brand}>
+          <img src="/ShopHero.png" alt="" className={styles.navLogo} /> ShopHero
+        </a>
+        <nav className={styles.navLinks}>
+          <a href="#demo">See it work</a>
+          <a href="#how">How it works</a>
+          <a href="#compare">vs the old way</a>
+          <a href="/ai-check">Free AI check</a>
+          <a href="#faq">FAQ</a>
+          <a href="#pricing">Pricing</a>
+        </nav>
+        <a href="#start" className={styles.navCta}>Upgrade my store</a>
+      </header>
+
+      {/* HERO */}
+      <section className={styles.hero} id="top">
+        <div className={styles.heroInner}>
+          <span className={styles.badge}>✦ A new dawn for Shopify store owners</span>
+          <div className={styles.lockup}>
+            <span className={styles.logoChip}><ShopifyMark /><span>Shopify</span></span>
+            <span className={styles.plus}>+</span>
+            <span className={styles.logoChip}><ClaudeMark /><span>Claude</span></span>
+            <span className={styles.lockupBreak} aria-hidden="true" />
+            <span className={styles.plus}>=</span>
+            <span className={styles.lockupBreak} aria-hidden="true" />
+            <span className={`${styles.logoChip} ${styles.logoChipResult}`}>
+              <img src="/ShopHero.png" alt="" className={styles.chipLogo} /><span>ShopHero</span>
+            </span>
+          </div>
+          <h1 className={styles.h1}>
+            <span className={styles.nowrap}>Unleash the power of Claude AI</span>
+            <br />
+            <span className={styles.grad}>inside your Shopify store.</span>
+          </h1>
+          <p className={styles.sub}>
+            Turn <em>“I don't know what's broken”</em> into{" "}
+            <strong>fixed, optimized, and selling more</strong> - in minutes.{" "}
+            <strong>No more devs. No more guessing.</strong> Just describe what you want, and
+            ShopHero builds it.
+          </p>
+          <div className={styles.brainsLine}>
+            <span className={styles.brainsCount}>🧠 7 expert brains</span>
+            <span>trained on multi-million-figure shops</span>
+          </div>
+          <div id="start" className={styles.startBlock}>
+            <StartForm />
+            <p className={styles.micro}>Installs in 30 seconds · You approve every change · One-click rollback</p>
+          </div>
+          <div className={styles.heroStats}>
+            <div className={styles.stat}>
+              <span className={styles.statIcon}>⚡</span>
+              <strong className={styles.statBig}>30 sec</strong>
+              <span className={styles.statLabel}>to ship any change</span>
+              <span className={styles.statVs}>vs <s>3 weeks with a dev</s></span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statIcon}>💸</span>
+              <strong className={styles.statBig}>Cents</strong>
+              <span className={styles.statLabel}>per task</span>
+              <span className={styles.statVs}>vs <s>$30/hr freelancers</s></span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statIcon}>🧠</span>
+              <strong className={styles.statBig}>24/7</strong>
+              <span className={styles.statLabel}>7 expert brains, zero salaries</span>
+              <span className={styles.statVs}>vs <s>$10k/mo agency</s></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CREDIBILITY */}
+      <section className={styles.strip}>
+        <p className={styles.stripLead}>
+          Agency-level growth, <span className={styles.grad}>without the agency.</span>
+        </p>
+        <p className={styles.stripSub}>
+          ShopHero replicates the output of a <strong>$10K/month growth team</strong> and replaces
+          the fragmented stack of <strong>5-10 apps and freelancers</strong> you're juggling today -
+          in a fraction of the time, at a fraction of the cost. And every task draws on the design,
+          optimization and analytics playbooks of <strong>multi-million-dollar stores</strong> -
+          executed by models trained on what the <strong>industry's top shops</strong> actually do.
+        </p>
+      </section>
+
+      {/* AUTHORITY BADGES */}
+      <section className={styles.badgesBand}>
+        <p className={styles.badgesTitle}>What ShopHero actually delivers</p>
+        <div className={styles.badges}>
+          {BADGES.map((b, i) => (
+            <AwardBadge key={b.lines.join("-")} lines={b.lines} sub={b.sub} c1={b.c1} c2={b.c2} idx={i} />
+          ))}
+        </div>
+      </section>
+
+      {/* FREE AI CHECK PROMO */}
+      <section className={styles.aiCheckBand}>
+        <span className={styles.kicker}>🤖 Free · instant · no signup</span>
+        <h2 className={styles.aiCheckTitle}>Can ChatGPT &amp; Claude find your store?</h2>
+        <p className={styles.aiCheckSub}>
+          Shoppers now ask AI what to buy. Run the free <strong>AI Visibility Check</strong> and see, in seconds,
+          how readable your store is to AI agents — and the exact gaps stopping them from recommending you.
+        </p>
+        <a href="/ai-check" className={styles.btnPrimary}>Check my store free →</a>
+      </section>
+
+      {/* PRODUCT DEMO */}
+      <section className={`${styles.section} ${styles.sectionAlt}`} id="demo">
+        <h2 className={styles.h2}>See it <span className={styles.grad}>work.</span></h2>
+        <p className={styles.lead}>Type what you want in plain English. Watch ShopHero reason it out, then ship it - with your approval.</p>
+        <Demo />
+      </section>
+
+      {/* HOW IT WORKS (merged, Leak Map centerpiece) */}
+      <section className={styles.section} id="how">
+        <h2 className={styles.h2}>Always know <span className={styles.grad}>what to fix next.</span></h2>
+        <p className={styles.lead}>
+          ShopHero turns your store into a live Revenue Leak Map - every issue ranked by the
+          money it's costing you.
+        </p>
+        <div className={styles.steps}>
+          {STEPS.map((s) => (
+            <div className={styles.step} key={s.title}>
+              <span className={styles.stepIcon}>{s.icon}</span>
+              <h3>{s.title}</h3>
+              <p>{s.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.mapShowcase}>
+          <div className={styles.mapText}>
+            <span className={styles.kicker}>📊 The breakthrough</span>
+            <h3 className={styles.mapHeading}>Where most apps only diagnose, ShopHero fixes.</h3>
+            <p>
+              Other apps hand you a “score.” ShopHero hands you a <strong>Revenue Leak Map</strong>:
+              the exact issues, ranked by the money they're draining - each one a tap away from fixed.
+            </p>
+          </div>
+          <div className={styles.mapCard}>
+            <div className={styles.mapHead}><span>Revenue Leak Map</span><span className={styles.mapTag}>Example</span></div>
+            {LEAK_MAP.map((l) => (
+              <div className={styles.mapRow} key={l.issue}>
+                <span className={`${styles.sevDot} ${l.sev === "High" ? styles.sevHigh : l.sev === "Medium" ? styles.sevMed : styles.sevLow}`} />
+                <div className={styles.mapInfo}><strong>{l.issue}</strong><span>{l.detail}</span></div>
+                <span className={styles.mapImpact}>{l.impact}</span>
+              </div>
+            ))}
+            <div className={styles.mapFoot}><span>Est. recoverable</span><strong>~$1,110/mo</strong></div>
+          </div>
+        </div>
+      </section>
+
+      {/* COMPARISON */}
+      <section className={`${styles.section} ${styles.sectionAlt}`} id="compare">
+        <h2 className={styles.h2}>One app replaces your <span className={styles.grad}>entire payroll.</span></h2>
+        <p className={styles.lead}>Every line below used to be a hire, a retainer, or another app. Now it's a prompt.</p>
+        <div className={styles.compareTable}>
+          <div className={styles.compareHead}>
+            <div className={styles.headCell}><span className={styles.tagOld}>✕ Without ShopHero</span></div>
+            <div className={`${styles.headCell} ${styles.headCellNew}`}><span className={styles.tagNew}>✓ With ShopHero</span></div>
+          </div>
+          {COMPARE_ROWS.map(([without, withSh]) => (
+            <div className={styles.compareRow} key={without}>
+              <span className={styles.cellOld}><span className={styles.x}>✕</span>{without}</span>
+              <span className={styles.cellNew}><span className={styles.check}>✓</span>{withSh}</span>
+            </div>
+          ))}
+        </div>
+        <p className={styles.compareMore}>…and endless more options.</p>
+      </section>
+
+      {/* AI GROWTH PLAN */}
+      <section className={styles.section} id="brains">
+        <h2 className={styles.h2}>Your <span className={styles.grad}>AI Growth Plan</span></h2>
+        <p className={styles.lead}>
+          Every part of your store gets a specialist-level AI, trained on the patterns behind
+          high-performing brands - each delivering the smartest move for its job.
+        </p>
+        <div className={styles.brainGrid}>
+          {BRAINS.map((b) => (
+            <div className={styles.brain} key={b.name}>
+              <span className={styles.brainIcon}>{b.icon}</span>
+              <div><strong>{b.name}</strong><p>{b.desc}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SAFETY */}
+      <section className={`${styles.section} ${styles.sectionAlt}`} id="safety">
+        <h2 className={styles.h2}>AI on your store - <span className={styles.grad}>with the brakes on.</span></h2>
+        <p className={styles.lead}>You stay in control of everything. Always.</p>
+        <div className={styles.safetyGrid}>
+          {SAFETY.map((s) => (
+            <div className={styles.safetyCard} key={s.title}>
+              <span className={styles.safetyIcon}>{s.icon}</span>
+              <h3>{s.title}</h3>
+              <p>{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className={styles.section} id="faq">
+        <h2 className={styles.h2}>Questions, <span className={styles.grad}>answered.</span></h2>
+        <div className={styles.faq}>
+          {FAQ.map((f) => (
+            <details className={styles.faqItem} key={f.q}>
+              <summary>
+                <span>{f.q}</span>
+                <span className={styles.faqPlus}>+</span>
+              </summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
+        <h2 className={styles.h2}>One subscription. <span className={styles.grad}>Your entire growth team.</span></h2>
+        <p className={styles.lead}>One plan. No surprises. Cancel the second it stops paying for itself (spoiler: it won't).</p>
+        <div className={styles.priceCard}>
+          <div className={styles.priceHead}>
+            <span className={styles.priceName}>Managed AI</span>
+            <div className={styles.price}><span className={styles.priceAmt}>$49</span><span className={styles.pricePer}>/month*</span></div>
+          </div>
+          <ul className={styles.priceList}>
+            <li>All 7 AI brains &amp; every one-click tool</li>
+            <li>AI Store Manager - audit, plan &amp; execute</li>
+            <li>Version history &amp; one-click rollback</li>
+            <li>Brand Kit, long-term memory &amp; daily content plan</li>
+            <li><strong>$15 of AI usage included</strong> every month</li>
+            <li className={styles.priceNote}>* Beyond the included $15, AI usage is billed pay-as-you-go in capped top-ups - you're only charged for what you use.</li>
+          </ul>
+          <a href="#start" className={styles.btnPrimary}>Claim my unfair advantage →</a>
+          <p className={styles.micro}>No gimmicks. Cancel anytime, right from Shopify.</p>
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className={styles.finalCta}>
+        <span className={styles.kicker}>The operating system for Shopify growth</span>
+        <h2 className={styles.h2}>Install this before your <span className={styles.grad}>competitors</span> do.</h2>
+        <p className={styles.lead}>They're reading the same page. The only question is who clicks first.</p>
+        <div className={styles.startBlock}><StartForm /></div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className={styles.footer}>
+        <div className={styles.footBrand}>
+          <img src="/ShopHero.png" alt="ShopHero" className={styles.footLogo} />
+          <span>ShopHero</span>
+        </div>
+        <nav className={styles.footLinks}>
+          <a href="#demo">See it work</a>
+          <a href="/ai-check">Free AI check</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
+          <a href="/auth/login">Log in</a>
+        </nav>
+        <p className={styles.copy}>© {new Date().getFullYear()} ShopHero. All rights reserved. · shophero.io</p>
+      </footer>
     </div>
   );
 }

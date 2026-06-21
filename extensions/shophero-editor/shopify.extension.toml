@@ -1,0 +1,7 @@
+api_version = "2025-10"
+uid = "2d08f7fc-0125-a735-0a59-0d9a8dc9fe92d0e0e34c"
+
+[[extensions]]
+type = "theme"
+name = "ShopHero Editor"
+handle = "shophero-editor"
