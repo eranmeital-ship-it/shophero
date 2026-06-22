@@ -1634,6 +1634,15 @@
 .sh-shell-e4[data-view="preview"] .sh-preview { flex: 1; }
 @media (max-width: 760px) { .sh-ebar .sh-header { flex-wrap: wrap; } }
 
+/* Mid-conversation "start something new" — replaces the old quick-action chip bar */
+.sh-newfeat-row { display: flex; justify-content: center; padding: 10px 16px 0; }
+.sh-newfeat {
+  font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; color: var(--sh-ink);
+  background: var(--sh-glass-strong); border: 1px solid var(--sh-line); box-shadow: var(--sh-shadow-sm);
+  padding: 7px 16px; border-radius: 999px; transition: border-color 0.14s ease, transform 0.12s ease;
+}
+.sh-newfeat:hover { transform: translateY(-1px); border-color: rgba(132, 204, 22, 0.6); }
+
 /* Email campaign kit */
 .sh-camp-emails { display: flex; flex-direction: column; gap: 9px; }
 .sh-camp-email {

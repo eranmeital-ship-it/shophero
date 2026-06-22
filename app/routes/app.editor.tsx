@@ -2649,19 +2649,10 @@ export default function Index() {
         {/* ===================== CREATE MODE (chat) ===================== */}
         {mode === "create" && (
           <>
+            {/* Mid-conversation: one clean way back to the feature launcher (no old chip bar). */}
             {messages.length > 0 && (
-              <div className="sh-quick" data-tour="tools">
-                {QUICK_ACTIONS.map((a) => (
-                  <button
-                    key={a.label}
-                    className={`sh-chip${a.genius ? " sh-genius" : ""}`}
-                    onClick={() => openTask(a.taskId)}
-                    title={a.label}
-                  >
-                    <span className="sh-chip-emoji">{a.emoji}</span>
-                    {a.label}
-                  </button>
-                ))}
+              <div className="sh-newfeat-row">
+                <button className="sh-newfeat" onClick={() => { setMessages([]); setApproval([]); }}>✨ Start something new</button>
               </div>
             )}
 
