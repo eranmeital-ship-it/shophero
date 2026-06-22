@@ -1461,18 +1461,52 @@ export default function Index() {
       { method: "post", action: "/api/plan" },
     );
   }
-  // Route a plan item to the cheapest correct engine, then drop into that task.
-  // Routes that stage/apply a store change arm auto-ship; informational ones don't.
+  // Map a section plan-step to the exact library section (so Run inserts it
+  // directly instead of dumping the merchant in the full picker).
+  const SECTION_BY_KW: [RegExp, string][] = [
+    [/trust|badge|secure|payment|shipping bar/i, "sh-trust-bar"],
+    [/faq|question/i, "sh-faq"],
+    [/testimonial|review|social proof/i, "sh-testimonials"],
+    [/compar|\bvs\b|versus/i, "sh-comparison"],
+    [/why choose|benefit|value/i, "sh-features"],
+    [/promo|banner|sale|offer/i, "sh-promo"],
+    [/about|story|brand/i, "sh-about"],
+    [/newsletter|sign[- ]?up|email capture|subscribe/i, "sh-newsletter"],
+    [/guarantee/i, "sh-guarantee"],
+    [/stat|numbers/i, "sh-stats"],
+    [/logo|as seen/i, "sh-logos"],
+    [/image ?\+ ?text|image and text/i, "sh-image-text"],
+  ];
+  function sectionFor(item: PlanItem): string {
+    const s = `${item.title} ${item.prompt ?? ""}`;
+    for (const [re, key] of SECTION_BY_KW) if (re.test(s)) return key;
+    return "sh-features";
+  }
+  function targetFor(item: PlanItem): string {
+    const s = `${item.title} ${item.prompt ?? ""}`.toLowerCase();
+    if (s.includes("product")) return "product";
+    if (s.includes("collection")) return "collection";
+    return "index";
+  }
+  // Insert a section directly (stages it) — keeps the merchant in flow; the
+  // staged change + Accept bar appear, instead of the generic section picker.
+  function insertSectionStep(key: string, target: string) {
+    setSectionKey(key);
+    setSectionTarget(target);
+    setSectionVariant("");
+    setActiveTask(null);
+    sectionFetcher.submit({ key, target, variant: "" }, { method: "post", action: "/api/section" });
+  }
+  // Route a plan item to the cheapest correct engine. Deterministic steps EXECUTE
+  // (stage a change); content/agent steps open their focused task. Arms auto-ship.
   function runPlanItem(item: PlanItem) {
     if (blockedByChange()) return; // resolve any pending change before starting a new step
     const arm = () => actionPlan && setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
     switch (item.route) {
-      case "schema": arm(); addStructuredData(); break;
-      case "aeo-audit": openTask("structured-data"); break;
-      case "aeo-targets": openTask("structured-data"); setAeoStep(2); setTimeout(() => genTargets(), 50); break;
-      case "section-faq": arm(); openTask("add-section", true); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
-      case "section-trust": arm(); openTask("add-section", true); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
-      case "section": arm(); openTask("add-section", true); break;
+      case "schema": arm(); setActiveTask(null); addStructuredData(); break;
+      case "section-faq": arm(); insertSectionStep("sh-faq", targetFor(item)); break;
+      case "section-trust": arm(); insertSectionStep("sh-trust-bar", targetFor(item)); break;
+      case "section": arm(); insertSectionStep(sectionFor(item), targetFor(item)); break;
       case "pdp-template": arm(); openTask("build-pdp", true); break;
       case "descriptions": arm(); openTask("bulk-descriptions", true); break;
       case "seo": arm(); openTask("seo-genius", true); break;
