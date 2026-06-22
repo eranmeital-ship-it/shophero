@@ -71,16 +71,24 @@ const FAQ = `{%- style -%}${BASE}
   .sh-faq summary::after{content:"+";font-size:22px;opacity:.6}
   .sh-faq details[open] summary::after{content:"–"}
   .sh-faq p{margin:12px 0 0;line-height:1.65;opacity:.78}
+  .sh-faq--cards details{border:1px solid rgb(var(--color-foreground,22 24 28)/.12);background:rgb(var(--color-foreground,22 24 28)/.03);border-radius:14px;padding:15px 18px;margin-bottom:12px}
 {%- endstyle -%}
-<div class="color-{{ section.settings.color_scheme }} sh-sec sh-faq">
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-faq sh-faq--{{ section.settings.variant }}">
   <h2>{{ section.settings.heading }}</h2>
   {%- for i in (1..5) -%}{%- assign q = 'q' | append: i -%}{%- assign a = 'a' | append: i -%}
     {%- if section.settings[q] != blank -%}<details><summary>{{ section.settings[q] }}</summary><p>{{ section.settings[a] }}</p></details>{%- endif -%}
   {%- endfor -%}
 </div>
+<script type="application/ld+json">
+{ "@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{%- assign sh_first = true -%}{%- for i in (1..5) -%}{%- assign q = 'q' | append: i -%}{%- assign a = 'a' | append: i -%}
+{%- if section.settings[q] != blank -%}{%- unless sh_first %},{%- endunless -%}{"@type":"Question","name":{{ section.settings[q] | json }},"acceptedAnswer":{"@type":"Answer","text":{{ section.settings[a] | strip_html | json }}}}{%- assign sh_first = false -%}{%- endif -%}
+{%- endfor -%}] }
+</script>
 {% schema %}
 { "name":"FAQ","tag":"section","settings":[
   ${SCHEME},
+  {"type":"select","id":"variant","label":"Style","default":"bordered","options":[{"value":"bordered","label":"Bordered"},{"value":"cards","label":"Cards"}]},
   {"type":"text","id":"heading","label":"Heading","default":"Frequently asked questions"},
   {"type":"text","id":"q1","label":"Q1","default":"How long does shipping take?"},{"type":"textarea","id":"a1","label":"A1","default":"Most orders arrive within 3–7 business days."},
   {"type":"text","id":"q2","label":"Q2","default":"What is your return policy?"},{"type":"textarea","id":"a2","label":"A2","default":"Returns are accepted within 30 days, no questions asked."},
@@ -155,8 +163,11 @@ const COMPARISON = `{%- style -%}${BASE}
   .sh-cmp th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;opacity:.6}
   .sh-cmp .us{font-weight:700;color:rgb(var(--color-button,10 132 255))}
   .sh-cmp td.c,.sh-cmp th.c{text-align:center}
+  .sh-cmp--card table{border-collapse:separate;border-spacing:0;border:1px solid rgb(var(--color-foreground,22 24 28)/.12);border-radius:16px;overflow:hidden}
+  .sh-cmp--card th{background:rgb(var(--color-foreground,22 24 28)/.05)}
+  .sh-cmp--card td.us,.sh-cmp--card th.us{background:rgb(var(--color-button,10 132 255)/.07)}
 {%- endstyle -%}
-<div class="color-{{ section.settings.color_scheme }} sh-sec sh-cmp">
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-cmp sh-cmp--{{ section.settings.variant }}">
   <h2>{{ section.settings.heading }}</h2>
   <table><thead><tr><th>{{ section.settings.col_feature }}</th><th class="c us">{{ section.settings.col_us }}</th><th class="c">{{ section.settings.col_them }}</th></tr></thead>
   <tbody>{%- for i in (1..5) -%}{%- assign r = 'row' | append: i -%}{%- if section.settings[r] != blank -%}{%- assign u = 'us' | append: i -%}{%- assign t = 'them' | append: i -%}
@@ -166,6 +177,7 @@ const COMPARISON = `{%- style -%}${BASE}
 {% schema %}
 { "name":"Comparison Table","tag":"section","settings":[
   ${SCHEME},
+  {"type":"select","id":"variant","label":"Style","default":"clean","options":[{"value":"clean","label":"Clean"},{"value":"card","label":"Card"}]},
   {"type":"text","id":"heading","label":"Heading","default":"Why we're the better choice"},
   {"type":"text","id":"col_feature","label":"Column: feature","default":"Feature"},{"type":"text","id":"col_us","label":"Column: us","default":"Us"},{"type":"text","id":"col_them","label":"Column: others","default":"Others"},
   {"type":"text","id":"row1","label":"Row 1","default":"Premium materials"},{"type":"text","id":"us1","label":"Us 1","default":"✓"},{"type":"text","id":"them1","label":"Them 1","default":"✕"},
@@ -216,14 +228,16 @@ const IMAGE_TEXT = `{%- style -%}${BASE}
   .sh-it__media img{width:100%;height:100%;object-fit:cover;display:block}
   .sh-it h2{font-size:30px;margin:0 0 14px}
   .sh-it p{line-height:1.65;margin:0 0 20px;opacity:.78}
+  .sh-it--framed .sh-it__media{border-radius:20px;border:1px solid rgb(var(--color-foreground,22 24 28)/.08);box-shadow:0 18px 44px rgb(var(--color-foreground,22 24 28)/.16)}
 {%- endstyle -%}
-<div class="color-{{ section.settings.color_scheme }} sh-sec sh-it{% if section.settings.reverse %} rev{% endif %}">
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-it sh-it--{{ section.settings.variant }}{% if section.settings.reverse %} rev{% endif %}">
   <div class="sh-it__media">{%- if section.settings.image != blank -%}<img src="{{ section.settings.image | image_url: width: 1000 }}" alt="{{ section.settings.heading | escape }}" loading="lazy">{%- endif -%}</div>
   <div><h2>{{ section.settings.heading }}</h2><p>{{ section.settings.text }}</p>{%- if section.settings.btn_label != blank -%}<a class="sh-btn" href="{{ section.settings.btn_link }}">{{ section.settings.btn_label }}</a>{%- endif -%}</div>
 </div>
 {% schema %}
 { "name":"Image + Text","tag":"section","settings":[
   ${SCHEME},
+  {"type":"select","id":"variant","label":"Style","default":"standard","options":[{"value":"standard","label":"Standard"},{"value":"framed","label":"Framed"}]},
   {"type":"image_picker","id":"image","label":"Image"},
   {"type":"checkbox","id":"reverse","label":"Image on right","default":false},
   {"type":"text","id":"heading","label":"Heading","default":"Crafted with care"},
@@ -241,17 +255,21 @@ const ABOUT = `{%- style -%}${BASE}
   .sh-ab__stats{display:flex;justify-content:center;gap:48px;margin-top:32px;flex-wrap:wrap}
   .sh-ab__stat strong{display:block;font-size:28px;color:rgb(var(--color-button,10 132 255))}
   .sh-ab__stat span{font-size:13px;opacity:.65}
+  .sh-ab--boxed .sh-ab__inner{background:rgb(var(--color-foreground,22 24 28)/.04);border:1px solid rgb(var(--color-foreground,22 24 28)/.08);border-radius:24px;padding:44px 32px}
 {%- endstyle -%}
-<div class="color-{{ section.settings.color_scheme }} sh-sec sh-ab">
-  <h2>{{ section.settings.heading }}</h2>
-  <div class="sh-ab__body">{{ section.settings.body }}</div>
-  <div class="sh-ab__stats">{%- for i in (1..3) -%}{%- assign n = 'stat' | append: i -%}{%- assign l = 'label' | append: i -%}{%- if section.settings[n] != blank -%}
-    <div class="sh-ab__stat"><strong>{{ section.settings[n] }}</strong><span>{{ section.settings[l] }}</span></div>
-  {%- endif -%}{%- endfor -%}</div>
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-ab sh-ab--{{ section.settings.variant }}">
+  <div class="sh-ab__inner">
+    <h2>{{ section.settings.heading }}</h2>
+    <div class="sh-ab__body">{{ section.settings.body }}</div>
+    <div class="sh-ab__stats">{%- for i in (1..3) -%}{%- assign n = 'stat' | append: i -%}{%- assign l = 'label' | append: i -%}{%- if section.settings[n] != blank -%}
+      <div class="sh-ab__stat"><strong>{{ section.settings[n] }}</strong><span>{{ section.settings[l] }}</span></div>
+    {%- endif -%}{%- endfor -%}</div>
+  </div>
 </div>
 {% schema %}
 { "name":"About / Story","tag":"section","settings":[
   ${SCHEME},
+  {"type":"select","id":"variant","label":"Style","default":"centered","options":[{"value":"centered","label":"Centered"},{"value":"boxed","label":"Boxed"}]},
   {"type":"text","id":"heading","label":"Heading","default":"Our story"},
   {"type":"richtext","id":"body","label":"Body","default":"<p>Share what your brand stands for, who it's for, and why you started. A genuine story builds trust and turns visitors into customers.</p>"},
   {"type":"text","id":"stat1","label":"Stat 1","default":"10k+"},{"type":"text","id":"label1","label":"Label 1","default":"Happy customers"},
@@ -370,13 +388,13 @@ const baseLogos = { color_scheme: "scheme-1", heading: "As seen in" };
 
 const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-trust-bar": { liquid: TRUST_BAR, settings: { ...baseTrust, variant: "inline" } },
-  "sh-faq": { liquid: FAQ, settings: baseFaq },
+  "sh-faq": { liquid: FAQ, settings: { ...baseFaq, variant: "bordered" } },
   "sh-features": { liquid: FEATURES, settings: { ...baseFeat, variant: "cards" } },
   "sh-promo": { liquid: PROMO, settings: { ...basePromo, variant: "gradient" } },
-  "sh-comparison": { liquid: COMPARISON, settings: baseCmp },
+  "sh-comparison": { liquid: COMPARISON, settings: { ...baseCmp, variant: "clean" } },
   "sh-testimonials": { liquid: TESTIMONIALS, settings: { ...baseTm, variant: "cards" } },
-  "sh-image-text": { liquid: IMAGE_TEXT, settings: baseIt },
-  "sh-about": { liquid: ABOUT, settings: baseAbout },
+  "sh-image-text": { liquid: IMAGE_TEXT, settings: { ...baseIt, variant: "standard" } },
+  "sh-about": { liquid: ABOUT, settings: { ...baseAbout, variant: "centered" } },
   "sh-newsletter": { liquid: NEWSLETTER, settings: baseNl },
   "sh-guarantee": { liquid: GUARANTEE, settings: baseGuar },
   "sh-stats": { liquid: STATS, settings: baseStats },
