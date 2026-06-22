@@ -352,7 +352,12 @@ Respond with ONLY JSON, no prose, no code fences: {"emails":[{"subject":"…","p
 }
 
 const ARTICLE_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent. Use <h2>/<h3>/<ul>/<p> and end with a soft CTA; suggest internal links to relevant products/collections inline.
-Respond with ONLY JSON, no prose, no code fences: {"title":"…","metaDescription":"≤155 chars","bodyHtml":"<p>…</p> the full article in valid HTML"}. Never invent statistics.`;
+Respond in EXACTLY this format and nothing else (no JSON, no code fences):
+TITLE: <the article title, one line>
+META: <meta description, ≤155 chars, one line>
+BODY:
+<the full article as valid HTML — multiple lines are fine>
+Never invent statistics.`;
 
 export async function generateArticles(
   admin: AdminApiContext,
@@ -377,14 +382,26 @@ export async function generateArticles(
     try {
       const res = await complete({ cachePrefix: CONTENT_STRATEGY, system: ARTICLE_SYSTEM, user, maxTokens: 2600, tier: "cheap" });
       costUsd += res.costUsd;
-      let t = cleanHtml(res.text);
-      const a = t.indexOf("{");
-      const b = t.lastIndexOf("}");
-      if (a >= 0 && b > a) t = t.slice(a, b + 1);
-      const o = JSON.parse(t) as { title?: string; metaDescription?: string; bodyHtml?: string };
-      if (!o.title || !o.bodyHtml) continue;
-      used.push(o.title);
-      drafts.push({ id: `article-${i}`, title: o.title, before: opts.topic || "new article", after: o.bodyHtml, metaDescription: String(o.metaDescription ?? "").slice(0, 160) });
+      const raw = res.text.replace(/^```(?:html|json)?/i, "").replace(/```$/i, "").trim();
+      // Newline-safe delimited format (the old JSON-with-embedded-HTML broke parsing
+      // whenever the body had literal newlines). Fall back to legacy JSON if present.
+      let title = raw.match(/^TITLE:\s*(.+)$/im)?.[1]?.trim();
+      let metaDescription = raw.match(/^META:\s*(.+)$/im)?.[1]?.trim();
+      let body = raw.match(/^BODY:\s*([\s\S]+)$/im)?.[1]?.trim();
+      if (!title || !body) {
+        try {
+          const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+          if (a >= 0 && b > a) {
+            const o = JSON.parse(raw.slice(a, b + 1)) as { title?: string; metaDescription?: string; bodyHtml?: string };
+            title = title || o.title;
+            metaDescription = metaDescription || o.metaDescription;
+            body = body || o.bodyHtml;
+          }
+        } catch { /* fall through */ }
+      }
+      if (!title || !body) continue;
+      used.push(title);
+      drafts.push({ id: `article-${i}`, title, before: opts.topic || "new article", after: cleanHtml(body), metaDescription: String(metaDescription ?? "").slice(0, 160) });
     } catch {
       /* skip */
     }

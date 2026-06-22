@@ -756,6 +756,8 @@ export default function Index() {
   // When set, a content step is running IN PLACE on the playbook (generate →
   // auto-apply) rather than opening the content task panel.
   const [autoContent, setAutoContent] = useState<{ itemId: string; type: "descriptions" | "seo" | "alt" | "articles" } | null>(null);
+  // A "view what was created" link shown on a shipped step (e.g. a published article).
+  const [planResult, setPlanResult] = useState<{ itemId: string; label: string; url: string } | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Abort handle + client-side timeout for the chat stream (prevents a dropped
@@ -1698,9 +1700,16 @@ export default function Index() {
         // In-place run: skip the review panel — auto-apply, or mark the step done
         // if nothing needed changing.
         if (!d.drafts.length) {
-          shipRunningItem("Already optimized");
+          if (autoContent.type === "articles") {
+            // Writing a new article should always produce one — empty means the
+            // generation failed, not "already done". Let the merchant retry.
+            if (runningPlanItem) setRunningPlanItem(null);
+            setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't generate the article this time — please run this step again." }]);
+          } else {
+            shipRunningItem("Already optimized");
+            reportFetcher.submit({}, { method: "post", action: "/api/report" });
+          }
           setAutoContent(null);
-          reportFetcher.submit({}, { method: "post", action: "/api/report" });
         } else {
           contentFetcher.submit(
             { op: "apply", task: autoContent.type, drafts: JSON.stringify(d.drafts) },
@@ -1724,8 +1733,11 @@ export default function Index() {
       // instead of dropping the merchant into the chat view.
       const host = runningPlanItem ? planHost : null;
       const inPlace = !!autoContent;
+      // Surface "where it went" on the step — e.g. a link to the published article.
+      const firstLink = d.links?.[0];
+      if (runningPlanItem && firstLink) setPlanResult({ itemId: runningPlanItem.itemId, label: `View "${firstLink.title}"`, url: firstLink.adminUrl });
       setAutoContent(null);
-      shipRunningItem(); // content was applied/published → mark its plan item shipped
+      shipRunningItem(articles ? `Published: ${d.links?.[0]?.title ?? "article"}`.slice(0, 80) : undefined); // content was applied/published → mark its plan item shipped
       reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
       // In-place runs never left the playbook; only re-open the host for panel runs.
       if (!inPlace) { if (host && TASKS[host]) { setPlanHost(null); setActiveTask(TASKS[host]); } else setActiveTask(null); }
@@ -1793,6 +1805,9 @@ export default function Index() {
           <div className="sh-plan-idetail">{item.detail}</div>
           {item.status === "done" && (
             <div className="sh-plan-shipped">✓ Shipped {fmtPlanDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
+          )}
+          {item.status === "done" && planResult?.itemId === item.id && (
+            <div className="sh-plan-result"><a href={planResult.url} target="_blank" rel="noopener noreferrer">{planResult.label} ↗</a></div>
           )}
           {item.status !== "done" && working && (
             <div className="sh-plan-running"><span className="sh-spinner sh-spinner-sm" /> {workLabel}</div>
