@@ -30,7 +30,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const activePlan = await getActivePlan(admin);
-  if (!activePlan) return redirect("/app/pricing");
+  if (!activePlan) return redirect(`/app/pricing?${new URL(request.url).searchParams.toString()}`);
 
   const form = await request.formData();
   const consentData = form.get("consentData") === "1";

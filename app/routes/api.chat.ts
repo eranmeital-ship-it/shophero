@@ -1,5 +1,4 @@
 import type { ActionFunctionArgs } from "react-router";
-import { redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { runAgentTurn } from "../lib/agent.server";
@@ -32,10 +31,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const ctx = { shop: session.shop, accessToken: session.accessToken! };
 
   // ── Plan gate ────────────────────────────────────────────────────────────
+  // NEVER redirect here: this is a streaming fetch, and a bare in-app redirect
+  // drops the embedded host/shop params and dead-ends on the Shopify login card.
+  // Return a clean 402 the chat client shows as a message instead.
   const activePlan = await getActivePlan(admin);
   if (!activePlan) {
-    // No active subscription — send them to pricing
-    return redirect("/app/pricing");
+    return new Response("You don't have an active plan yet — open Pricing to choose one, then try again.", { status: 402 });
   }
 
   // ── Resolve API key ────────────────────────────────────────────────────────
