@@ -177,6 +177,9 @@
 .sh-draft-head strong { font-size: 14px; }
 .sh-draft-after { font-size: 13px; line-height: 1.55; color: var(--sh-ink, #29313d); }
 .sh-draft-after p { margin: 0 0 8px; }
+.sh-schema-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+.sh-schema-list li { font-size: 13.5px; color: var(--sh-ink, #29313d); line-height: 1.5; }
+
 /* Section library picker */
 .sh-seclib { display: flex; flex-direction: column; gap: 9px; }
 .sh-seccard { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 13px 14px; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 12px; background: #fff; cursor: pointer; }

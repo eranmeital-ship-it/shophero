@@ -17,6 +17,10 @@ export const SECTION_LIBRARY: SectionMeta[] = [
   { key: "sh-faq", name: "FAQ Accordion", emoji: "❓", category: "Content", description: "Expandable frequently-asked-questions to handle objections and boost SEO/AEO." },
   { key: "sh-features", name: "Why Choose Us", emoji: "✨", category: "Conversion", description: "A 3-up benefits grid with icons — sell the value at a glance." },
   { key: "sh-promo", name: "Promo Banner", emoji: "📣", category: "Marketing", description: "A bold full-width banner with a headline and call-to-action button." },
+  { key: "sh-comparison", name: "Comparison Table", emoji: "📊", category: "Conversion", description: "An \"us vs. the others\" table that makes your advantages obvious." },
+  { key: "sh-testimonials", name: "Testimonials", emoji: "💬", category: "Trust", description: "Customer quotes in clean cards to build social proof." },
+  { key: "sh-image-text", name: "Image + Text", emoji: "🖼️", category: "Content", description: "A two-column image-and-text block to tell your story or feature a product." },
+  { key: "sh-about", name: "About / Story", emoji: "📖", category: "Content", description: "A brand-story block with a headline, paragraph and key stats." },
 ];
 
 // Pages a section can be added to → template file name (Online Store 2.0 JSON).

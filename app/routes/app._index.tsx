@@ -275,6 +275,7 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "🤖", label: "AI Agent Ready", genius: true, taskId: "aeo" },
   { emoji: "🎨", label: "Redesign Hero", taskId: "redesign-hero" },
   { emoji: "🧩", label: "Add Section", taskId: "add-section" },
+  { emoji: "🧬", label: "Structured Data", taskId: "structured-data" },
 ];
 
 // Rough BILLED cost + time estimate per task, shown before running so nothing is a
@@ -385,6 +386,15 @@ const TASKS: Record<string, TaskConfig> = {
     title: "Add a Section",
     desc: "Insert a polished, ready-made section into your theme.",
     areas: [],
+    fields: [],
+    build: () => "",
+  },
+  "structured-data": {
+    id: "structured-data",
+    emoji: "🧬",
+    title: "Structured Data (AEO)",
+    desc: "Add JSON-LD so Google and AI agents can read your store.",
+    areas: ["SEO"],
     fields: [],
     build: () => "",
   },
@@ -1222,6 +1232,24 @@ export default function Index() {
       { method: "post", action: "/api/content" },
     );
   }
+  // Deterministic JSON-LD structured data.
+  const schemaFetcher = useFetcher<{ ok?: boolean; error?: string; alreadyPresent?: boolean }>();
+  const schemaBusy = schemaFetcher.state !== "idle";
+  function addStructuredData() {
+    schemaFetcher.submit({}, { method: "post", action: "/api/structured-data" });
+  }
+  useEffect(() => {
+    if (schemaFetcher.state !== "idle" || !schemaFetcher.data?.ok) return;
+    setActiveTask(null);
+    if (schemaFetcher.data.alreadyPresent) {
+      setMessages((m) => [...m, { role: "assistant", text: "✓ Structured data is already set up on your theme." }]);
+    } else {
+      setPending((p) => [...new Set([...p, "snippets/sh-structured-data.liquid", "layout/theme.liquid"])]);
+      setMessages((m) => [...m, { role: "assistant", text: "✓ Added JSON-LD structured data (Organization, WebSite, Product). Accept to publish — it boosts SEO and AI-agent readability." }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaFetcher.state, schemaFetcher.data]);
+
   const sectionBusy = sectionFetcher.state !== "idle";
   function insertSectionAction() {
     if (!sectionKey) return;
@@ -1487,6 +1515,36 @@ export default function Index() {
     );
   }
 
+  function renderSchemaTask() {
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">🧬 Structured Data (AEO)</div>
+            <div className="sh-task-desc">Adds JSON-LD so Google and AI shopping assistants (ChatGPT, Claude, Gemini, Perplexity) can read your store, products and prices. Generated live from your real store data — always accurate.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+        <div className="sh-task-body">
+          <ul className="sh-schema-list">
+            <li>✓ Organization &amp; WebSite schema (your brand identity)</li>
+            <li>✓ Product schema on every product page (name, price, availability)</li>
+            <li>✓ Standards-compliant JSON-LD that validates in Google's tools</li>
+          </ul>
+          {schemaFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{schemaFetcher.data.error}</div>}
+        </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>$0.00</strong> · instant</span>
+          <span className="sh-task-est-note">Generated from live theme data — no AI. Staged for your approval.</span>
+        </div>
+        <div className="sh-task-foot">
+          <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+          <button className="sh-btn sh-btn-primary" disabled={schemaBusy} onClick={addStructuredData}>{schemaBusy ? "Adding…" : "Add structured data →"}</button>
+        </div>
+      </div>
+    );
+  }
+
   function renderSectionTask() {
     return (
       <div className="sh-task">
@@ -1650,6 +1708,7 @@ export default function Index() {
     if (activeTask.id === "alt-text") return renderContentTask("alt");
     if (activeTask.id === "write-content") return renderContentTask("articles");
     if (activeTask.id === "add-section") return renderSectionTask();
+    if (activeTask.id === "structured-data") return renderSchemaTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();

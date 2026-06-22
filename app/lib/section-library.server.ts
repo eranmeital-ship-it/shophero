@@ -142,7 +142,129 @@ const PROMO = `{%- style -%}
 }
 {% endschema %}`;
 
+const COMPARISON = `{%- style -%}
+  .sh-cmp{max-width:760px;margin:0 auto;padding:44px 16px}
+  .sh-cmp h2{text-align:center;font-size:28px;margin:0 0 24px}
+  .sh-cmp table{width:100%;border-collapse:collapse;font-size:14px}
+  .sh-cmp th,.sh-cmp td{padding:12px 14px;border-bottom:1px solid #e6e9ef;text-align:left}
+  .sh-cmp th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}
+  .sh-cmp .us{font-weight:700;color:#0a84ff}
+  .sh-cmp td.c,.sh-cmp th.c{text-align:center}
+{%- endstyle -%}
+<div class="sh-cmp">
+  <h2>{{ section.settings.heading }}</h2>
+  <table>
+    <thead><tr><th>{{ section.settings.col_feature }}</th><th class="c us">{{ section.settings.col_us }}</th><th class="c">{{ section.settings.col_them }}</th></tr></thead>
+    <tbody>
+      {%- for i in (1..5) -%}{%- assign r = 'row' | append: i -%}{%- assign rv = section.settings[r] -%}{%- if rv != blank -%}
+        {%- assign u = 'us' | append: i -%}{%- assign t = 'them' | append: i -%}
+        <tr><td>{{ rv }}</td><td class="c us">{{ section.settings[u] }}</td><td class="c">{{ section.settings[t] }}</td></tr>
+      {%- endif -%}{%- endfor -%}
+    </tbody>
+  </table>
+</div>
+{% schema %}
+{ "name":"Comparison Table","tag":"section","settings":[
+  {"type":"text","id":"heading","label":"Heading","default":"Why we're the better choice"},
+  {"type":"text","id":"col_feature","label":"Column: feature","default":"Feature"},
+  {"type":"text","id":"col_us","label":"Column: us","default":"Us"},
+  {"type":"text","id":"col_them","label":"Column: others","default":"Others"},
+  {"type":"text","id":"row1","label":"Row 1","default":"Premium materials"},{"type":"text","id":"us1","label":"Us 1","default":"✓"},{"type":"text","id":"them1","label":"Them 1","default":"✕"},
+  {"type":"text","id":"row2","label":"Row 2","default":"Free shipping"},{"type":"text","id":"us2","label":"Us 2","default":"✓"},{"type":"text","id":"them2","label":"Them 2","default":"✕"},
+  {"type":"text","id":"row3","label":"Row 3","default":"30-day returns"},{"type":"text","id":"us3","label":"Us 3","default":"✓"},{"type":"text","id":"them3","label":"Them 3","default":"Sometimes"},
+  {"type":"text","id":"row4","label":"Row 4","default":"Real human support"},{"type":"text","id":"us4","label":"Us 4","default":"✓"},{"type":"text","id":"them4","label":"Them 4","default":"✕"},
+  {"type":"text","id":"row5","label":"Row 5","default":""},{"type":"text","id":"us5","label":"Us 5","default":""},{"type":"text","id":"them5","label":"Them 5","default":""}
+],"presets":[{"name":"Comparison Table"}] }
+{% endschema %}`;
+
+const TESTIMONIALS = `{%- style -%}
+  .sh-tm{max-width:1100px;margin:0 auto;padding:44px 16px;text-align:center}
+  .sh-tm h2{font-size:28px;margin:0 0 28px}
+  .sh-tm__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:749px){.sh-tm__grid{grid-template-columns:1fr}}
+  .sh-tm__card{background:#f7f8fa;border-radius:14px;padding:22px;text-align:left}
+  .sh-tm__stars{color:#f5a623;margin-bottom:8px}
+  .sh-tm__q{font-size:15px;line-height:1.55;margin:0 0 12px}
+  .sh-tm__a{font-weight:700;font-size:13px}
+{%- endstyle -%}
+<div class="sh-tm">
+  {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+  <div class="sh-tm__grid">
+    {%- for i in (1..3) -%}{%- assign q = 'quote' | append: i -%}{%- assign a = 'author' | append: i -%}
+      <div class="sh-tm__card"><div class="sh-tm__stars">★★★★★</div><p class="sh-tm__q">{{ section.settings[q] }}</p><div class="sh-tm__a">— {{ section.settings[a] }}</div></div>
+    {%- endfor -%}
+  </div>
+</div>
+{% schema %}
+{ "name":"Testimonials","tag":"section","settings":[
+  {"type":"text","id":"heading","label":"Heading","default":"What customers say"},
+  {"type":"textarea","id":"quote1","label":"Quote 1","default":"Exactly what I needed — quality is excellent and shipping was fast."},{"type":"text","id":"author1","label":"Author 1","default":"Sarah M."},
+  {"type":"textarea","id":"quote2","label":"Quote 2","default":"Better than I expected. I've already ordered again."},{"type":"text","id":"author2","label":"Author 2","default":"James T."},
+  {"type":"textarea","id":"quote3","label":"Quote 3","default":"Great experience start to finish. Highly recommend."},{"type":"text","id":"author3","label":"Author 3","default":"Priya K."}
+],"presets":[{"name":"Testimonials"}] }
+{% endschema %}`;
+
+const IMAGE_TEXT = `{%- style -%}
+  .sh-it{max-width:1100px;margin:0 auto;padding:44px 16px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
+  .sh-it.rev .sh-it__media{order:2}
+  @media(max-width:749px){.sh-it{grid-template-columns:1fr}}
+  .sh-it__media{border-radius:14px;overflow:hidden;min-height:240px;background:linear-gradient(135deg,#e9eef6,#dfe5ee)}
+  .sh-it__media img{width:100%;height:100%;object-fit:cover;display:block}
+  .sh-it h2{font-size:28px;margin:0 0 12px}
+  .sh-it p{color:#5a6472;line-height:1.6;margin:0 0 18px}
+  .sh-it a{display:inline-block;background:#0a84ff;color:#fff;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none}
+{%- endstyle -%}
+<div class="sh-it{% if section.settings.reverse %} rev{% endif %}">
+  <div class="sh-it__media">{%- if section.settings.image != blank -%}<img src="{{ section.settings.image | image_url: width: 1000 }}" alt="{{ section.settings.heading | escape }}" loading="lazy">{%- endif -%}</div>
+  <div class="sh-it__body">
+    <h2>{{ section.settings.heading }}</h2>
+    <p>{{ section.settings.text }}</p>
+    {%- if section.settings.btn_label != blank -%}<a href="{{ section.settings.btn_link }}">{{ section.settings.btn_label }}</a>{%- endif -%}
+  </div>
+</div>
+{% schema %}
+{ "name":"Image + Text","tag":"section","settings":[
+  {"type":"image_picker","id":"image","label":"Image"},
+  {"type":"checkbox","id":"reverse","label":"Image on right","default":false},
+  {"type":"text","id":"heading","label":"Heading","default":"Crafted with care"},
+  {"type":"textarea","id":"text","label":"Text","default":"Tell your story here — what makes your products special and why customers love them."},
+  {"type":"text","id":"btn_label","label":"Button label","default":"Learn more"},
+  {"type":"url","id":"btn_link","label":"Button link","default":"/pages/about"}
+],"presets":[{"name":"Image + Text"}] }
+{% endschema %}`;
+
+const ABOUT = `{%- style -%}
+  .sh-ab{max-width:820px;margin:0 auto;padding:48px 16px;text-align:center}
+  .sh-ab h2{font-size:30px;margin:0 0 14px}
+  .sh-ab__body{color:#5a6472;line-height:1.7;font-size:16px}
+  .sh-ab__stats{display:flex;justify-content:center;gap:40px;margin-top:30px;flex-wrap:wrap}
+  .sh-ab__stat strong{display:block;font-size:26px;color:#0a84ff}
+  .sh-ab__stat span{font-size:13px;color:#6b7280}
+{%- endstyle -%}
+<div class="sh-ab">
+  <h2>{{ section.settings.heading }}</h2>
+  <div class="sh-ab__body">{{ section.settings.body }}</div>
+  <div class="sh-ab__stats">
+    {%- for i in (1..3) -%}{%- assign n = 'stat' | append: i -%}{%- assign l = 'label' | append: i -%}{%- assign nv = section.settings[n] -%}{%- if nv != blank -%}
+      <div class="sh-ab__stat"><strong>{{ nv }}</strong><span>{{ section.settings[l] }}</span></div>
+    {%- endif -%}{%- endfor -%}
+  </div>
+</div>
+{% schema %}
+{ "name":"About / Story","tag":"section","settings":[
+  {"type":"text","id":"heading","label":"Heading","default":"Our story"},
+  {"type":"richtext","id":"body","label":"Body","default":"<p>Share what your brand stands for, who it's for, and why you started. A genuine story builds trust and turns visitors into customers.</p>"},
+  {"type":"text","id":"stat1","label":"Stat 1","default":"10k+"},{"type":"text","id":"label1","label":"Label 1","default":"Happy customers"},
+  {"type":"text","id":"stat2","label":"Stat 2","default":"4.8★"},{"type":"text","id":"label2","label":"Label 2","default":"Average rating"},
+  {"type":"text","id":"stat3","label":"Stat 3","default":""},{"type":"text","id":"label3","label":"Label 3","default":""}
+],"presets":[{"name":"About / Story"}] }
+{% endschema %}`;
+
 const SECTION_DEFS: Record<string, SectionDef> = {
+  "sh-comparison": { liquid: COMPARISON, settings: { heading: "Why we're the better choice", col_feature: "Feature", col_us: "Us", col_them: "Others", row1: "Premium materials", us1: "✓", them1: "✕", row2: "Free shipping", us2: "✓", them2: "✕", row3: "30-day returns", us3: "✓", them3: "Sometimes", row4: "Real human support", us4: "✓", them4: "✕", row5: "", us5: "", them5: "" } },
+  "sh-testimonials": { liquid: TESTIMONIALS, settings: { heading: "What customers say", quote1: "Exactly what I needed — quality is excellent and shipping was fast.", author1: "Sarah M.", quote2: "Better than I expected. I've already ordered again.", author2: "James T.", quote3: "Great experience start to finish. Highly recommend.", author3: "Priya K." } },
+  "sh-image-text": { liquid: IMAGE_TEXT, settings: { reverse: false, heading: "Crafted with care", text: "Tell your story here — what makes your products special and why customers love them.", btn_label: "Learn more", btn_link: "/pages/about" } },
+  "sh-about": { liquid: ABOUT, settings: { heading: "Our story", body: "<p>Share what your brand stands for, who it's for, and why you started. A genuine story builds trust and turns visitors into customers.</p>", stat1: "10k+", label1: "Happy customers", stat2: "4.8★", label2: "Average rating", stat3: "", label3: "" } },
   "sh-trust-bar": { liquid: TRUST_BAR, settings: { bg: "#f7f8fa", text_color: "#16181c", icon1: "🚚", title1: "Free shipping", text1: "On orders over $50", icon2: "🔒", title2: "Secure checkout", text2: "Encrypted & protected", icon3: "↩️", title3: "Easy returns", text3: "30-day money back", icon4: "⭐", title4: "Loved by customers", text4: "Rated & reviewed" } },
   "sh-faq": { liquid: FAQ, settings: { heading: "Frequently asked questions", q1: "How long does shipping take?", a1: "Most orders arrive within 3–7 business days.", q2: "What is your return policy?", a2: "Returns are accepted within 30 days, no questions asked.", q3: "Is checkout secure?", a3: "Yes — payments are encrypted and processed securely by Shopify.", q4: "Do you offer support?", a4: "Absolutely — reach out any time and we'll help.", q5: "", a5: "" } },
   "sh-features": { liquid: FEATURES, settings: { heading: "Why choose us", icon1: "🏆", title1: "Premium quality", text1: "Built to last with materials we'd use ourselves.", icon2: "⚡", title2: "Fast delivery", text2: "Quick dispatch and reliable shipping to your door.", icon3: "💬", title3: "Real support", text3: "Friendly help whenever you need it." } },
