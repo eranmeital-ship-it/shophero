@@ -427,10 +427,17 @@ export async function insertSections(
     return { ok: false, error: `Couldn't open the "${target}" template — it may not exist on this theme.`, files };
   }
   const stamp = Date.now().toString(36);
+  const uniqueKeys = [...new Set(sections.map((s) => s.key))];
 
   // Vintage .liquid template → append section tags (settings use schema defaults).
   if (resolved.kind === "liquid") {
-    const next = appendToLiquidTemplate(resolved.content, sections.map((s) => s.key));
+    // Idempotent: strip any existing tags for these sections first, so re-running
+    // a step never stacks duplicates, then append exactly one of each.
+    let body = resolved.content;
+    for (const k of uniqueKeys) {
+      body = body.replace(new RegExp(`[ \\t]*\\{%-?\\s*section\\s*['"]${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]\\s*-?%\\}[ \\t]*\\n?`, "g"), "");
+    }
+    const next = appendToLiquidTemplate(body, sections.map((s) => s.key));
     try {
       await writeFile(path.join(dir, resolved.relPath), next, "utf8");
     } catch (e) {
@@ -441,7 +448,7 @@ export async function insertSections(
   }
 
   // OS 2.0 JSON template → add section objects + order entries.
-  let json: { sections?: Record<string, unknown>; order?: string[] };
+  let json: { sections?: Record<string, { type?: string }>; order?: string[] };
   try {
     json = JSON.parse(resolved.content);
   } catch {
@@ -449,12 +456,24 @@ export async function insertSections(
   }
   json.sections = json.sections ?? {};
   json.order = json.order ?? [];
-  sections.forEach((s, i) => {
+  // Idempotent: drop any existing instances of these section types first.
+  for (const [id, s] of Object.entries(json.sections)) {
+    if (s && typeof s === "object" && uniqueKeys.includes(String(s.type))) {
+      delete json.sections[id];
+      json.order = json.order.filter((o) => o !== id);
+    }
+  }
+  const newIds = sections.map((s, i) => {
     const def = SECTION_DEFS[s.key];
     const id = `${s.key}_${stamp}_${i}`;
-    json.sections![id] = { type: s.key, settings: { ...def.settings, ...(s.variant ? { variant: s.variant } : {}) } };
-    json.order!.push(id);
+    json.sections![id] = { type: s.key, settings: { ...def.settings, ...(s.variant ? { variant: s.variant } : {}) } } as { type?: string };
+    return id;
   });
+  // Placement: on a product template, drop the new sections right AFTER the main
+  // product section (i.e. below the buy button) instead of at the very bottom.
+  const mainIdx = json.order.findIndex((o) => /(^|_)main-product(_|$)/.test(o) || json.sections?.[o]?.type === "main-product");
+  if (target === "product" && mainIdx >= 0) json.order.splice(mainIdx + 1, 0, ...newIds);
+  else json.order.push(...newIds);
   try {
     await writeFile(path.join(dir, resolved.relPath), JSON.stringify(json, null, 2), "utf8");
   } catch (e) {
