@@ -1018,6 +1018,56 @@
 .sh-task-opps-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sh-ink-faint); margin-bottom: 8px; }
 .sh-task-opp { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--sh-ink); padding: 4px 0; line-height: 1.4; }
 
+/* ===================== Schema / AI-Readiness audit ===================== */
+.sh-audit-load { font-size: 13px; color: var(--sh-ink-soft); padding: 20px 4px; text-align: center; }
+.sh-audit-top {
+  display: flex; align-items: center; gap: 18px; padding: 16px 18px; border-radius: 16px;
+  border: 1px solid var(--sh-line); background: linear-gradient(180deg, #fff, #f4f7fb); box-shadow: var(--sh-shadow-sm);
+}
+.sh-audit-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sh-audit-grade { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.sh-audit-grade--excellent { color: #16a34a; }
+.sh-audit-grade--good { color: var(--sh-accent-ink); }
+.sh-audit-grade--fair { color: #c77700; }
+.sh-audit-grade--needswork { color: #e0245e; }
+.sh-audit-sub { font-size: 12px; color: var(--sh-ink-soft); }
+.sh-audit-live { font-size: 12px; font-weight: 600; margin-top: 3px; line-height: 1.4; }
+.sh-audit-live.ok { color: #16a34a; }
+.sh-audit-live.warn { color: #c77700; }
+
+.sh-audit-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sh-ink-faint); margin-bottom: 9px; }
+
+.sh-audit-cov { display: flex; flex-direction: column; gap: 4px; }
+.sh-audit-covrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 11px; border-radius: 10px; background: rgba(0, 0, 0, 0.025); font-size: 12.5px; }
+.sh-audit-covrow.inactive { opacity: 0.5; }
+.sh-audit-covpage { font-weight: 650; color: var(--sh-ink); white-space: nowrap; }
+.sh-audit-covtypes { font-family: var(--sh-mono); font-size: 10.5px; color: var(--sh-ink-soft); text-align: right; }
+
+.sh-audit-checks { display: flex; flex-direction: column; gap: 7px; }
+.sh-audit-check {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border-radius: 12px;
+  border: 1px solid var(--sh-line); background: linear-gradient(180deg, #fff, #f7f9fc); box-shadow: var(--sh-shadow-sm);
+}
+.sh-audit-ci { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
+.sh-audit-check.pass .sh-audit-ci { background: #16a34a; }
+.sh-audit-check.partial .sh-audit-ci { background: #f5a623; }
+.sh-audit-check.fail .sh-audit-ci { background: #e0245e; }
+.sh-audit-check.unknown .sh-audit-ci { background: var(--sh-ink-faint); }
+.sh-audit-cb { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sh-audit-cl { font-size: 13px; font-weight: 640; color: var(--sh-ink); display: flex; align-items: center; gap: 7px; }
+.sh-audit-cw { font-size: 10px; font-weight: 700; color: var(--sh-ink-faint); background: rgba(0, 0, 0, 0.05); padding: 1px 6px; border-radius: 999px; }
+.sh-audit-cd { font-size: 12px; color: var(--sh-ink-soft); line-height: 1.45; }
+.sh-audit-fix {
+  flex-shrink: 0; align-self: center; font-family: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer;
+  color: var(--sh-accent-ink); background: rgba(10, 132, 255, 0.09); border: 1px solid rgba(10, 132, 255, 0.22);
+  padding: 6px 11px; border-radius: 999px; white-space: nowrap; transition: background 0.14s ease;
+}
+.sh-audit-fix:hover { background: rgba(10, 132, 255, 0.16); }
+
+.sh-audit-tools { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 2px; }
+.sh-audit-tools a { font-size: 12px; font-weight: 600; color: var(--sh-accent-ink); text-decoration: none; }
+.sh-audit-tools a:hover { text-decoration: underline; }
+
 /* ===================== AI Store Manager (Improve My Store) ===================== */
 .sh-sm-summary {
   display: flex; align-items: center; gap: 22px; padding: 16px 18px; border-radius: 16px;

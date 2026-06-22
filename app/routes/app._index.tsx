@@ -13,6 +13,7 @@ import { getShopProfile, parseRecommendations, revenueFromBucket, type Recommend
 import { getCachedReport } from "../lib/report.server";
 import { getPlan } from "../lib/content-plan.server";
 import { SECTION_LIBRARY, SECTION_TARGETS } from "../lib/section-library";
+import type { SchemaAudit } from "../lib/schema-audit.server";
 import { Tour, type TourStep } from "../components/tour";
 import "../styles/shophero.css";
 
@@ -1197,6 +1198,9 @@ export default function Index() {
     if (id === "write-content") {
       suggestFetcher.submit({ op: "suggest", task: "articles" }, { method: "post", action: "/api/content" });
     }
+    if (id === "structured-data") {
+      runAudit();
+    }
     if (id === "store-manager") {
       const recs = report?.recommendations ?? [];
       setSelectedRecs(new Set(recs.map((_, i) => i)));
@@ -1254,18 +1258,29 @@ export default function Index() {
   // Deterministic JSON-LD structured data.
   const schemaFetcher = useFetcher<{ ok?: boolean; error?: string; alreadyPresent?: boolean }>();
   const schemaBusy = schemaFetcher.state !== "idle";
+  const auditFetcher = useFetcher<{ ok?: boolean; audit?: SchemaAudit; error?: string }>();
+  const auditBusy = auditFetcher.state !== "idle";
+  const schemaAudit = auditFetcher.data?.audit;
+  function runAudit() {
+    auditFetcher.submit({ op: "audit" }, { method: "post", action: "/api/structured-data" });
+  }
   function addStructuredData() {
     schemaFetcher.submit({}, { method: "post", action: "/api/structured-data" });
   }
+  function applyAuditFix(fix: NonNullable<SchemaAudit["checks"][number]["fix"]>) {
+    if (fix.href) { window.open(fix.href, "_blank", "noopener"); return; }
+    if (fix.action === "install") { addStructuredData(); return; }
+    if (fix.action === "add-faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); }
+  }
   useEffect(() => {
     if (schemaFetcher.state !== "idle" || !schemaFetcher.data?.ok) return;
-    setActiveTask(null);
     if (schemaFetcher.data.alreadyPresent) {
       setMessages((m) => [...m, { role: "assistant", text: "✓ Structured data is already set up on your theme." }]);
     } else {
       setPending((p) => [...new Set([...p, "snippets/sh-structured-data.liquid", "layout/theme.liquid"])]);
-      setMessages((m) => [...m, { role: "assistant", text: "✓ Added JSON-LD structured data (Organization, WebSite, Product). Accept to publish — it boosts SEO and AI-agent readability." }]);
+      setMessages((m) => [...m, { role: "assistant", text: "✓ Added the full JSON-LD schema set (Organization, WebSite + search, Product, Breadcrumbs, Collection, Article, FAQ). Accept to publish — then re-run the audit to verify it live." }]);
     }
+    runAudit(); // refresh the score after install
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemaFetcher.state, schemaFetcher.data]);
 
@@ -1535,30 +1550,83 @@ export default function Index() {
   }
 
   function renderSchemaTask() {
+    const a = schemaAudit;
+    const gradeKey = a ? a.grade.replace(/\s+/g, "").toLowerCase() : "";
+    const ringColor = a ? (a.score >= 90 ? "#16a34a" : a.score >= 70 ? "#0a84ff" : a.score >= 50 ? "#f5a623" : "#e0245e") : "#0a84ff";
+    const statusIcon = (s: string) => (s === "pass" ? "✓" : s === "partial" ? "◐" : s === "unknown" ? "•" : "✕");
+    const gaps = (a?.checks ?? []).filter((c) => c.status !== "pass" && c.status !== "unknown");
     return (
       <div className="sh-task">
         <div className="sh-task-head">
           <div>
-            <div className="sh-task-title">🧬 Structured Data (AEO)</div>
-            <div className="sh-task-desc">Adds JSON-LD so Google and AI shopping assistants (ChatGPT, Claude, Gemini, Perplexity) can read your store, products and prices. Generated live from your real store data — always accurate.</div>
+            <div className="sh-task-title">🧬 Schema &amp; AI Readiness</div>
+            <div className="sh-task-desc">Live, never-stale JSON-LD rendered from your real store data — so Google and AI assistants (ChatGPT, Claude, Gemini, Perplexity) always read accurate products, prices and answers. Unlike snapshot tools, we verify it on your live storefront and score the real gaps.</div>
           </div>
           <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
         </div>
         <div className="sh-task-body">
-          <ul className="sh-schema-list">
-            <li>✓ Organization &amp; WebSite schema (your brand identity)</li>
-            <li>✓ Product schema on every product page (name, price, availability)</li>
-            <li>✓ Standards-compliant JSON-LD that validates in Google's tools</li>
-          </ul>
-          {schemaFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{schemaFetcher.data.error}</div>}
+          {auditBusy && !a && <div className="sh-audit-load">Analyzing your store &amp; live schema…</div>}
+          {auditFetcher.data?.error && <div className="sh-err">{auditFetcher.data.error}</div>}
+          {a && (
+            <>
+              <div className="sh-audit-top">
+                <div className="sh-ring" style={{ ["--val" as string]: a.score, ["--c" as string]: ringColor } as React.CSSProperties}>
+                  <span className="sh-ring-num">{a.score}</span>
+                </div>
+                <div className="sh-audit-meta">
+                  <div className={`sh-audit-grade sh-audit-grade--${gradeKey}`}>{a.grade}</div>
+                  <div className="sh-audit-sub">AI-Readiness score · {a.installed ? "schema installed" : "not installed yet"}</div>
+                  <div className={`sh-audit-live ${a.live.verified ? "ok" : "warn"}`}>
+                    {a.live.verified ? `✓ Verified live: ${(a.live.detectedTypes ?? []).join(", ")}` : (a.live.note ?? "Not verified live yet")}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="sh-audit-h">Schema coverage by page</div>
+                <div className="sh-audit-cov">
+                  {a.coverage.map((row) => (
+                    <div key={row.pageType} className={`sh-audit-covrow ${row.status}`}>
+                      <span className="sh-audit-covpage">{row.status === "active" ? "✓" : "○"} {row.pageType}</span>
+                      <span className="sh-audit-covtypes">{row.types.join(" · ")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="sh-audit-h">{gaps.length ? `${gaps.length} ${gaps.length === 1 ? "gap" : "gaps"} to fix` : "All checks passing 🎉"}</div>
+                <div className="sh-audit-checks">
+                  {a.checks.map((c) => (
+                    <div key={c.key} className={`sh-audit-check ${c.status}`}>
+                      <span className="sh-audit-ci">{statusIcon(c.status)}</span>
+                      <span className="sh-audit-cb">
+                        <span className="sh-audit-cl">{c.label}<span className="sh-audit-cw">+{c.weight}</span></span>
+                        <span className="sh-audit-cd">{c.detail}</span>
+                      </span>
+                      {c.fix && <button className="sh-audit-fix" onClick={() => applyAuditFix(c.fix!)}>{c.fix.label} →</button>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {a.live.url && (
+                <div className="sh-audit-tools">
+                  <a href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Open in Google Rich Results Test ↗</a>
+                  <a href={`https://validator.schema.org/#url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Schema.org validator ↗</a>
+                </div>
+              )}
+            </>
+          )}
+          {schemaFetcher.data?.error && <div className="sh-err">{schemaFetcher.data.error}</div>}
         </div>
         <div className="sh-task-est">
           <span>Est. cost <strong>$0.00</strong> · instant</span>
-          <span className="sh-task-est-note">Generated from live theme data — no AI. Staged for your approval.</span>
+          <span className="sh-task-est-note">Deterministic — no AI. Schema renders from live data &amp; self-updates.</span>
         </div>
         <div className="sh-task-foot">
-          <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
-          <button className="sh-btn sh-btn-primary" disabled={schemaBusy} onClick={addStructuredData}>{schemaBusy ? "Adding…" : "Add structured data →"}</button>
+          <button className="sh-btn sh-btn-ghost" disabled={auditBusy} onClick={runAudit}>{auditBusy ? "Scanning…" : "Re-scan"}</button>
+          <button className="sh-btn sh-btn-primary" disabled={schemaBusy} onClick={addStructuredData}>{schemaBusy ? "Installing…" : a?.installed ? "Refresh schema →" : "Install schema →"}</button>
         </div>
       </div>
     );
