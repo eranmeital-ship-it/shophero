@@ -220,13 +220,10 @@ const PREP_MSGS = [
 // Guided walkthrough — welcome popup, then spotlight coach-marks.
 const TOUR_STEPS: TourStep[] = [
   { title: "Welcome to ShopHero", body: "Your AI growth team — trained on conversion data from millions of stores. In about 30 seconds, let me show you how to turn this into more sales.", cta: "Show me how it works →" },
-  { target: "tools", title: "One-click power tools", body: "Each tool runs on a brain we trained to outperform generic AI. It analyzes YOUR store first, then does the work — building product pages, SEO, content, conversions, AI-agent readiness and more. Click one and pick your options." },
-  { target: "composer", title: "…or just ask", body: "Type anything in plain English — “make my product page convert better” — and ShopHero plans it, does it, and shows you the result before it goes live." },
-  { target: "modes", title: "Edit & Optimize", body: "Edit builds or changes anything across your store. Optimize gives you a ranked, one-tap fix list from a live audit of your storefront." },
-  { target: "plan", title: "Your growth plan", body: "Your personalized, ranked opportunities — pulled from a scan of your store and millions of high-converting ones. Tap any one to do it in a single click." },
-  { target: "scores", title: "Live store health", body: "Speed, SEO, content, catalog and AI-Ready scores update as you improve. “AI-Ready” tracks how recommendable your store is to AI shopping agents — the next frontier." },
-  { target: "preview", title: "Live preview — fully safe", body: "Every change shows here first. Switch pages and devices, review a visual diff, then Apply. Roll back anytime from version history — nothing goes live without you." },
-  { target: "header", title: "Usage, history & help", body: "Up here you'll find your AI usage, version history (🕘) to undo anything, and the ? to replay this tour. To make ShopHero even smarter, open Brand Kit and Brains in the left app menu and feed it your brand and best practices. That's it — go make more sales! 🚀" },
+  { target: "plan", title: "Start from a feature", body: "Tap a ready-made tile — Improve My Store, Boost a Product, Rank Higher on Google… ShopHero scans YOUR store first, asks a couple of quick questions, then builds a checklist and does the work." },
+  { target: "composer", title: "…or just ask", body: "Type anything in plain English — “make my product page convert better” — and ShopHero plans it, does it, and shows you the result before it ever goes live." },
+  { target: "modes", title: "Four modes, one workspace", body: "Create (where you are) builds with AI. Optimize gives a ranked, one-tap fix list. Edit & Design open a live preview of your theme to change the look — your live store is never touched until you approve." },
+  { target: "header", title: "Usage, history & help", body: "Up here: your AI usage, version history (🕘) to undo anything, and ? to replay this tour. Nothing goes live without your approval — go make more sales! 🚀" },
 ];
 
 // Friendly labels + relative time for the version-history drawer.
@@ -784,6 +781,12 @@ export default function Index() {
   const [clarify, setClarify] = useState<{ original: string; questions: { question: string; options: string[] }[]; step: number; answers: string[] } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [embedReady, setEmbedReady] = useState(false);
+  // Design mode = preview with click-to-edit ON; Edit = a clean preview.
+  useEffect(() => {
+    if (mode === "design") setEditMode(true);
+    else if (mode === "edit") setEditMode(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [editText, setEditText] = useState("");
   const frameRef = useRef<HTMLIFrameElement>(null);
