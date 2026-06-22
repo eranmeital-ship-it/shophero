@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { changedFiles, commitFiles, commitCount } from "../lib/workspace.server";
-import { pushWorkspaceChanges, renameTheme } from "../lib/theme.server";
+import { pushWorkspaceChanges, renameTheme, repairWorkspaceForPush } from "../lib/theme.server";
 import { withShopLock } from "../lib/shop-lock.server";
 
 /**
@@ -23,10 +23,23 @@ export async function action({ request }: ActionFunctionArgs) {
 async function applyImpl(ctx: { shop: string; accessToken: string }, form: FormData | null) {
   const { themeId, dir } = await ensureReady(ctx);
 
-  const pending = await changedFiles(dir);
+  let pending = await changedFiles(dir);
   if (pending.length === 0) {
     return Response.json({ applied: 0, message: "Nothing to apply" });
   }
+
+  // Repair an incomplete first pull before validating: restore empty/corrupt JSON
+  // templates and fetch any referenced-but-unpulled sections from the live theme.
+  // These are baseline fixes (not the merchant's change), so commit them separately
+  // and re-read the pending set so the merchant's change validates cleanly.
+  try {
+    const repaired = await repairWorkspaceForPush(ctx, themeId, dir, pending);
+    if (repaired.length) {
+      await commitFiles(dir, repaired, "repair: restored theme files from live").catch(() => {});
+      pending = await changedFiles(dir);
+      if (pending.length === 0) return Response.json({ applied: 0, message: "Nothing to apply" });
+    }
+  } catch { /* non-fatal — fall through and let validation report any real issue */ }
 
   // Label the restore point with WHAT changed: prefer the agent's plain-English
   // summary (sent by the client), else fall back to the changed file names.

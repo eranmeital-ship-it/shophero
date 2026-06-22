@@ -241,6 +241,56 @@ export async function ensureAssetInWorkspace(ctx: Ctx, themeId: number, dir: str
 }
 
 /**
+ * Repair the workspace just before a push so an INCOMPLETE first pull can't block
+ * a valid merchant change. For each changed JSON template / section group:
+ *  - if it's empty or unparseable (a truncated pull), restore it from the live theme;
+ *  - fetch any section it references that's missing locally (the section exists on
+ *    the live theme but wasn't pulled — otherwise validation false-fails with
+ *    "references section X which doesn't exist").
+ * Returns the keys it pulled from live (so the caller can commit them as a baseline
+ * repair, separate from the merchant's actual change).
+ */
+export async function repairWorkspaceForPush(ctx: Ctx, themeId: number, dir: string, keys: string[]): Promise<string[]> {
+  const repaired: string[] = [];
+  let liveKeys: string[] | null = null;
+  const live = async () => (liveKeys ??= await listAssetKeys(ctx, themeId).catch(() => []));
+  for (const key of keys) {
+    if (!key.endsWith(".json")) continue;
+    const isTemplate = key.startsWith("templates/");
+    const isGroup = /^sections\/.*\.json$/.test(key);
+    if (!isTemplate && !isGroup) continue;
+
+    let content = "";
+    try { content = await readFile(path.join(dir, key), "utf8"); } catch { /* missing */ }
+    let parsed: { sections?: Record<string, { type?: unknown }> } | null = null;
+    try { parsed = content.trim() ? JSON.parse(content) : null; } catch { parsed = null; }
+
+    // Empty/corrupt (bad pull) → restore the real file from live.
+    if (parsed == null) {
+      if ((await live()).includes(key)) {
+        const w = await writeAssetToWorkspace(ctx, themeId, dir, key);
+        if (w) { repaired.push(w); try { parsed = JSON.parse(await readFile(path.join(dir, key), "utf8")); } catch { /* still bad */ } }
+      }
+    }
+
+    // Ensure every referenced section exists locally (fetch the missing ones).
+    const sections = parsed?.sections;
+    if (sections && typeof sections === "object") {
+      for (const s of Object.values(sections)) {
+        const type = s?.type;
+        if (typeof type !== "string" || !type || type.startsWith("shopify://")) continue;
+        if (existsSync(path.join(dir, "sections", `${type}.liquid`)) || existsSync(path.join(dir, "sections", `${type}.json`))) continue;
+        const lk = await live();
+        const want = lk.includes(`sections/${type}.liquid`) ? `sections/${type}.liquid`
+          : lk.includes(`sections/${type}.json`) ? `sections/${type}.json` : null;
+        if (want) { const w = await writeAssetToWorkspace(ctx, themeId, dir, want); if (w) repaired.push(w); }
+      }
+    }
+  }
+  return [...new Set(repaired)];
+}
+
+/**
  * Self-heal a missing template file in the workspace. Tries `templates/<target>.json`
  * then `.liquid`, then any contextual variant (e.g. templates/product.custom.json),
  * fetching it live from the working theme. Returns the key ensured, or null.
