@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
 import { enforceSpend } from "../lib/spend-guard.server";
+import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { generateAeoTargets } from "../lib/aeo-targets.server";
 
@@ -13,6 +14,8 @@ import { generateAeoTargets } from "../lib/aeo-targets.server";
  */
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
+  const limited = rateLimitResponse(session.shop, 8, 60_000); // priciest route — tight cap
+  if (limited) return limited;
   const plan = await getActivePlan(admin).catch(() => null);
   const blocked = await enforceSpend(session.shop, plan);
   if (blocked) return blocked;

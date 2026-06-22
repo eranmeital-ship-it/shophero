@@ -165,6 +165,16 @@ model ShopSettings {
   updatedAt       DateTime @updatedAt
 }
 
+// Live Admin mutations the agent proposed and is holding for merchant approval.
+// Stored server-side (full query + variables) so the approve step REPLAYS the
+// exact operations instead of re-running the prompt or trusting a client flag.
+model PendingMutation {
+  shop      String   @id
+  mutations String   // JSON: [{ summary, query, variables }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // A persistent, routed action plan: a big goal decomposed into small,
 // cheapest-correct-route subtasks the merchant executes one-by-one. Tracks per
 // item status, cost estimate, and what shipped + when. Survives reloads so the

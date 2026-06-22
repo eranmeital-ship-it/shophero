@@ -34,7 +34,7 @@ export interface MutationGate {
   /** When false, mutations are recorded (not executed) for merchant approval. */
   allowMutations: boolean;
   /** Called with each blocked mutation so the app can surface it for approval. */
-  onProposed: (m: { query: string; variables?: unknown }) => void;
+  onProposed: (m: { query: string; variables?: Record<string, unknown> }) => void;
   /** Called with each store resource an executed mutation created/updated, so the app can link to it. */
   onDelivered?: (d: Deliverable) => void;
 }
@@ -88,6 +88,44 @@ function collectDeliverables(ctx: AdminCtx, responseText: string, onDelivered: (
     for (const v of Object.values(obj)) walk(v);
   };
   walk(json.data);
+}
+
+/**
+ * Replay merchant-APPROVED mutations exactly as the agent proposed them — the
+ * server-side execution path for the approval gate. Only runs documents that are
+ * actually mutations (defence in depth), against the merchant's own token.
+ */
+export async function executeApprovedMutations(
+  ctx: AdminCtx,
+  mutations: { query: string; variables?: Record<string, unknown> }[],
+): Promise<{ applied: number; failed: number; deliverables: Deliverable[]; errors: string[] }> {
+  let applied = 0;
+  let failed = 0;
+  const deliverables: Deliverable[] = [];
+  const errors: string[] = [];
+  for (const m of mutations) {
+    if (!m?.query || !/\bmutation\b/.test(m.query)) { failed++; errors.push("skipped a non-mutation document"); continue; }
+    try {
+      const res = await fetch(`https://${ctx.shop}/admin/api/${API_VERSION}/graphql.json`, {
+        method: "POST",
+        headers: { "X-Shopify-Access-Token": ctx.accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: m.query, variables: m.variables ?? {} }),
+      });
+      const text = await res.text();
+      console.log(`[approve] ${ctx.shop} mutation -> HTTP ${res.status}`);
+      if (res.ok) {
+        applied++;
+        try { collectDeliverables(ctx, text, (d) => deliverables.push(d)); } catch { /* best-effort */ }
+      } else {
+        failed++;
+        errors.push(`HTTP ${res.status}`);
+      }
+    } catch (e) {
+      failed++;
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return { applied, failed, deliverables, errors };
 }
 
 export function buildShopifyMcp(ctx: AdminCtx, gate: MutationGate) {

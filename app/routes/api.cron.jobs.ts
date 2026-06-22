@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { timingSafeEqual } from "node:crypto";
 import { unauthenticated } from "../shopify.server";
 import db from "../db.server";
 import { todayKey } from "../lib/jobs.server";
@@ -17,14 +18,19 @@ import type { JobType } from "../lib/jobs-types";
 const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo"];
 const MAX_JOBS_PER_RUN = Number(process.env.DRIFT_CRON_MAX_SHOPS ?? 50) || 50;
 
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false; // length isn't secret-leaking here
+  return timingSafeEqual(ab, bb);
+}
+
 function authorized(request: Request): boolean {
   const secret = process.env.DRIFT_CRON_SECRET;
   if (!secret) return false; // disabled until a secret is configured
-  const header = request.headers.get("authorization") ?? "";
-  const bearer = header.replace(/^Bearer\s+/i, "").trim();
-  const url = new URL(request.url);
-  const qs = url.searchParams.get("key") ?? "";
-  return bearer === secret || qs === secret;
+  // Header only — never the query string (it leaks into proxy/access logs).
+  const bearer = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  return !!bearer && safeEqual(bearer, secret);
 }
 
 async function run(request: Request): Promise<Response> {

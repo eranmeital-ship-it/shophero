@@ -93,9 +93,29 @@ export interface AgentTurnResult {
   /** Which model actually produced the turn (after any escalation). */
   model?: string;
   /** Live store mutations the agent wants to run, held for merchant approval. */
-  proposedMutations?: { summary: string }[];
+  proposedMutations?: ProposedMutation[];
   /** Store resources created/updated this turn, with view links. */
   deliverables?: Deliverable[];
+  /** Set when the turn failed/timed out — the caller still meters costUsd. */
+  error?: string;
+}
+
+/** A live Admin mutation the agent wants to run — captured in full so the server
+ * can REPLAY the exact operation on approval (not re-run the prompt). */
+export interface ProposedMutation {
+  summary: string;
+  query: string;
+  variables?: Record<string, unknown>;
+}
+
+/** Running cost across every attempt of a turn (escalation + route failover), so
+ * spend is metered even when the turn ultimately fails/times out. */
+interface CostAcc {
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
 }
 
 export interface AgentTurnOpts {
@@ -205,8 +225,24 @@ export async function runAgentTurn(opts: AgentTurnOpts): Promise<AgentTurnResult
   // Serialize per shop, then take a global slot (protects instance RAM/CPU).
   return withShopLock(opts.shop, async () => {
     await acquireSlot();
+    const acc: CostAcc = { costUsd: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 };
+    const accUsage = () => ({ inputTokens: acc.inputTokens, outputTokens: acc.outputTokens, cacheReadTokens: acc.cacheReadTokens, cacheCreationTokens: acc.cacheCreationTokens });
     try {
-      return await runTurnAcrossRoutes(opts);
+      const result = await runTurnAcrossRoutes(opts, acc);
+      // Report the TOTAL cost across attempts (not just the last), so metering is accurate.
+      return { ...result, costUsd: acc.costUsd || result.costUsd, usage: accUsage() };
+    } catch (err) {
+      // Never throw away consumed cost: a turn that failed/aborted still burned
+      // tokens. Return a failure result carrying the accumulated cost so the
+      // caller meters it (the integrity gap behind "ran but wasn't billed").
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        assistantText: "⚠️ This didn't finish — please try again. Anything not approved was not applied.",
+        toolEvents: [],
+        costUsd: acc.costUsd,
+        usage: accUsage(),
+        error: message,
+      };
     } finally {
       releaseSlot();
     }
@@ -214,13 +250,13 @@ export async function runAgentTurn(opts: AgentTurnOpts): Promise<AgentTurnResult
 }
 
 /** Route failover + model escalation. On a rate/credit/overload error, fall to the next route. */
-async function runTurnAcrossRoutes(opts: AgentTurnOpts): Promise<AgentTurnResult> {
+async function runTurnAcrossRoutes(opts: AgentTurnOpts, acc: CostAcc): Promise<AgentTurnResult> {
   const routes = agentRoutes(opts);
   let lastErr: unknown;
   for (let i = 0; i < routes.length; i++) {
     const route = routes[i];
     try {
-      const result = await runTurnOnRoute(opts, route, i === 0);
+      const result = await runTurnOnRoute(opts, route, i === 0, acc);
       if (route.key) markOk(route.key);
       return result;
     } catch (err) {
@@ -238,7 +274,7 @@ async function runTurnAcrossRoutes(opts: AgentTurnOpts): Promise<AgentTurnResult
 }
 
 /** One turn on a route: Anthropic escalates cheap→strong; cloud routes use their fixed model. */
-async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResume: boolean): Promise<AgentTurnResult> {
+async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResume: boolean, acc: CostAcc): Promise<AgentTurnResult> {
   const chain = route.provider === "anthropic" ? modelChain(opts.prompt) : [route.modelId as string];
   let lastErr: unknown;
 
@@ -248,7 +284,7 @@ async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResum
     const resume = i === 0 && allowResume ? opts.resumeSessionId : undefined;
 
     try {
-      const { result, ok, errorText } = await runQuery(opts, route, model, resume);
+      const { result, ok, errorText } = await runQuery(opts, route, model, resume, acc);
       if (ok) return result;
       if (errorText && keyFailureKind(errorText)) throw new Error(errorText); // → route failover
       if (errorText?.startsWith("TIMEOUT")) return result; // don't escalate a timeout — it'd just time out again
@@ -261,7 +297,7 @@ async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResum
       if (resume) {
         opts.onResumeInvalid?.();
         try {
-          const { result, ok, errorText } = await runQuery(opts, route, model, undefined);
+          const { result, ok, errorText } = await runQuery(opts, route, model, undefined, acc);
           if (ok) return result;
           if (errorText && keyFailureKind(errorText)) throw new Error(errorText);
           if (isLast) return result;
@@ -281,7 +317,8 @@ async function runQuery(
   opts: AgentTurnOpts,
   route: AgentRoute,
   model: string,
-  resume?: string,
+  resume: string | undefined,
+  acc: CostAcc,
 ): Promise<{ result: AgentTurnResult; ok: boolean; errorText?: string }> {
   const { cwd, prompt, admin } = opts;
 
@@ -292,7 +329,7 @@ async function runQuery(
   let sessionId: string | undefined;
   let ok = true;
   let errorText: string | undefined;
-  const proposed: { summary: string }[] = [];
+  const proposed: ProposedMutation[] = [];
   const delivered: Deliverable[] = [];
 
   // Bash = shell exec on the server (shared, multi-tenant process) — the biggest
@@ -331,7 +368,7 @@ async function runQuery(
           ? {
               shopify: buildShopifyMcp(admin, {
                 allowMutations: !!opts.allowMutations,
-                onProposed: (m) => proposed.push({ summary: mutationLabel(m.query) }),
+                onProposed: (m) => proposed.push({ summary: mutationLabel(m.query), query: m.query, variables: m.variables }),
                 onDelivered: (d) => delivered.push(d),
               }),
             }
@@ -391,6 +428,12 @@ async function runQuery(
         cacheReadTokens: r.usage?.cache_read_input_tokens,
         cacheCreationTokens: r.usage?.cache_creation_input_tokens,
       };
+      // Accumulate across attempts — even a failed/timed-out result burned tokens.
+      acc.costUsd += r.total_cost_usd ?? 0;
+      acc.inputTokens += r.usage?.input_tokens ?? 0;
+      acc.outputTokens += r.usage?.output_tokens ?? 0;
+      acc.cacheReadTokens += r.usage?.cache_read_input_tokens ?? 0;
+      acc.cacheCreationTokens += r.usage?.cache_creation_input_tokens ?? 0;
     }
   }
   } catch (e) {

@@ -119,35 +119,54 @@ export async function action({ request }: ActionFunctionArgs) {
           apiKey,
           shop: session.shop,
           admin: ctx, // enables the live Shopify Admin API tool
-          allowMutations, // approved? agent may run live mutations
+          // Chat ALWAYS proposes — never executes — live mutations. Execution
+          // happens server-side via /api/approve, replaying the exact stored ops.
+          allowMutations: false,
           brandContext, // brand kit + remembered facts
           resumeSessionId,
           onSessionId: (id) => void setAgentSession(session.shop, id),
           onResumeInvalid: () => void clearAgentSession(session.shop),
           onEvent: (ev) => send(ev), // {type:"tool"|"text", value}
         });
-        const pending = await changedFiles(dir);
         console.log(
           `[chat] ${session.shop} model=${r.model} cost=$${(r.costUsd ?? 0).toFixed(4)} ` +
             `in=${r.usage?.inputTokens ?? "?"} out=${r.usage?.outputTokens ?? "?"} ` +
-            `cacheRead=${r.usage?.cacheReadTokens ?? 0} cacheWrite=${r.usage?.cacheCreationTokens ?? 0}`,
+            `cacheRead=${r.usage?.cacheReadTokens ?? 0} cacheWrite=${r.usage?.cacheCreationTokens ?? 0}${r.error ? ` error=${r.error}` : ""}`,
         );
-        // Persist usage for the admin console (billed = 3x raw on managed).
-        await db.usageEvent
-          .create({
-            data: {
-              shop: session.shop,
-              plan: activePlan,
-              model: r.model ?? null,
-              kind: "chat",
-              costUsd: r.costUsd ?? null,
-              billedUsd: activePlan === "managed" ? (r.costUsd ?? 0) * 3 : 0,
-              inputTokens: r.usage?.inputTokens ?? null,
-              outputTokens: r.usage?.outputTokens ?? null,
-              cacheReadTokens: r.usage?.cacheReadTokens ?? null,
-            },
-          })
-          .catch(() => {});
+        // Meter ALWAYS — even a failed/timed-out/stopped turn burned tokens. The
+        // turn returns its accumulated cost rather than throwing, so this never
+        // gets skipped (the integrity gap behind "ran but wasn't billed").
+        if ((r.costUsd ?? 0) > 0) {
+          await db.usageEvent
+            .create({
+              data: {
+                shop: session.shop,
+                plan: activePlan,
+                model: r.model ?? null,
+                kind: r.error ? "chat-failed" : "chat",
+                costUsd: r.costUsd ?? null,
+                billedUsd: activePlan === "managed" ? (r.costUsd ?? 0) * 3 : 0,
+                inputTokens: r.usage?.inputTokens ?? null,
+                outputTokens: r.usage?.outputTokens ?? null,
+                cacheReadTokens: r.usage?.cacheReadTokens ?? null,
+              },
+            })
+            .catch(() => {});
+        }
+
+        if (r.error) {
+          send({ type: "error", error: r.assistantText || "This didn't finish — please try again." });
+          return;
+        }
+
+        const pending = await changedFiles(dir);
+        // Hold the FULL proposed mutations server-side, keyed to this shop, so the
+        // approve step replays the exact ops (not a re-run) — see api.approve.
+        if (r.proposedMutations?.length) {
+          await db.pendingMutation
+            .upsert({ where: { shop: session.shop }, create: { shop: session.shop, mutations: JSON.stringify(r.proposedMutations) }, update: { mutations: JSON.stringify(r.proposedMutations) } })
+            .catch(() => {});
+        }
 
         // Activity log — record the command so it shows in the Activity feed.
         await db.appEvent
@@ -169,16 +188,19 @@ export async function action({ request }: ActionFunctionArgs) {
           costUsd: r.costUsd,
           usage: r.usage,
           model: r.model,
-          proposedMutations: r.proposedMutations,
+          proposedMutations: r.proposedMutations?.map((m) => ({ summary: m.summary })),
           deliverables: r.deliverables,
           billing,
         });
       } catch (err) {
+        // Log the real error server-side; show the merchant a safe, generic
+        // message (never forward raw upstream/Shopify/Anthropic error bodies).
         const message = err instanceof Error ? err.message : String(err);
+        console.error(`[chat] ${session.shop} error:`, message);
         await db.appEvent
-          .create({ data: { shop: session.shop, level: "error", type: "chat_error", message } })
+          .create({ data: { shop: session.shop, level: "error", type: "chat_error", message: message.slice(0, 500) } })
           .catch(() => {});
-        send({ type: "error", error: message });
+        send({ type: "error", error: "Something went wrong on our side — please try again. Anything not approved was not applied." });
       } finally {
         clearInterval(heartbeat);
         controller.close();

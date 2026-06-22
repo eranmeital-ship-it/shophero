@@ -39,7 +39,7 @@ delete the Postgres service's own generated variables.
 | `SHOPIFY_APP_URL` | Public app URL (e.g. `https://app.shophero.io`). Falls back to `HOST` in dev. |
 | `DATABASE_URL` | Postgres connection string 🔒 |
 | `DIRECT_URL` | Postgres direct URL for Prisma migrations 🔒 |
-| `DRIFT_ENCRYPTION_KEY` | AES-256 key encrypting per-shop secrets (BYOK key, theme token, stock key) 🔒 — **rotating/losing this makes saved keys undecryptable** |
+| `DRIFT_ENCRYPTION_KEY` | AES-256 key encrypting per-shop secrets (BYOK key, theme token, stock key) 🔒 — **rotating/losing this makes saved keys undecryptable** (see Key rotation below) |
 | `ANTHROPIC_API_KEY` | Anthropic key for managed-mode AI 🔒 (or use the pool below) |
 
 ---
@@ -105,7 +105,9 @@ encrypted in `ShopSettings`.
 | `DRIFT_JOBS_AUTORUN` | on | On-entry daily batch advance. Set `false` to disable. |
 | `DRIFT_CRON_MAX_SHOPS` | `50` | Max jobs advanced per cron invocation. |
 
-**Cron setup:** schedule a daily hit to `/api/cron/jobs` with the secret:
+**Cron setup:** schedule a daily hit to `/api/cron/jobs` with the secret in the
+**Authorization header** (the `?key=` query form is no longer accepted — query
+strings leak into logs):
 ```
 curl -fsS -H "Authorization: Bearer $DRIFT_CRON_SECRET" https://app.shophero.io/api/cron/jobs
 ```
@@ -142,5 +144,19 @@ curl -fsS -H "Authorization: Bearer $DRIFT_CRON_SECRET" https://app.shophero.io/
 3. First load after attaching the volume re-clones the working theme (~1 min) — expected.
 4. Confirm `DRIFT_DEV_PLAN=managed` for the pilot; **unset it** at public launch.
 5. Leave `DRIFT_ALLOW_BASH` unset.
+
+## Encryption-key rotation (`DRIFT_ENCRYPTION_KEY`)
+Per-shop secrets (BYOK key, theme token, stock key) are AES-encrypted with this key.
+**Changing it makes existing encrypted values undecryptable** — they'll silently
+fail to resolve and merchants must re-enter them in Settings. To rotate safely:
+1. Announce a maintenance window.
+2. Decrypt-then-re-encrypt all `ShopSettings` secret columns with the new key (a
+   one-off script that reads with the old key, writes with the new), OR
+3. Accept re-entry: set the new key and have each merchant re-save their keys in
+   Settings (the app degrades gracefully — a failed decrypt is treated as "no key").
+
+Never lose this key without a re-encryption plan.
+
+---
 
 🔒 = secret. Never commit these; never expose them client-side.

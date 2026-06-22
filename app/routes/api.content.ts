@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
 import { enforceSpend } from "../lib/spend-guard.server";
+import { rateLimitResponse } from "../lib/rate-limit.server";
 import { generateDescriptions, applyDescriptions, generateSeo, applySeo, generateAlt, applyAlt, generateArticles, publishArticles, suggestTopics, type ContentDraft } from "../lib/content-gen.server";
 
 /**
@@ -23,6 +24,8 @@ export async function action({ request }: ActionFunctionArgs) {
   // Gate every LLM-spending op behind the spend caps (apply only writes to the store).
   const plan = await getActivePlan(admin).catch(() => null);
   if (op === "suggest" || op === "generate") {
+    const limited = rateLimitResponse(session.shop, 20, 60_000);
+    if (limited) return limited;
     const blocked = await enforceSpend(session.shop, plan);
     if (blocked) return blocked;
   }

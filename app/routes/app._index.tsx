@@ -944,9 +944,29 @@ export default function Index() {
     void runChat(`${original}${detail}`, false);
   }
 
-  function approveMutations() {
-    if (thinking) return;
-    void runChat("Approved — apply the store changes you proposed.", true);
+  // Approve = replay the EXACT mutations the agent proposed, server-side. No
+  // prompt re-run, no client-trusted flag — the server holds and executes them.
+  const [approving, setApproving] = useState(false);
+  async function approveMutations() {
+    if (thinking || approving || approval.length === 0) return;
+    setApproving(true);
+    try {
+      const res = await fetch("/api/approve", { method: "post" });
+      const d = (await res.json().catch(() => null)) as { applied?: number; failed?: number; deliverables?: Deliverable[]; errors?: string[] } | null;
+      setApproval([]);
+      const applied = d?.applied ?? 0;
+      const failed = d?.failed ?? 0;
+      setMessages((m) => [...m, {
+        role: "assistant",
+        text: applied > 0 ? `✓ Applied ${applied} live store change${applied === 1 ? "" : "s"}${failed ? ` · ${failed} failed` : ""}.` : `⚠️ Couldn't apply the change${d?.errors?.length ? ` — ${d.errors[0]}` : ""}.`,
+        deliverables: d?.deliverables?.length ? d.deliverables : undefined,
+      }]);
+      reportFetcher.submit({}, { method: "post", action: "/api/report" });
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't reach the approval service. Please try again." }]);
+    } finally {
+      setApproving(false);
+    }
   }
 
   // From an Optimize-checklist card → jump to Edit and run the fix.
@@ -2266,7 +2286,6 @@ export default function Index() {
 
     const fd = new FormData();
     fd.set("prompt", prompt);
-    if (approve) fd.set("allowMutations", "1");
 
     const controller = new AbortController();
     chatAbortRef.current = controller;
@@ -2590,8 +2609,8 @@ export default function Index() {
                   ⚠️ <strong>{approval.length}</strong> live store change(s) need approval:{" "}
                   {approval.map((p) => p.summary).join(", ")}
                 </span>
-                <button className="sh-btn sh-btn-go" disabled={thinking} onClick={approveMutations}>
-                  Approve &amp; run
+                <button className="sh-btn sh-btn-go" disabled={thinking || approving} onClick={approveMutations}>
+                  {approving ? "Applying…" : "Approve & run"}
                 </button>
               </div>
             )}

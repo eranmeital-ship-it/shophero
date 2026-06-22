@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
 import { enforceSpend } from "../lib/spend-guard.server";
+import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { decomposeGoal } from "../lib/plan-decompose.server";
 import { getCurrentPlan, createPlan, updatePlanItem, archivePlan } from "../lib/plan.server";
@@ -28,6 +29,8 @@ export async function action({ request }: ActionFunctionArgs) {
   if (op === "decompose") {
     const goal = String(form.get("goal") ?? "").trim();
     if (!goal) return Response.json({ error: "Tell me the goal first." }, { status: 400 });
+    const limited = rateLimitResponse(shop, 12, 60_000);
+    if (limited) return limited;
     const plan = await getActivePlan(admin).catch(() => null);
     const blocked = await enforceSpend(shop, plan);
     if (blocked) return blocked;
