@@ -12,11 +12,12 @@ import db from "../db.server";
  * misfired agent runs that cost far more. Disable with DRIFT_REFINE=false.
  */
 const SYSTEM = `You triage a merchant's store-edit request for ShopHero (an AI that edits Shopify themes, products, collections, pages and content).
-Decide if the request is specific enough to execute well, or if ONE quick clarification would materially improve the result. Only ask when it genuinely helps — ambiguous scope, a missing target (which product/page?), or multiple reasonable interpretations. If it's clear enough, do NOT ask.
+If the request is already specific enough to execute well, return {"clear": true}.
+If it is vague, broad, or missing key details (e.g. "make my homepage nicer", "improve my store", "add trust", "make it convert better"), return 1–3 SHORT guided questions that pin down: WHAT to change, WHERE (which page/section), and the STYLE or scope. Order them most-important first; each gets 2–4 concrete, tappable options a non-technical merchant understands. Ask the FEWEST questions needed — never over-ask a mostly-clear request.
 Respond with ONLY JSON, no prose, no code fences:
 {"clear": true}
 OR
-{"clear": false, "question": "one short question", "options": ["short concrete choice", "…", "…"]}  // 2–4 options, each a brief refinement the merchant can pick`;
+{"clear": false, "questions": [ {"question": "short question", "options": ["concrete choice", "…", "…"]}, … ]}`;
 
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
@@ -39,10 +40,23 @@ export async function action({ request }: ActionFunctionArgs) {
     const s = t.indexOf("{");
     const e = t.lastIndexOf("}");
     if (s > 0 || e < t.length - 1) t = t.slice(s, e + 1);
-    const parsed = JSON.parse(t) as { clear?: boolean; question?: unknown; options?: unknown };
+    const parsed = JSON.parse(t) as { clear?: boolean; question?: unknown; options?: unknown; questions?: unknown };
+    // New multi-question shape.
+    if (parsed.clear === false && Array.isArray(parsed.questions)) {
+      const questions = (parsed.questions as unknown[])
+        .map((q) => q as { question?: unknown; options?: unknown })
+        .map((q) => ({
+          question: typeof q.question === "string" ? q.question : "",
+          options: Array.isArray(q.options) ? (q.options as unknown[]).map(String).filter(Boolean).slice(0, 4) : [],
+        }))
+        .filter((q) => q.question && q.options.length >= 2)
+        .slice(0, 3);
+      if (questions.length) return { clear: false, questions };
+    }
+    // Back-compat single-question shape.
     const options = Array.isArray(parsed.options) ? (parsed.options as unknown[]).map(String).filter(Boolean).slice(0, 4) : [];
     if (parsed.clear === false && typeof parsed.question === "string" && options.length >= 2) {
-      return { clear: false, question: parsed.question, options };
+      return { clear: false, questions: [{ question: parsed.question, options }] };
     }
     return { clear: true };
   } catch {

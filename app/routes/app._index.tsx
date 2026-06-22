@@ -701,7 +701,7 @@ export default function Index() {
   const [restoringSha, setRestoringSha] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [refining, setRefining] = useState(false);
-  const [clarify, setClarify] = useState<{ original: string; question: string; options: string[] } | null>(null);
+  const [clarify, setClarify] = useState<{ original: string; questions: { question: string; options: string[] }[]; step: number; answers: string[] } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [embedReady, setEmbedReady] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -867,11 +867,9 @@ export default function Index() {
     if (!text || thinking || refining) return;
     if (blockedByChange()) return;
     setInput("");
-    // Answering an open clarification → combine and run, no second triage.
+    // Answering an open guided question → record it and advance.
     if (clarify) {
-      const combined = `${clarify.original} — ${text}`;
-      setClarify(null);
-      void runChat(combined, false);
+      answerClarify(text);
       return;
     }
     // Already-detailed prompts skip triage (saves the call); short/vague ones get it.
@@ -882,16 +880,16 @@ export default function Index() {
     void refineThenRun(text);
   }
 
-  // One cheap triage call: run now if clear, else ask a quick clarifying question.
+  // Cheap pre-flight: run now if clear, else open a short guided-question wizard.
   async function refineThenRun(text: string) {
     setRefining(true);
     try {
       const fd = new FormData();
       fd.set("prompt", text);
       const r = await fetch("/api/refine", { method: "post", body: fd });
-      const d = (await r.json()) as { clear?: boolean; question?: string; options?: string[] };
-      if (d && d.clear === false && d.question && d.options?.length) {
-        setClarify({ original: text, question: d.question, options: d.options });
+      const d = (await r.json()) as { clear?: boolean; questions?: { question: string; options: string[] }[] };
+      if (d && d.clear === false && Array.isArray(d.questions) && d.questions.length) {
+        setClarify({ original: text, questions: d.questions, step: 0, answers: [] });
       } else {
         void runChat(text, false);
       }
@@ -901,12 +899,31 @@ export default function Index() {
       setRefining(false);
     }
   }
+  // Record an answer to the current guided question; advance or run when done.
+  function answerClarify(answer: string) {
+    if (!clarify) return;
+    const answers = [...clarify.answers, answer];
+    const next = clarify.step + 1;
+    if (next >= clarify.questions.length) {
+      const detail = clarify.questions.map((q, i) => `${q.question} ${answers[i]}`).join("; ");
+      const original = clarify.original;
+      setClarify(null);
+      void runChat(`${original} — ${detail}`, false);
+    } else {
+      setClarify({ ...clarify, step: next, answers });
+    }
+  }
   function pickClarify(option: string) {
     if (!clarify || thinking) return;
-    if (blockedByChange()) return;
-    const combined = `${clarify.original} — ${option}`;
+    answerClarify(option);
+  }
+  // Skip the rest of the questions and run with whatever's been answered so far.
+  function skipClarify() {
+    if (!clarify) return;
+    const { original, questions, answers } = clarify;
     setClarify(null);
-    void runChat(combined, false);
+    const detail = answers.length ? ` — ${questions.slice(0, answers.length).map((q, i) => `${q.question} ${answers[i]}`).join("; ")}` : "";
+    void runChat(`${original}${detail}`, false);
   }
 
   function approveMutations() {
@@ -2218,13 +2235,21 @@ export default function Index() {
 
             {clarify && (
               <div className="sh-clarify">
-                <div className="sh-clarify-q">🤔 {clarify.question}</div>
+                {clarify.questions.length > 1 && (
+                  <div className="sh-clarify-progress">
+                    <span className="sh-clarify-step">Quick question {clarify.step + 1} of {clarify.questions.length}</span>
+                    <div className="sh-clarify-dots">
+                      {clarify.questions.map((_, i) => <span key={i} className={`sh-clarify-dot${i <= clarify.step ? " on" : ""}`} />)}
+                    </div>
+                  </div>
+                )}
+                <div className="sh-clarify-q">🤔 {clarify.questions[clarify.step].question}</div>
                 <div className="sh-clarify-opts">
-                  {clarify.options.map((o, i) => (
+                  {clarify.questions[clarify.step].options.map((o, i) => (
                     <button key={i} className="sh-clarify-opt" disabled={thinking} onClick={() => pickClarify(o)}>{o}</button>
                   ))}
                 </div>
-                <div className="sh-clarify-hint">…or type your own answer below and hit Send.</div>
+                <div className="sh-clarify-hint">…or type your own answer below · <button className="sh-linkbtn" onClick={skipClarify}>skip &amp; go</button></div>
               </div>
             )}
 

@@ -1113,6 +1113,11 @@
   background: linear-gradient(180deg, #f3f0ff, #eef4ff); border: 1px solid var(--sh-line); box-shadow: var(--sh-shadow-sm);
   animation: sh-fade-up 0.25s ease both;
 }
+.sh-clarify-progress { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.sh-clarify-step { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sh-accent, #0a84ff); }
+.sh-clarify-dots { display: flex; gap: 5px; }
+.sh-clarify-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sh-line, #e6e9ef); }
+.sh-clarify-dot.on { background: var(--sh-accent, #0a84ff); }
 .sh-clarify-q { font-size: 13.5px; font-weight: 640; color: var(--sh-ink); margin-bottom: 10px; line-height: 1.45; }
 .sh-clarify-opts { display: flex; flex-wrap: wrap; gap: 7px; }
 .sh-clarify-opt {
