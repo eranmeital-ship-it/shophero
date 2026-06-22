@@ -753,6 +753,9 @@ export default function Index() {
   // Which plan host panel ("feature-flow" | "store-manager") to return to after a
   // content step finishes in its own task panel — so Run loops back to the playbook.
   const [planHost, setPlanHost] = useState<string | null>(null);
+  // When set, a content step is running IN PLACE on the playbook (generate →
+  // auto-apply) rather than opening the content task panel.
+  const [autoContent, setAutoContent] = useState<{ itemId: string; type: "descriptions" | "seo" | "alt" | "articles" } | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Abort handle + client-side timeout for the chat stream (prevents a dropped
@@ -1038,6 +1041,7 @@ export default function Index() {
         text: applied > 0 ? `✓ Applied ${applied} live store change${applied === 1 ? "" : "s"}${failed ? ` · ${failed} failed` : ""}.` : `⚠️ Couldn't apply the change${d?.errors?.length ? ` — ${d.errors[0]}` : ""}.`,
         deliverables: d?.deliverables?.length ? d.deliverables : undefined,
       }]);
+      if (applied > 0 && runningPlanItem) shipRunningItem(); // playbook step approved → mark it shipped
       reportFetcher.submit({}, { method: "post", action: "/api/report" });
     } catch {
       setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't reach the approval service. Please try again." }]);
@@ -1418,6 +1422,16 @@ export default function Index() {
       { method: "post", action: "/api/content" },
     );
   }
+  // Run a content step IN PLACE on the playbook: generate with sensible defaults,
+  // then auto-apply (the effect chains generate→apply) — no separate review panel.
+  function runContentInline(item: PlanItem, type: "descriptions" | "seo" | "alt" | "articles") {
+    setContentDrafts(null);
+    setAutoContent({ itemId: item.id, type });
+    const payload: Record<string, string> = { op: "generate", task: type, notes: "" };
+    if (type === "articles") { payload.count = "1"; payload.topic = item.prompt ?? ""; }
+    else payload.which = ""; // default scope: items that actually need it
+    contentFetcher.submit(payload, { method: "post", action: "/api/content" });
+  }
   // Deterministic JSON-LD structured data.
   const schemaFetcher = useFetcher<{ ok?: boolean; error?: string; alreadyPresent?: boolean }>();
   const schemaBusy = schemaFetcher.state !== "idle";
@@ -1514,14 +1528,15 @@ export default function Index() {
       case "section-faq": arm(); insertSectionStep("sh-faq", targetFor(item)); break;
       case "section-trust": arm(); insertSectionStep("sh-trust-bar", targetFor(item)); break;
       case "section": arm(); insertSectionStep(sectionFor(item), targetFor(item)); break;
-      case "pdp-template": arm(); openTask("build-pdp", true); break;
-      case "descriptions": arm(); openTask("bulk-descriptions", true); break;
-      case "seo": arm(); openTask("seo-genius", true); break;
-      case "alt": arm(); openTask("alt-text", true); break;
-      case "articles": arm(); openTask("write-content", true); break;
+      case "pdp-template": arm(); applyPdpStep(); break;
+      case "descriptions": arm(); runContentInline(item, "descriptions"); break;
+      case "seo": arm(); runContentInline(item, "seo"); break;
+      case "alt": arm(); runContentInline(item, "alt"); break;
+      case "articles": arm(); runContentInline(item, "articles"); break;
       case "agent": default:
+        // Run the agent in place — stay on the playbook; the step shows a loader,
+        // then its staged result inline to approve.
         arm();
-        setActiveTask(null);
         if (item.prompt) void runChat(item.prompt, false);
         break;
     }
@@ -1617,10 +1632,23 @@ export default function Index() {
   function applyPdpBlueprint() {
     pdpFetcher.submit({ blueprint: pdpBlueprint }, { method: "post", action: "/api/pdp-template" });
   }
+  // Plan-step entry: apply the recommended (first) blueprint directly and stay in
+  // the playbook — the step then shows its own staged/accept controls inline.
+  function applyPdpStep() {
+    const key = PDP_BLUEPRINTS[0].key;
+    setPdpBlueprint(key);
+    if (!runningPlanItem) setActiveTask(null);
+    pdpFetcher.submit({ blueprint: key }, { method: "post", action: "/api/pdp-template" });
+  }
   useEffect(() => {
-    if (pdpFetcher.state !== "idle" || !pdpFetcher.data?.ok) return;
+    if (pdpFetcher.state !== "idle" || !pdpFetcher.data) return;
+    if (!pdpFetcher.data.ok) {
+      if (runningPlanItem) setRunningPlanItem(null); // release the arm so the step can be retried
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't apply the PDP layout. ${pdpFetcher.data?.error ?? ""}`.trim() }]);
+      return;
+    }
     const bp = PDP_BLUEPRINT_MAP[pdpBlueprint];
-    setActiveTask(null);
+    if (!runningPlanItem) setActiveTask(null);
     setPending((p) => [...new Set([...p, ...(pdpFetcher.data?.files ?? [])])]);
     setMessages((m) => [...m, { role: "assistant", text: `✓ Applied the ${bp?.name ?? "PDP"} layout (${bp?.sections.length ?? 0} sections) to your product template. Preview it, then Accept to publish.` }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1657,9 +1685,31 @@ export default function Index() {
   useEffect(() => {
     if (contentFetcher.state !== "idle" || !contentFetcher.data) return;
     const d = contentFetcher.data;
+    if (d.error) {
+      // Generation/apply failed → release the in-place run so the step can retry.
+      if (autoContent && runningPlanItem) setRunningPlanItem(null);
+      setAutoContent(null);
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ ${d.error}` }]);
+      return;
+    }
     if (d.drafts) {
-      setContentDrafts(d.drafts);
-      setContentCost(d.costUsd ?? 0);
+      if (autoContent) {
+        // In-place run: skip the review panel — auto-apply, or mark the step done
+        // if nothing needed changing.
+        if (!d.drafts.length) {
+          shipRunningItem("Already optimized");
+          setAutoContent(null);
+          reportFetcher.submit({}, { method: "post", action: "/api/report" });
+        } else {
+          contentFetcher.submit(
+            { op: "apply", task: autoContent.type, drafts: JSON.stringify(d.drafts) },
+            { method: "post", action: "/api/content" },
+          );
+        }
+      } else {
+        setContentDrafts(d.drafts);
+        setContentCost(d.costUsd ?? 0);
+      }
     } else if (typeof d.applied === "number") {
       setContentDrafts(null);
       const articles = !!d.links;
@@ -1672,10 +1722,13 @@ export default function Index() {
       // If this ran from a playbook, loop back to it (with the step now checked)
       // instead of dropping the merchant into the chat view.
       const host = runningPlanItem ? planHost : null;
+      const inPlace = !!autoContent;
+      setAutoContent(null);
       shipRunningItem(); // content was applied/published → mark its plan item shipped
       reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
-      if (host && TASKS[host]) { setPlanHost(null); setActiveTask(TASKS[host]); }
-      else setActiveTask(null);
+      // In-place runs never left the playbook; only re-open the host for panel runs.
+      if (!inPlace) { if (host && TASKS[host]) { setPlanHost(null); setActiveTask(TASKS[host]); } else setActiveTask(null); }
+      else setPlanHost(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentFetcher.state, contentFetcher.data]);
@@ -1706,11 +1759,76 @@ export default function Index() {
     void runChat(prompt, false);
   }
 
+  // Discard a staged playbook step — clears both kinds of staged change (theme
+  // files + proposed mutations) and releases the arm.
+  async function discardStep() {
+    setApproval([]);
+    await discardStaged();
+  }
+  // Shared plan-step renderer — used by BOTH the store-manager plan and the
+  // feature-flow playbook so every step behaves identically (run in place →
+  // loader → stage/ship inline → checked, never dumping to chat).
+  const fmtPlanDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+  function renderPlanItem(item: PlanItem, i: number) {
+    const route = PLAN_ROUTE_MAP[item.route];
+    const engine = route?.engine ?? "agent";
+    const isRunning = runningPlanItem?.itemId === item.id;
+    const isContent = item.route === "descriptions" || item.route === "seo" || item.route === "alt" || item.route === "articles";
+    const busy = sectionFetcher.state !== "idle" || schemaFetcher.state !== "idle" || pdpFetcher.state !== "idle" || contentBusy || thinking;
+    const themeStaged = isRunning && pending.length > 0;
+    const mutStaged = isRunning && approval.length > 0;
+    const staged = themeStaged || mutStaged;
+    const working = isRunning && busy && !staged;
+    const workLabel = isContent ? "Writing & publishing your content…" : item.route === "agent" ? "Working on it…" : "Adding this to your store…";
+    return (
+      <div key={item.id} className={`sh-plan-item is-${item.status}${working ? " is-working" : ""}`}>
+        <span className="sh-plan-num">{item.status === "done" ? "✓" : working ? <span className="sh-spinner sh-spinner-sm sh-plan-numspin" /> : item.status === "skipped" ? "–" : i + 1}</span>
+        <div className="sh-plan-main">
+          <div className="sh-plan-itop">
+            <span className="sh-plan-ititle">{item.title}</span>
+            <span className={`sh-plan-badge e-${engine}`}>{route?.badge ?? "Agent"}</span>
+            <span className="sh-plan-cost">{item.estUsd > 0 ? `~$${item.estUsd.toFixed(2)}` : "Free"}</span>
+          </div>
+          <div className="sh-plan-idetail">{item.detail}</div>
+          {item.status === "done" && (
+            <div className="sh-plan-shipped">✓ Shipped {fmtPlanDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
+          )}
+          {item.status !== "done" && working && (
+            <div className="sh-plan-running"><span className="sh-spinner sh-spinner-sm" /> {workLabel}</div>
+          )}
+          {item.status !== "done" && !working && staged && (
+            <div className="sh-plan-staged">
+              <div className="sh-plan-staged-label">✓ Ready to ship — preview it, then approve.</div>
+              <div className="sh-plan-staged-actions">
+                {themeStaged && <button className="sh-plan-mini" onClick={openDiff}>View changes</button>}
+                <button className="sh-plan-mini sh-plan-discard" disabled={applying || discarding || approving} onClick={discardStep}>{discarding ? "Discarding…" : "Discard"}</button>
+                {themeStaged
+                  ? <button className="sh-plan-run" disabled={applying || discarding} onClick={applyChanges}>{applying ? "Shipping…" : "Accept & ship →"}</button>
+                  : <button className="sh-plan-run" disabled={approving} onClick={approveMutations}>{approving ? "Shipping…" : "Approve & ship →"}</button>}
+              </div>
+            </div>
+          )}
+          {item.status !== "done" && !working && !staged && (
+            <div className="sh-plan-actions">
+              <button className="sh-plan-run" disabled={planBusyState || !!runningPlanItem} onClick={() => runPlanItem(item)}>Run →</button>
+              <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "done")}>Mark shipped</button>
+              {item.status !== "skipped"
+                ? <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "skipped")}>Skip</button>
+                : <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "todo")}>Undo skip</button>}
+            </div>
+          )}
+          {item.status === "done" && (
+            <div className="sh-plan-actions"><button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Reopen</button></div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderStoreManager() {
     const recs = report?.recommendations ?? [];
     const quickGoals = recs.slice(0, 4).map((r) => r.title);
     const decomposing = planBusyState && !actionPlan;
-    const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
 
     // No plan yet → goal input + quick-start chips from the store report.
     if (!actionPlan) {
@@ -1777,54 +1895,7 @@ export default function Index() {
           </div>
 
           <div className="sh-plan-list">
-            {actionPlan.items.map((item, i) => {
-              const route = PLAN_ROUTE_MAP[item.route];
-              const engine = route?.engine ?? "agent";
-              const isRunning = runningPlanItem?.itemId === item.id;
-              const staging = isRunning && (sectionFetcher.state !== "idle" || schemaFetcher.state !== "idle");
-              const staged = isRunning && pending.length > 0;
-              return (
-                <div key={item.id} className={`sh-plan-item is-${item.status}`}>
-                  <span className="sh-plan-num">{item.status === "done" ? "✓" : item.status === "skipped" ? "–" : i + 1}</span>
-                  <div className="sh-plan-main">
-                    <div className="sh-plan-itop">
-                      <span className="sh-plan-ititle">{item.title}</span>
-                      <span className={`sh-plan-badge e-${engine}`}>{route?.badge ?? "Agent"}</span>
-                      <span className="sh-plan-cost">{item.estUsd > 0 ? `~$${item.estUsd.toFixed(2)}` : "Free"}</span>
-                    </div>
-                    <div className="sh-plan-idetail">{item.detail}</div>
-                    {item.status === "done" && (
-                      <div className="sh-plan-shipped">✓ Shipped {fmtDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
-                    )}
-                    {item.status !== "done" && staging && (
-                      <div className="sh-plan-running"><span className="sh-spinner" /> Adding this to your store…</div>
-                    )}
-                    {item.status !== "done" && !staging && staged && (
-                      <div className="sh-plan-staged">
-                        <div className="sh-plan-staged-label">✓ Staged on your working copy — preview, then approve to ship.</div>
-                        <div className="sh-plan-staged-actions">
-                          <button className="sh-plan-mini" onClick={openDiff}>View changes</button>
-                          <button className="sh-plan-mini sh-plan-discard" disabled={applying || discarding} onClick={discardStaged}>{discarding ? "Discarding…" : "Discard"}</button>
-                          <button className="sh-plan-run" disabled={applying || discarding} onClick={applyChanges}>{applying ? "Shipping…" : "Accept & ship →"}</button>
-                        </div>
-                      </div>
-                    )}
-                    {item.status !== "done" && !staging && !staged && (
-                      <div className="sh-plan-actions">
-                        <button className="sh-plan-run" disabled={planBusyState || !!runningPlanItem} onClick={() => runPlanItem(item)}>Run →</button>
-                        <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "done")}>Mark shipped</button>
-                        {item.status !== "skipped"
-                          ? <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "skipped")}>Skip</button>
-                          : <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "todo")}>Undo skip</button>}
-                      </div>
-                    )}
-                    {item.status === "done" && (
-                      <div className="sh-plan-actions"><button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Reopen</button></div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {actionPlan.items.map((item, i) => renderPlanItem(item, i))}
           </div>
         </div>
         <div className="sh-task-foot">
@@ -2250,32 +2321,7 @@ export default function Index() {
                   {t && <div className="sh-flow-plansub">{t.done}/{t.total} done · run them one at a time</div>}
                 </div>
                 <div className="sh-plan-list">
-                  {plan.items.map((item, i) => {
-                    const route = PLAN_ROUTE_MAP[item.route];
-                    const engine = route?.engine ?? "agent";
-                    return (
-                      <div key={item.id} className={`sh-plan-item is-${item.status}`}>
-                        <span className="sh-plan-num">{item.status === "done" ? "✓" : item.status === "skipped" ? "–" : i + 1}</span>
-                        <div className="sh-plan-main">
-                          <div className="sh-plan-itop">
-                            <span className="sh-plan-ititle">{item.title}</span>
-                            <span className={`sh-plan-badge e-${engine}`}>{route?.badge ?? "Agent"}</span>
-                            <span className="sh-plan-cost">{item.estUsd > 0 ? `~$${item.estUsd.toFixed(2)}` : "Free"}</span>
-                          </div>
-                          <div className="sh-plan-idetail">{item.detail}</div>
-                          {item.status === "done" ? (
-                            <div className="sh-plan-actions"><button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Reopen</button></div>
-                          ) : (
-                            <div className="sh-plan-actions">
-                              <button className="sh-plan-run" disabled={planBusyState} onClick={() => runPlanItem(item)}>Run →</button>
-                              <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "done")}>Mark done</button>
-                              {item.status !== "skipped" && <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "skipped")}>Skip</button>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {plan.items.map((item, i) => renderPlanItem(item, i))}
                 </div>
               </div>
             ) : (
@@ -2807,6 +2853,7 @@ export default function Index() {
       }
 
       if (errored) {
+        if (runningPlanItem) setRunningPlanItem(null); // release the playbook arm so the step can retry
         setMessages((m) => [...m, { role: "assistant", text: `⚠️ ${errored}` }]);
       } else if (done) {
         const summary = (done!.assistantText ?? "").trim();
@@ -2826,6 +2873,10 @@ export default function Index() {
         setPending(done.pending ?? []);
         setApproval(done!.proposedMutations ?? []);
         setBilling(done.billing ?? null);
+        // Playbook step finished with nothing to approve → mark it shipped so it
+        // goes green in place (when there ARE staged changes, the inline card waits
+        // for the merchant to approve before shipping).
+        if (runningPlanItem && staged === 0) shipRunningItem(summary ? summary.slice(0, 80) : "Done");
         // Snapshot the meters, then cheaply re-score ($0, deterministic) so the
         // merchant sees how this task moved their optimization scores.
         prevScoresRef.current = Object.fromEntries(liveScores.map((s) => [s.label, s.value]));
@@ -2833,6 +2884,7 @@ export default function Index() {
       }
     } catch (e) {
       const aborted = e instanceof DOMException && e.name === "AbortError";
+      if (runningPlanItem) setRunningPlanItem(null); // release the playbook arm (retry-able)
       setMessages((m) => [
         ...m,
         { role: "assistant", text: aborted ? "⏹ Stopped — nothing unapproved was applied. Note: the AI used up to this point still counts toward your usage." : `⚠️ ${e instanceof Error ? e.message : String(e)}` },

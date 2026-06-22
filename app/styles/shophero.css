@@ -455,6 +455,8 @@
   border-top-color: var(--sh-accent); animation: sh-spin 0.8s linear infinite;
 }
 @keyframes sh-spin { to { transform: rotate(360deg); } }
+.sh-spinner-sm { width: 15px; height: 15px; border-width: 2px; }
+.sh-spinner-sm.sh-plan-numspin { border-color: rgba(255,255,255,0.4); border-top-color: #fff; }
 
 /* ---------- Device toggles + staged preview ---------- */
 .sh-preview-controls { display: flex; align-items: center; gap: 10px; }
@@ -1149,6 +1151,8 @@
 }
 .sh-plan-item.is-done { opacity: 0.92; border-color: #bfe6c8; background: linear-gradient(180deg, #f6fdf8, #edf9f1); }
 .sh-plan-item.is-skipped { opacity: 0.5; }
+.sh-plan-item.is-working { border-color: rgba(10,132,255,0.5); box-shadow: 0 0 0 3px rgba(10,132,255,0.12); }
+.sh-plan-item.is-working .sh-plan-num { background: var(--sh-accent); }
 .sh-plan-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--sh-ink-faint); }
 .sh-plan-item.is-todo .sh-plan-num { background: var(--sh-accent); }
 .sh-plan-item.is-done .sh-plan-num { background: #16a34a; font-size: 14px; box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
