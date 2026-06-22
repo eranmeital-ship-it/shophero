@@ -187,8 +187,12 @@
 .sh-seccard.is-sel { border-color: var(--sh-accent, #0a84ff); box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.15); }
 .sh-seccard-emoji { font-size: 22px; line-height: 1.2; }
 .sh-seccard-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.sh-seccard-name { font-weight: 700; font-size: 14px; }
+.sh-seccard-name { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.sh-seccard-tag { font-size: 10px; font-weight: 700; color: var(--sh-accent, #0a84ff); background: rgba(10,132,255,0.1); padding: 1px 6px; border-radius: 5px; }
 .sh-seccard-desc { font-size: 12.5px; color: var(--sh-ink-soft, #5a6472); line-height: 1.45; }
+.sh-variant-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.sh-variant { font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--sh-line, #e6e9ef); background: #fff; cursor: pointer; color: var(--sh-ink, #29313d); }
+.sh-variant.is-sel { border-color: var(--sh-accent, #0a84ff); background: rgba(10,132,255,0.08); color: var(--sh-accent, #0a84ff); }
 
 /* Article topic suggestions */
 .sh-topic-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; align-items: center; }

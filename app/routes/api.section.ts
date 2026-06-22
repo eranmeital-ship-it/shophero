@@ -14,9 +14,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const key = String(form.get("key") ?? "");
   const target = String(form.get("target") ?? "index");
+  const variant = String(form.get("variant") ?? "") || undefined;
 
   const { dir } = await ensureReady(ctx);
-  const res = await insertSection(dir, key, target);
+  const res = await insertSection(dir, key, target, variant);
   if (!res.ok) return Response.json({ error: res.error }, { status: 400 });
   return Response.json({ ok: true });
 }

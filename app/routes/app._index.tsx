@@ -683,6 +683,7 @@ export default function Index() {
   const sectionFetcher = useFetcher<{ ok?: boolean; error?: string }>();
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   const [sectionTarget, setSectionTarget] = useState("index");
+  const [sectionVariant, setSectionVariant] = useState<string>("");
   const [input, setInput] = useState("");
   const [frameKey, setFrameKey] = useState(0);
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
@@ -1175,6 +1176,7 @@ export default function Index() {
     setArticleTopic("");
     setSectionKey(null);
     setSectionTarget("index");
+    setSectionVariant("");
     if (id === "write-content") {
       suggestFetcher.submit({ op: "suggest", task: "articles" }, { method: "post", action: "/api/content" });
     }
@@ -1253,7 +1255,7 @@ export default function Index() {
   const sectionBusy = sectionFetcher.state !== "idle";
   function insertSectionAction() {
     if (!sectionKey) return;
-    sectionFetcher.submit({ key: sectionKey, target: sectionTarget }, { method: "post", action: "/api/section" });
+    sectionFetcher.submit({ key: sectionKey, target: sectionTarget, variant: sectionVariant }, { method: "post", action: "/api/section" });
   }
   useEffect(() => {
     if (sectionFetcher.state !== "idle" || !sectionFetcher.data?.ok) return;
@@ -1558,15 +1560,29 @@ export default function Index() {
         <div className="sh-task-body">
           <div className="sh-seclib">
             {SECTION_LIBRARY.map((s) => (
-              <button key={s.key} className={`sh-seccard${sectionKey === s.key ? " is-sel" : ""}`} onClick={() => setSectionKey(s.key)}>
+              <button key={s.key} className={`sh-seccard${sectionKey === s.key ? " is-sel" : ""}`} onClick={() => { setSectionKey(s.key); setSectionVariant(s.variants?.[0]?.value ?? ""); }}>
                 <span className="sh-seccard-emoji">{s.emoji}</span>
                 <span className="sh-seccard-body">
-                  <span className="sh-seccard-name">{s.name}</span>
+                  <span className="sh-seccard-name">{s.name}{s.variants ? <span className="sh-seccard-tag">{s.variants.length} styles</span> : null}</span>
                   <span className="sh-seccard-desc">{s.description}</span>
                 </span>
               </button>
             ))}
           </div>
+          {(() => {
+            const sel = SECTION_LIBRARY.find((s) => s.key === sectionKey);
+            if (!sel?.variants) return null;
+            return (
+              <>
+                <label className="sh-label" style={{ marginTop: 14 }}>Design</label>
+                <div className="sh-variant-row">
+                  {sel.variants.map((v) => (
+                    <button key={v.value} className={`sh-variant${sectionVariant === v.value ? " is-sel" : ""}`} onClick={() => setSectionVariant(v.value)}>{v.label}</button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
           <label className="sh-label" style={{ marginTop: 14 }}>Add to</label>
           <select className="sh-ob-input" value={sectionTarget} onChange={(e) => setSectionTarget(e.target.value)} disabled={sectionBusy}>
             {SECTION_TARGETS.map((t) => <option key={t.template} value={t.template}>{t.label}</option>)}
