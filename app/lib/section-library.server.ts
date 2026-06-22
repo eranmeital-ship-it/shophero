@@ -94,7 +94,7 @@ const FAQ = `{%- style -%}${BASE}
   {"type":"text","id":"q2","label":"Q2","default":"What is your return policy?"},{"type":"textarea","id":"a2","label":"A2","default":"Returns are accepted within 30 days, no questions asked."},
   {"type":"text","id":"q3","label":"Q3","default":"Is checkout secure?"},{"type":"textarea","id":"a3","label":"A3","default":"Yes — payments are encrypted and processed securely by Shopify."},
   {"type":"text","id":"q4","label":"Q4","default":"Do you offer support?"},{"type":"textarea","id":"a4","label":"A4","default":"Absolutely — reach out any time and we'll help."},
-  {"type":"text","id":"q5","label":"Q5","default":""},{"type":"textarea","id":"a5","label":"A5","default":""}
+  {"type":"text","id":"q5","label":"Q5"},{"type":"textarea","id":"a5","label":"A5"}
 ],"presets":[{"name":"FAQ"}] }
 {% endschema %}`;
 
@@ -184,7 +184,7 @@ const COMPARISON = `{%- style -%}${BASE}
   {"type":"text","id":"row2","label":"Row 2","default":"Free shipping"},{"type":"text","id":"us2","label":"Us 2","default":"✓"},{"type":"text","id":"them2","label":"Them 2","default":"✕"},
   {"type":"text","id":"row3","label":"Row 3","default":"30-day returns"},{"type":"text","id":"us3","label":"Us 3","default":"✓"},{"type":"text","id":"them3","label":"Them 3","default":"Sometimes"},
   {"type":"text","id":"row4","label":"Row 4","default":"Real human support"},{"type":"text","id":"us4","label":"Us 4","default":"✓"},{"type":"text","id":"them4","label":"Them 4","default":"✕"},
-  {"type":"text","id":"row5","label":"Row 5","default":""},{"type":"text","id":"us5","label":"Us 5","default":""},{"type":"text","id":"them5","label":"Them 5","default":""}
+  {"type":"text","id":"row5","label":"Row 5"},{"type":"text","id":"us5","label":"Us 5"},{"type":"text","id":"them5","label":"Them 5"}
 ],"presets":[{"name":"Comparison Table"}] }
 {% endschema %}`;
 
@@ -274,7 +274,7 @@ const ABOUT = `{%- style -%}${BASE}
   {"type":"richtext","id":"body","label":"Body","default":"<p>Share what your brand stands for, who it's for, and why you started. A genuine story builds trust and turns visitors into customers.</p>"},
   {"type":"text","id":"stat1","label":"Stat 1","default":"10k+"},{"type":"text","id":"label1","label":"Label 1","default":"Happy customers"},
   {"type":"text","id":"stat2","label":"Stat 2","default":"4.8★"},{"type":"text","id":"label2","label":"Label 2","default":"Average rating"},
-  {"type":"text","id":"stat3","label":"Stat 3","default":""},{"type":"text","id":"label3","label":"Label 3","default":""}
+  {"type":"text","id":"stat3","label":"Stat 3"},{"type":"text","id":"label3","label":"Label 3"}
 ],"presets":[{"name":"About / Story"}] }
 {% endschema %}`;
 
