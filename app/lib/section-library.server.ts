@@ -422,16 +422,33 @@ export async function insertSections(
   } catch (e) {
     return { ok: false, error: `Couldn't write a section file: ${e instanceof Error ? e.message : e}`, files };
   }
-  const tplPath = path.join(dir, "templates", `${target}.json`);
+  const resolved = await resolveTarget(dir, target);
+  if (!resolved) {
+    return { ok: false, error: `Couldn't open the "${target}" template — it may not exist on this theme.`, files };
+  }
+  const stamp = Date.now().toString(36);
+
+  // Vintage .liquid template → append section tags (settings use schema defaults).
+  if (resolved.kind === "liquid") {
+    const next = appendToLiquidTemplate(resolved.content, sections.map((s) => s.key));
+    try {
+      await writeFile(path.join(dir, resolved.relPath), next, "utf8");
+    } catch (e) {
+      return { ok: false, error: `Couldn't update the template: ${e instanceof Error ? e.message : e}`, files };
+    }
+    files.push(resolved.relPath);
+    return { ok: true, files };
+  }
+
+  // OS 2.0 JSON template → add section objects + order entries.
   let json: { sections?: Record<string, unknown>; order?: string[] };
   try {
-    json = JSON.parse(await readFile(tplPath, "utf8"));
+    json = JSON.parse(resolved.content);
   } catch {
-    return { ok: false, error: `Couldn't open the "${target}" template — it may not exist on this theme.`, files };
+    return { ok: false, error: `The "${target}" template isn't valid JSON — can't safely edit it.`, files };
   }
   json.sections = json.sections ?? {};
   json.order = json.order ?? [];
-  const stamp = Date.now().toString(36);
   sections.forEach((s, i) => {
     const def = SECTION_DEFS[s.key];
     const id = `${s.key}_${stamp}_${i}`;
@@ -439,41 +456,43 @@ export async function insertSections(
     json.order!.push(id);
   });
   try {
-    await writeFile(tplPath, JSON.stringify(json, null, 2), "utf8");
+    await writeFile(path.join(dir, resolved.relPath), JSON.stringify(json, null, 2), "utf8");
   } catch (e) {
     return { ok: false, error: `Couldn't update the template: ${e instanceof Error ? e.message : e}`, files };
   }
-  files.push(`templates/${target}.json`);
+  files.push(resolved.relPath);
   return { ok: true, files };
 }
 
+async function readMaybe(p: string): Promise<string | null> {
+  try { return await readFile(p, "utf8"); } catch { return null; }
+}
+
+/**
+ * Append `{% section 'key' %}` tags to a vintage (.liquid) template, just before
+ * its last closing tag if one exists, else at the end. Per-instance settings
+ * can't be passed through a section tag, so the section renders with its schema
+ * defaults (the variant default applies). Returns the written file key.
+ */
+function appendToLiquidTemplate(liquid: string, keys: string[]): string {
+  const tags = keys.map((k) => `{% section '${k}' %}`).join("\n");
+  return `${liquid.replace(/\s*$/, "")}\n${tags}\n`;
+}
+
+// Resolve the homepage/template target across OS 2.0 (.json) and vintage (.liquid)
+// themes, and return what files to write. Returns null if the template is absent.
+async function resolveTarget(dir: string, target: string): Promise<{ kind: "json" | "liquid"; relPath: string; content: string } | null> {
+  const jsonRel = `templates/${target}.json`;
+  const liquidRel = `templates/${target}.liquid`;
+  const json = await readMaybe(path.join(dir, jsonRel));
+  if (json != null) return { kind: "json", relPath: jsonRel, content: json };
+  const liquid = await readMaybe(path.join(dir, liquidRel));
+  if (liquid != null) return { kind: "liquid", relPath: liquidRel, content: liquid };
+  return null;
+}
+
 /** Insert a library section (optionally a variant) into the chosen template. */
-export async function insertSection(dir: string, key: string, target: string, variant?: string): Promise<{ ok: boolean; error?: string }> {
-  const def = SECTION_DEFS[key];
-  if (!def) return { ok: false, error: "Unknown section." };
-  try {
-    await mkdir(path.join(dir, "sections"), { recursive: true });
-    await writeFile(path.join(dir, "sections", `${key}.liquid`), def.liquid, "utf8");
-  } catch (e) {
-    return { ok: false, error: `Couldn't write the section file: ${e instanceof Error ? e.message : e}` };
-  }
-  const tplPath = path.join(dir, "templates", `${target}.json`);
-  let json: { sections?: Record<string, unknown>; order?: string[] };
-  try {
-    json = JSON.parse(await readFile(tplPath, "utf8"));
-  } catch {
-    return { ok: false, error: `Couldn't open the "${target}" template — it may not exist on this theme.` };
-  }
-  json.sections = json.sections ?? {};
-  json.order = json.order ?? [];
-  const id = `${key}_${Date.now().toString(36)}`;
-  const settings = { ...def.settings, ...(variant ? { variant } : {}) };
-  json.sections[id] = { type: key, settings };
-  json.order.push(id);
-  try {
-    await writeFile(tplPath, JSON.stringify(json, null, 2), "utf8");
-  } catch (e) {
-    return { ok: false, error: `Couldn't update the template: ${e instanceof Error ? e.message : e}` };
-  }
-  return { ok: true };
+export async function insertSection(dir: string, key: string, target: string, variant?: string): Promise<{ ok: boolean; error?: string; files?: string[] }> {
+  const r = await insertSections(dir, target, [{ key, variant }]);
+  return { ok: r.ok, error: r.error, files: r.files };
 }

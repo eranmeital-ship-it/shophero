@@ -773,7 +773,7 @@ export default function Index() {
   const [articleCount, setArticleCount] = useState("1");
   const [articleTopic, setArticleTopic] = useState("");
   // Section library insert.
-  const sectionFetcher = useFetcher<{ ok?: boolean; error?: string }>();
+  const sectionFetcher = useFetcher<{ ok?: boolean; error?: string; files?: string[] }>();
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   const [sectionTarget, setSectionTarget] = useState("index");
   const [sectionVariant, setSectionVariant] = useState<string>("");
@@ -1592,7 +1592,8 @@ export default function Index() {
     // From a plan step we stay in the roadmap (the step shows its own staged controls);
     // from a tile/manual run we drop into the chat view with the staged-change bar.
     if (!runningPlanItem) setActiveTask(null);
-    setPending((p) => [...new Set([...p, `sections/${sectionKey}.liquid`, `templates/${sectionTarget}.json`])]);
+    const changed = sectionFetcher.data.files?.length ? sectionFetcher.data.files : [`sections/${sectionKey}.liquid`, `templates/${sectionTarget}.json`];
+    setPending((p) => [...new Set([...p, ...changed])]);
     setMessages((m) => [...m, { role: "assistant", text: `✓ Added the ${name} section to your ${targetLabel}. Preview it in the panel, then Accept to publish.` }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionFetcher.state, sectionFetcher.data]);

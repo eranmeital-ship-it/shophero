@@ -19,5 +19,5 @@ export async function action({ request }: ActionFunctionArgs) {
   const { dir } = await ensureReady(ctx);
   const res = await insertSection(dir, key, target, variant);
   if (!res.ok) return Response.json({ error: res.error }, { status: 400 });
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, files: res.files ?? [] });
 }
