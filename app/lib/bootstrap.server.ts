@@ -13,7 +13,25 @@ import {
  *
  * Returns the working theme id and the workspace dir.
  */
-export async function ensureReady(ctx: { shop: string; accessToken: string }) {
+type ReadyResult = { themeId: number; dir: string; themeName: string; themeCopiedAt: string | null };
+
+// Dedupe concurrent ensureReady calls for the same shop so two first-time
+// requests (loader + chat, or startBootstrap + a direct call) can't both clone
+// the theme and corrupt the baseline. Re-entrant-safe (a plain promise share,
+// not a lock), so it's fine to call from inside withShopLock.
+const inflightReady = new Map<string, Promise<ReadyResult>>();
+
+export function ensureReady(ctx: { shop: string; accessToken: string }): Promise<ReadyResult> {
+  const existing = inflightReady.get(ctx.shop);
+  if (existing) return existing;
+  const p = ensureReadyImpl(ctx).finally(() => {
+    if (inflightReady.get(ctx.shop) === p) inflightReady.delete(ctx.shop);
+  });
+  inflightReady.set(ctx.shop, p);
+  return p;
+}
+
+async function ensureReadyImpl(ctx: { shop: string; accessToken: string }): Promise<ReadyResult> {
   const theme = await ensureWorkingTheme(ctx);
   const themeId = theme.id;
   const dir = workspaceDir(ctx.shop);

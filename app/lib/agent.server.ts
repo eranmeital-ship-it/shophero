@@ -1,5 +1,6 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { modelChain } from "./model-router.server";
+import { withShopLock } from "./shop-lock.server";
 import { buildShopifyMcp, SHOPIFY_TOOL_NAME, type AdminCtx, type Deliverable } from "./shopify-tools.server";
 import { orderedKeys, markFailed, markOk, keyFailureKind } from "./key-pool.server";
 import { buildBrainMcp, BRAIN_TOOL_NAMES, BRAIN_LABELS, REMEMBER_TOOL_NAME } from "./knowledge-tools.server";
@@ -45,20 +46,6 @@ function releaseSlot(): void {
   turnWaiters.shift()?.();
 }
 
-// One in-flight agent turn PER SHOP — a single store can't hog all slots or run
-// overlapping heavy requests. Subsequent turns for the same shop queue behind it.
-const shopChain = new Map<string, Promise<unknown>>();
-async function withShopLock<T>(shop: string | undefined, fn: () => Promise<T>): Promise<T> {
-  if (!shop) return fn();
-  const prev = shopChain.get(shop) ?? Promise.resolve();
-  const run = prev.catch(() => {}).then(fn);
-  shopChain.set(shop, run);
-  try {
-    return await run;
-  } finally {
-    if (shopChain.get(shop) === run) shopChain.delete(shop);
-  }
-}
 
 // The "brain": appended to Claude Code's preset. Static => prompt-cached.
 const SYSTEM = `You edit a disposable copy of a Shopify Online Store 2.0 theme on disk, and can also manage live store resources via the Shopify Admin API. Make ONLY the change the merchant asks for — nothing extra.

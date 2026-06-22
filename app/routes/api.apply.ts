@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { changedFiles, commitFiles, commitCount } from "../lib/workspace.server";
 import { pushWorkspaceChanges, renameTheme } from "../lib/theme.server";
+import { withShopLock } from "../lib/shop-lock.server";
 
 /**
  * The approval gate. Only when the merchant clicks "Apply" do the agent's local
@@ -13,7 +14,13 @@ import { pushWorkspaceChanges, renameTheme } from "../lib/theme.server";
 export async function action({ request }: ActionFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const ctx = { shop: session.shop, accessToken: session.accessToken! };
+  // Serialize with the agent turn + discard/restore so concurrent requests can't
+  // corrupt the shared git workspace. The form is read before locking.
+  const form = await request.formData().catch(() => null);
+  return withShopLock(session.shop, () => applyImpl(ctx, form));
+}
 
+async function applyImpl(ctx: { shop: string; accessToken: string }, form: FormData | null) {
   const { themeId, dir } = await ensureReady(ctx);
 
   const pending = await changedFiles(dir);
@@ -23,7 +30,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Label the restore point with WHAT changed: prefer the agent's plain-English
   // summary (sent by the client), else fall back to the changed file names.
-  const form = await request.formData().catch(() => null);
   const summary = String(form?.get("summary") ?? "").trim();
   const fileList = pending.length <= 4 ? pending.join(", ") : `${pending.slice(0, 3).join(", ")} +${pending.length - 3} more`;
   const label = (summary || `Applied ${fileList}`).slice(0, 200);

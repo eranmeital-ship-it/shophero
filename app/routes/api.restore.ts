@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { commitBaseline, restoreToVersion } from "../lib/workspace.server";
 import { pushWorkspaceChanges } from "../lib/theme.server";
+import { withShopLock } from "../lib/shop-lock.server";
 import db from "../db.server";
 
 /**
@@ -19,12 +20,14 @@ export async function action({ request }: ActionFunctionArgs) {
   const sha = String(form.get("sha") ?? "");
   if (!sha) return Response.json({ error: "Missing version id" }, { status: 400 });
 
-  const { themeId, dir } = await ensureReady(ctx);
-
   try {
-    const toPush = await restoreToVersion(dir, sha);
-    if (toPush.length) await pushWorkspaceChanges(ctx, themeId, dir, toPush);
-    await commitBaseline(dir, `rolled back to ${sha.slice(0, 7)}`);
+    const toPush = await withShopLock(session.shop, async () => {
+      const { themeId, dir } = await ensureReady(ctx);
+      const files = await restoreToVersion(dir, sha);
+      if (files.length) await pushWorkspaceChanges(ctx, themeId, dir, files);
+      await commitBaseline(dir, `rolled back to ${sha.slice(0, 7)}`);
+      return files;
+    });
     await db.appEvent
       .create({ data: { shop: session.shop, level: "info", type: "rollback", message: `Rolled back to ${sha.slice(0, 7)} (${toPush.length} file(s))` } })
       .catch(() => {});
