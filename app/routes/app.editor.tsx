@@ -2144,12 +2144,31 @@ export default function Index() {
         <div className="sh-task-body">
           {/* ---- Intro ---- */}
           {flow.phase === "intro" && (
-            <div className="sh-flow-intro">
-              <div className="sh-flow-emoji">{f.emoji}</div>
-              <h2>{f.title}</h2>
-              <p>{f.blurb}</p>
+            <div className="sh-flow-wrap">
+              <div className="sh-flow-intro">
+                <div className="sh-flow-emoji">{f.emoji}</div>
+                <h2>{f.title}</h2>
+                <p>{f.blurb}</p>
+              </div>
+              {f.learn && (
+                <div className="sh-flow-learn">
+                  <div className="sh-flow-section-h">What actually moves the needle</div>
+                  <div className="sh-flow-learn-grid">
+                    {f.learn.map((c, i) => (
+                      <div key={i} className="sh-flow-learn-card">
+                        <div className="sh-flow-learn-icon">{c.icon}</div>
+                        <div className="sh-flow-learn-title">{c.title}</div>
+                        <div className="sh-flow-learn-desc">{c.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {f.outcome && (
+                <div className="sh-flow-outcome"><span className="sh-flow-outcome-tag">You'll get</span><span>{f.outcome}</span></div>
+              )}
               <div className="sh-flow-ahead">
-                <div className="sh-flow-ahead-h">Here's what's ahead</div>
+                <div className="sh-flow-ahead-h">How it works</div>
                 {f.ahead.map((s, i) => (
                   <div key={i} className="sh-flow-ahead-row"><span className="sh-flow-ahead-n">{i + 1}</span>{s}</div>
                 ))}
@@ -2159,38 +2178,42 @@ export default function Index() {
 
           {/* ---- Questions ---- */}
           {flow.phase === "q" && step && (
-            <div className="sh-flow-q">
-              <div className="sh-flow-progress">
-                <span>Question {flow.step + 1} of {visible.length}</span>
-                <div className="sh-clarify-dots">{visible.map((_, i) => <span key={i} className={`sh-clarify-dot${i <= flow.step ? " on" : ""}`} />)}</div>
-              </div>
-              <div className="sh-flow-qtitle">{step.q}</div>
-              {step.help && <div className="sh-flow-qhelp">{step.help}</div>}
-              {step.options.length > 0 && (
-                <div className="sh-clarify-opts">
-                  {step.options.map((o) => {
-                    const sel = (flow.answers[step.id] ?? []).includes(o.value);
-                    return (
-                      <button key={o.value} className={`sh-clarify-opt${sel ? " is-sel" : ""}`} title={o.hint}
-                        onClick={() => (step.multi ? flowToggle(step.id, o.value, true) : flowAdvance({ stepId: step.id, values: [o.value] }))}>
-                        {o.label}{o.hint ? <span className="sh-flow-opt-hint"> · {o.hint}</span> : ""}
-                      </button>
-                    );
-                  })}
+            <div className="sh-flow-wrap">
+              <div className="sh-flow-qcard">
+                <div className="sh-flow-progress">
+                  <span>Question {flow.step + 1} of {visible.length}</span>
+                  <div className="sh-clarify-dots">{visible.map((_, i) => <span key={i} className={`sh-clarify-dot${i <= flow.step ? " on" : ""}`} />)}</div>
                 </div>
-              )}
-              {step.allowText && (
-                <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={flowText} placeholder="Type your answer…" onChange={(e) => setFlowText(e.target.value)} style={{ marginTop: 10 }} />
-              )}
-              <div className="sh-flow-nav">
-                <button className="sh-btn sh-btn-ghost" onClick={flowBack}>← Back</button>
-                {(step.multi || step.allowText) && (
-                  <button className="sh-btn sh-btn-primary"
-                    disabled={step.allowText && !flowText.trim() && !(flow.answers[step.id]?.length)}
-                    onClick={() => flowAdvance(step.allowText && flowText.trim() ? { stepId: step.id, values: [flowText.trim()] } : undefined)}>
-                    {flow.step + 1 >= visible.length ? "Build my plan →" : "Next →"}
-                  </button>
+                <div className="sh-flow-qtitle">{step.q}</div>
+                {step.help && <div className="sh-flow-qhelp">{step.help}</div>}
+                {step.options.length > 0 && (
+                  <div className="sh-flow-opts">
+                    {step.options.map((o) => {
+                      const sel = (flow.answers[step.id] ?? []).includes(o.value);
+                      return (
+                        <button key={o.value} className={`sh-flow-opt${sel ? " is-sel" : ""}`}
+                          onClick={() => (step.multi ? flowToggle(step.id, o.value, true) : flowAdvance({ stepId: step.id, values: [o.value] }))}>
+                          {step.multi && <span className="sh-flow-opt-box">{sel ? "✓" : ""}</span>}
+                          <span className="sh-flow-opt-label">{o.label}</span>
+                          {o.hint && <span className="sh-flow-opt-hint">{o.hint}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
+                {step.allowText && (
+                  <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={flowText} placeholder="Type your answer…" onChange={(e) => setFlowText(e.target.value)} style={{ marginTop: 10 }} />
+                )}
+                <div className="sh-flow-nav">
+                  <button className="sh-btn sh-btn-ghost" onClick={flowBack}>← Back</button>
+                  {(step.multi || step.allowText) && (
+                    <button className="sh-btn sh-btn-primary"
+                      disabled={step.allowText && !flowText.trim() && !(flow.answers[step.id]?.length)}
+                      onClick={() => flowAdvance(step.allowText && flowText.trim() ? { stepId: step.id, values: [flowText.trim()] } : undefined)}>
+                      {flow.step + 1 >= visible.length ? "Build my plan →" : "Next →"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -2200,7 +2223,7 @@ export default function Index() {
             planBusyState && !plan ? (
               <div className="sh-opt-loading"><div className="sh-spinner" /> Analyzing your store &amp; building your plan…</div>
             ) : plan ? (
-              <>
+              <div className="sh-flow-wrap">
                 <div className="sh-flow-planhead">
                   <div className="sh-flow-plantitle">Your plan · {f.title}</div>
                   {t && <div className="sh-flow-plansub">{t.done}/{t.total} done · run them one at a time</div>}
@@ -2233,7 +2256,7 @@ export default function Index() {
                     );
                   })}
                 </div>
-              </>
+              </div>
             ) : (
               <div className="sh-err">Couldn't build a plan — try again or rephrase.{roadmapFetcher.data?.error ? ` (${roadmapFetcher.data.error})` : ""}</div>
             )

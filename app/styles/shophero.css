@@ -1658,25 +1658,57 @@
 .sh-callout { font-size: 12.5px; line-height: 1.5; color: var(--sh-ink); padding: 11px 14px; border-radius: 12px; background: rgba(10, 132, 255, 0.06); border: 1px solid rgba(10, 132, 255, 0.2); }
 
 /* Guided feature flow (tile → intro → questions → plan) */
-.sh-flow-intro { text-align: center; padding: 18px 8px 6px; }
-.sh-flow-emoji { font-size: 40px; line-height: 1; }
-.sh-flow-intro h2 { font-size: 23px; font-weight: 740; letter-spacing: -0.02em; margin: 10px 0 4px; }
-.sh-flow-intro > p { color: var(--sh-ink-soft); font-size: 14px; margin: 0 0 22px; }
-.sh-flow-ahead { text-align: left; max-width: 460px; margin: 0 auto; background: rgba(0,0,0,0.025); border: 1px solid var(--sh-line); border-radius: 14px; padding: 14px 16px; }
+/* Guided feature flow — centered, boxed, content-rich */
+.sh-flow-wrap { max-width: 600px; margin: 0 auto; padding: 8px 4px 6px; width: 100%; }
+.sh-flow-intro { text-align: center; padding: 14px 8px 4px; }
+.sh-flow-emoji { font-size: 44px; line-height: 1; }
+.sh-flow-intro h2 { font-size: 25px; font-weight: 760; letter-spacing: -0.02em; margin: 12px 0 6px; }
+.sh-flow-intro > p { color: var(--sh-ink-soft); font-size: 14.5px; margin: 0 auto; max-width: 460px; line-height: 1.45; }
+
+.sh-flow-section-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sh-ink-faint); margin: 22px 0 11px; text-align: center; }
+.sh-flow-learn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sh-flow-learn-card {
+  text-align: left; background: linear-gradient(180deg, #fff, #f7f9fc); border: 1px solid var(--sh-line);
+  border-radius: 14px; padding: 14px 15px; box-shadow: var(--sh-shadow-sm);
+}
+.sh-flow-learn-icon { font-size: 20px; line-height: 1; }
+.sh-flow-learn-title { font-size: 13.5px; font-weight: 720; color: var(--sh-ink); margin: 8px 0 4px; }
+.sh-flow-learn-desc { font-size: 12px; line-height: 1.5; color: var(--sh-ink-soft); }
+
+.sh-flow-outcome {
+  display: flex; gap: 11px; align-items: flex-start; margin-top: 16px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(10,132,255,0.08), rgba(10,132,255,0.04)); border: 1px solid rgba(10,132,255,0.2);
+  font-size: 13px; line-height: 1.5; color: var(--sh-ink);
+}
+.sh-flow-outcome-tag { flex-shrink: 0; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sh-accent); background: rgba(10,132,255,0.12); padding: 4px 8px; border-radius: 999px; margin-top: 1px; }
+
+.sh-flow-ahead { text-align: left; margin-top: 16px; background: rgba(0,0,0,0.025); border: 1px solid var(--sh-line); border-radius: 14px; padding: 14px 16px; }
 .sh-flow-ahead-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sh-ink-faint); margin-bottom: 10px; }
 .sh-flow-ahead-row { display: flex; align-items: center; gap: 11px; font-size: 13px; color: var(--sh-ink); padding: 5px 0; }
 .sh-flow-ahead-n { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--sh-accent); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
-.sh-flow-q { padding: 4px 2px; }
-.sh-flow-progress { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--sh-ink-faint); margin-bottom: 14px; }
-.sh-flow-qtitle { font-size: 18px; font-weight: 720; letter-spacing: -0.01em; margin-bottom: 4px; }
-.sh-flow-qhelp { font-size: 12.5px; color: var(--sh-ink-soft); margin-bottom: 12px; }
-.sh-flow-q .sh-clarify-opts { margin-top: 6px; }
-.sh-flow-opt-hint { font-weight: 400; opacity: 0.7; }
-.sh-flow-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+
+.sh-flow-qcard { background: #fff; border: 1px solid var(--sh-line); border-radius: 18px; padding: 22px 22px 20px; box-shadow: var(--sh-shadow-sm); }
+.sh-flow-progress { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--sh-ink-faint); margin-bottom: 14px; }
+.sh-flow-qtitle { font-size: 20px; font-weight: 740; letter-spacing: -0.015em; margin-bottom: 5px; }
+.sh-flow-qhelp { font-size: 13px; color: var(--sh-ink-soft); margin-bottom: 14px; line-height: 1.45; }
+.sh-flow-opts { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+.sh-flow-opt {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--sh-ink);
+  background: linear-gradient(180deg, #fff, #f7f9fc); border: 1.5px solid var(--sh-line); border-radius: 13px;
+  padding: 14px 16px; transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.08s ease;
+}
+.sh-flow-opt:hover { border-color: rgba(10,132,255,0.45); box-shadow: var(--sh-shadow-sm); transform: translateY(-1px); }
+.sh-flow-opt.is-sel { border-color: var(--sh-accent); background: rgba(10,132,255,0.08); box-shadow: 0 0 0 3px rgba(10,132,255,0.12); }
+.sh-flow-opt-box { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--sh-line); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
+.sh-flow-opt.is-sel .sh-flow-opt-box { background: var(--sh-accent); border-color: var(--sh-accent); }
+.sh-flow-opt-label { flex: 1; }
+.sh-flow-opt-hint { flex-shrink: 0; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sh-accent); background: rgba(10,132,255,0.12); padding: 3px 8px; border-radius: 999px; }
+.sh-flow-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
 .sh-flow-foothint { font-size: 12px; color: var(--sh-ink-faint); }
-.sh-flow-planhead { margin-bottom: 12px; }
-.sh-flow-plantitle { font-size: 15px; font-weight: 720; }
-.sh-flow-plansub { font-size: 12px; color: var(--sh-ink-soft); margin-top: 2px; }
+.sh-flow-planhead { margin-bottom: 14px; text-align: center; }
+.sh-flow-plantitle { font-size: 17px; font-weight: 740; }
+.sh-flow-plansub { font-size: 12.5px; color: var(--sh-ink-soft); margin-top: 3px; }
 
 /* Email campaign kit */
 .sh-camp-emails { display: flex; flex-direction: column; gap: 9px; }

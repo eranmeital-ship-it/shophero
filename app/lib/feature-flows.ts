@@ -15,11 +15,14 @@ export interface FlowStep {
   showIf?: (a: Answers) => boolean; // branching: only show when true
 }
 export type Answers = Record<string, string[]>;
+export interface LearnCard { icon: string; title: string; desc: string }
 export interface FeatureFlow {
   key: string;
   emoji: string;
   title: string;
   blurb: string;          // one-line promise
+  outcome?: string;       // what the finished plan delivers (shown on the intro)
+  learn?: LearnCard[];     // "what actually moves the needle" — establishes the logic
   ahead: string[];        // "here's what's ahead" bullets
   steps: FlowStep[];
   goal: (a: Answers) => string; // builds the decompose goal from answers
@@ -53,6 +56,12 @@ export const FEATURE_FLOWS: Record<string, FeatureFlow> = {
   sales: {
     key: "sales", emoji: "📈", title: "Increase Conversions",
     blurb: "Find what's quietly stopping visitors from buying — and fix it.",
+    outcome: "A ranked checklist of concrete fixes: clearer CTAs, trust signals, social proof, urgency, and a tighter path to checkout — each one a step you run in a tap.",
+    learn: [
+      { icon: "🧭", title: "Clarity beats clever", desc: "Confused visitors leave. One obvious value proposition and a single clear call-to-action usually lift add-to-carts more than any redesign." },
+      { icon: "🛡️", title: "Trust removes hesitation", desc: "Guarantees, reviews, secure-checkout and shipping info reassure first-time buyers at the exact moment they're deciding." },
+      { icon: "⏳", title: "Momentum & proof", desc: "Honest urgency (low stock, deadlines) and visible social proof nudge fence-sitters without feeling pushy." },
+    ],
     ahead: ["A read of your store for conversion blockers", "A few quick questions to focus the work", "A ranked checklist you run one tap at a time"],
     steps: [
       { id: "goal", q: "What matters most right now?", multi: true, options: [
@@ -79,6 +88,12 @@ export const FEATURE_FLOWS: Record<string, FeatureFlow> = {
   improve: {
     key: "improve", emoji: "✨", title: "Improve My Store",
     blurb: "A ranked plan of the highest-impact fixes for your store.",
+    outcome: "One prioritized roadmap spanning conversion, SEO, content, speed and trust — biggest wins first, each step costed and run with a tap.",
+    learn: [
+      { icon: "📊", title: "Impact before effort", desc: "Not every fix is worth doing. ShopHero scans your store and ranks opportunities by likely payoff, so you spend time where it counts." },
+      { icon: "🧱", title: "Foundations first", desc: "SEO, schema and speed compound over time; conversion and trust pay off now. A good plan sequences both in the right order." },
+      { icon: "🤖", title: "Built for AI search", desc: "Shoppers increasingly start in AI assistants. The plan includes the structured data and content that get your store cited." },
+    ],
     ahead: ["A full scan across SEO, conversion, content & trust", "A couple of questions to set priorities", "A ranked, tap-to-run plan"],
     steps: [
       { id: "goal", q: "What's your top goal?", multi: true, options: [
@@ -160,19 +175,42 @@ export const FEATURE_FLOWS: Record<string, FeatureFlow> = {
 
   google: {
     key: "google", emoji: "🔍", title: "Rank Higher on Google",
-    blurb: "Fix the SEO that's costing you traffic.",
-    ahead: ["Pick what to optimize", "I fix titles, meta, structure & schema", "Staged for your approval"],
+    blurb: "A complete plan to win more search traffic — not a one-off tweak.",
+    outcome: "A sequenced roadmap across all four ranking levers: fix on-page SEO, add rich-result schema, publish content that earns rankings, speed up your pages — plus an AEO step so AI search can cite you.",
+    learn: [
+      { icon: "🎯", title: "On-page SEO", desc: "Titles, meta descriptions, H1s and internal links tell Google what each page is about. Most stores leave these on Shopify's autopilot defaults — easy points left on the table." },
+      { icon: "📚", title: "Helpful content", desc: "Google rewards depth and freshness. Buying guides and how-tos build topical authority and capture shoppers while they're still researching." },
+      { icon: "⚡", title: "Speed & Core Web Vitals", desc: "Slow, shifting pages get demoted in ranking and lose sales. Fast, stable pages rank higher and convert better — Google measures this directly." },
+      { icon: "🤖", title: "Schema & AEO", desc: "Structured data unlocks rich results (stars, prices, FAQs) and lets AI assistants like ChatGPT and Google AI read and cite your store accurately." },
+    ],
+    ahead: ["A few quick questions to set your priorities", "A scan of your store's current SEO", "A ranked, tap-to-run plan across all four levers"],
     steps: [
-      { id: "scope", q: "What should we optimize?", multi: true, options: [
-        { label: "Product pages", value: "product page SEO" }, { label: "Collections", value: "collection SEO" },
-        { label: "Homepage", value: "homepage SEO" }, { label: "Structured data (schema)", value: "structured data" },
+      { id: "goal", q: "What's your main goal?", help: "Pick all that apply — this sets the plan's priorities.", multi: true, options: [
+        { label: "More traffic to products & collections", value: "more organic traffic to product and collection pages" },
+        { label: "Rank for buying-intent searches", value: "ranking for high-intent buying searches" },
+        { label: "Get cited by AI assistants (AEO)", value: "being found and cited by AI shopping assistants" },
+        { label: "Outrank my competitors", value: "outranking competitors" },
       ] },
-      { id: "keywords", q: "Any target keywords or focus?", help: "Optional — type terms you want to rank for, or skip.", options: [
+      { id: "work", q: "What should the plan cover?", help: "Not sure? Keep the full playbook — it's sequenced foundation-first so nothing's wasted.", multi: true, options: [
+        { label: "The full playbook", value: "the full playbook", hint: "Recommended" },
+        { label: "On-page SEO", value: "on-page SEO (titles, meta, headings, internal links)" },
+        { label: "Content (guides & blog)", value: "topical-authority content (buying guides and how-tos)" },
+        { label: "Site speed", value: "site speed and Core Web Vitals" },
+        { label: "Schema & AEO", value: "structured data and AEO" },
+      ] },
+      { id: "keywords", q: "Any focus keywords or products?", help: "Optional — terms or products you most want to rank for, or let ShopHero choose from your catalog.", options: [
         { label: "Let ShopHero decide", value: "auto" },
       ], allowText: true },
       Q_PUBLISH,
     ],
-    goal: (a) => `Improve SEO for ${list(a, "scope", "the store")} — titles, meta descriptions, headings, internal links and structured data.${one(a, "keywords") && one(a, "keywords") !== "auto" ? ` Target: ${one(a, "keywords")}.` : ""} Show before/after; staged for approval.`,
+    goal: (a) => {
+      const full = !a.work?.length || a.work.includes("the full playbook");
+      const work = full
+        ? "on-page SEO (titles, meta descriptions, headings, internal links), structured data for rich results, topical-authority content (buying guides and how-tos), and site speed / Core Web Vitals"
+        : a.work!.join(", ");
+      const kw = one(a, "keywords") && one(a, "keywords") !== "auto" ? ` Focus terms/products: ${one(a, "keywords")}.` : "";
+      return `Build a Google ranking plan for this store covering ${work}. Priorities: ${list(a, "goal", "more organic traffic")}.${kw} Sequence it foundation-first (technical + on-page SEO before content), and include a step that makes the store AEO-ready so AI assistants can read and cite it. Show before/after where relevant; changes ${one(a, "publish") === "draft" ? "saved as drafts where possible" : "staged for approval"}.`;
+    },
   },
 
   trust: {
