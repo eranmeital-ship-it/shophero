@@ -5,17 +5,35 @@ import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { listVersions, workspaceDir, restoreToVersion, undoCommit, commitBaseline } from "../lib/workspace.server";
 import { pushWorkspaceChanges } from "../lib/theme.server";
-import { listJobs } from "../lib/jobs.server";
+import { listJobs, setJobStatus } from "../lib/jobs.server";
+import { runJobNow } from "../lib/job-runner.server";
 import { projectEta, JOB_TYPES } from "../lib/jobs-types";
 import db from "../db.server";
 import "../styles/shophero.css";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const ctx = { shop: session.shop, accessToken: session.accessToken! };
   const fd = await request.formData();
-  const sha = String(fd.get("sha") || "");
   const op = String(fd.get("op") || "restore");
+
+  // ── Scheduled-job controls (merged in from the old Jobs page) ──
+  if (op === "job-run" || op === "job-pause" || op === "job-resume" || op === "job-cancel") {
+    const id = String(fd.get("jobId") || "");
+    if (!id) return { ok: false, error: "Missing job id." };
+    try {
+      if (op === "job-run") {
+        const r = await runJobNow(session.shop, id, admin);
+        return { ok: true, message: r ? `Ran a batch — ${r.applied} updated${r.done ? ", job complete" : ""}.` : "Nothing left to run for that job." };
+      }
+      await setJobStatus(session.shop, id, op === "job-pause" ? "paused" : op === "job-resume" ? "scheduled" : "canceled");
+      return { ok: true, message: op === "job-cancel" ? "Job canceled." : op === "job-pause" ? "Job paused." : "Job resumed." };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  const sha = String(fd.get("sha") || "");
   if (!sha) return { ok: false, error: "Missing version id." };
   try {
     const { themeId, dir } = await ensureReady(ctx);
@@ -137,9 +155,22 @@ export default function ActivityPage() {
                   {j.daysLeft > 0 ? ` · ~${j.daysLeft} day${j.daysLeft === 1 ? "" : "s"} left (done by ${j.eta})` : ""}
                 </p>
                 <div className="sh-bill-track"><div className="sh-bill-fill" style={{ width: `${j.pct}%` }} /></div>
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  {j.status !== "paused" && (
+                    <Form method="post"><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="job-run" /><button className="sh-btn sh-btn-primary" disabled={reverting}>Run next batch now</button></Form>
+                  )}
+                  {j.status === "paused" ? (
+                    <Form method="post"><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="job-resume" /><button className="sh-btn" disabled={reverting}>Resume</button></Form>
+                  ) : (
+                    <Form method="post"><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="job-pause" /><button className="sh-btn" disabled={reverting}>Pause</button></Form>
+                  )}
+                  <Form method="post" onSubmit={(e) => { if (!confirm("Cancel this job?")) e.preventDefault(); }}>
+                    <input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="job-cancel" />
+                    <button className="sh-btn" style={{ color: "#b3261e" }} disabled={reverting}>Cancel</button>
+                  </Form>
+                </div>
               </div>
             ))}
-            <p className="sh-hint">Manage these under <a className="sh-link" href="/app/jobs">Scheduled Jobs →</a></p>
           </div>
         )}
 

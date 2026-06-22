@@ -90,7 +90,7 @@ export default function Settings() {
   return (
     <div className="sh-docbg">
       <div className="sh-doc">
-        <button className="sh-back" onClick={() => navigate("/app")}>← Back to editor</button>
+        <button className="sh-back" onClick={() => navigate("/app/editor")}>← Back to editor</button>
         <div className="sh-doc-kicker">Settings</div>
         <h1>Settings</h1>
         <p className="sh-doc-lead">Manage your plan and AI connection.</p>
@@ -150,6 +150,15 @@ export default function Settings() {
               </div>
             </themeFetcher.Form>
           )}
+        </div>
+
+        <div className="sh-card">
+          <h3><span className="sh-card-emoji">🧠</span> Brand &amp; knowledge</h3>
+          <p style={{ marginBottom: 12 }}>Tune how ShopHero writes and what it knows about your store. Most merchants never need these — they&apos;re auto-derived from your store.</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="sh-btn" onClick={() => navigate("/app/brand")}>Brand voice →</button>
+            <button className="sh-btn" onClick={() => navigate("/app/brains")}>Knowledge (advanced) →</button>
+          </div>
         </div>
 
         <div className="sh-card">

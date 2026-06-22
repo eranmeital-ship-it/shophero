@@ -22,7 +22,7 @@ export default function Tutorials() {
   return (
     <div className="sh-docbg">
       <div className="sh-doc">
-        <div className="sh-doc-kicker">Getting started</div>
+        <div className="sh-doc-kicker">Learn</div>
         <h1>How to use ShopHero</h1>
         <p className="sh-doc-lead">
           ShopHero is a conversational operator for your whole store — theme, products,
@@ -42,7 +42,7 @@ export default function Tutorials() {
           <h3><span className="sh-card-emoji">🚀</span> Ready?</h3>
           <p>Head to the editor and try a quick action, or describe your first change.</p>
           <div style={{ marginTop: 14 }}>
-            <button className="sh-btn sh-btn-dark" style={{ display: "inline-block" }} onClick={() => navigate("/app")}>
+            <button className="sh-btn sh-btn-dark" style={{ display: "inline-block" }} onClick={() => navigate("/app/editor")}>
               Open the editor →
             </button>
           </div>

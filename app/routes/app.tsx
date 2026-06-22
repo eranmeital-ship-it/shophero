@@ -23,13 +23,11 @@ export default function App() {
           Plain <s-link href> did full reloads that dropped host/id_token and
           dead-ended on the login screen. */}
       <NavMenu>
-        <Link to="/app" rel="home">Editor</Link>
+        <Link to="/app" rel="home">Home</Link>
+        <Link to="/app/editor">Editor</Link>
         <Link to="/app/activity">Activity</Link>
-        <Link to="/app/brand">Brand Kit</Link>
-        <Link to="/app/brains">Brains</Link>
-        <Link to="/app/jobs">Scheduled Jobs</Link>
         <Link to="/app/usage">Usage</Link>
-        <Link to="/app/tutorials">Tutorials</Link>
+        <Link to="/app/tutorials">Learn</Link>
         <Link to="/app/settings">Settings</Link>
       </NavMenu>
       <Outlet />

@@ -1208,6 +1208,46 @@
 .sh-stock-cred { font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.9); text-decoration: none; }
 .sh-stock-cred:hover { text-decoration: underline; }
 
+/* ===================== Home hub ===================== */
+.sh-home-cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
+.sh-home-sec { margin-top: 30px; }
+.sh-home-h { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 12px; }
+.sh-home-h-row { display: flex; align-items: baseline; justify-content: space-between; }
+.sh-home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.sh-home-card {
+  display: block; text-decoration: none; color: inherit; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid var(--sh-line); background: linear-gradient(180deg, #fff, #f6f8fb); box-shadow: var(--sh-shadow-sm);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.sh-home-card:hover { transform: translateY(-2px); border-color: rgba(10, 132, 255, 0.4); box-shadow: var(--sh-shadow); }
+.sh-home-card-top { display: flex; align-items: center; gap: 9px; }
+.sh-home-card-emoji { font-size: 18px; }
+.sh-home-card-title { font-size: 14px; font-weight: 680; color: var(--sh-ink); }
+.sh-home-bar { height: 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.07); overflow: hidden; margin: 10px 0 7px; }
+.sh-home-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #0a84ff, #16a34a); }
+.sh-home-card-sub { font-size: 12px; color: var(--sh-ink-soft); }
+
+.sh-home-checklist { display: flex; flex-direction: column; gap: 8px; }
+.sh-home-check {
+  display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 13px 15px;
+  border-radius: 13px; border: 1px solid var(--sh-line); background: #fff; box-shadow: var(--sh-shadow-sm); transition: border-color 0.14s ease, transform 0.14s ease;
+}
+.sh-home-check:hover { transform: translateY(-1px); border-color: rgba(10, 132, 255, 0.4); }
+.sh-home-check-emoji { font-size: 20px; flex-shrink: 0; }
+.sh-home-check-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sh-home-check-title { font-size: 13.5px; font-weight: 650; color: var(--sh-ink); }
+.sh-home-check-desc { font-size: 12px; color: var(--sh-ink-soft); line-height: 1.4; }
+.sh-home-check-go { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--sh-accent-ink); }
+
+.sh-home-events { display: flex; flex-direction: column; gap: 2px; }
+.sh-home-event { display: flex; align-items: center; gap: 10px; padding: 8px 4px; font-size: 12.5px; border-bottom: 1px solid var(--sh-line-soft); }
+.sh-home-event-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sh-ink-faint); flex-shrink: 0; }
+.sh-home-event.lvl-error .sh-home-event-dot { background: #e0245e; }
+.sh-home-event.lvl-warn .sh-home-event-dot { background: #f5a623; }
+.sh-home-event.lvl-info .sh-home-event-dot { background: #16a34a; }
+.sh-home-event-msg { flex: 1; min-width: 0; color: var(--sh-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-home-event-at { flex-shrink: 0; font-size: 11px; color: var(--sh-ink-faint); }
+
 /* ===================== AI Store Manager (Improve My Store) ===================== */
 .sh-sm-summary {
   display: flex; align-items: center; gap: 22px; padding: 16px 18px; border-radius: 16px;
