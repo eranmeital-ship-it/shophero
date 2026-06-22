@@ -12,6 +12,7 @@ import { workspaceDir } from "../lib/workspace.server";
 import { getShopProfile, parseRecommendations, revenueFromBucket, type Recommendation } from "../lib/onboarding.server";
 import { getCachedReport } from "../lib/report.server";
 import { getPlan } from "../lib/content-plan.server";
+import { SECTION_LIBRARY, SECTION_TARGETS } from "../lib/section-library";
 import { Tour, type TourStep } from "../components/tour";
 import "../styles/shophero.css";
 
@@ -273,6 +274,7 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "📅", label: "Content Plan", taskId: "content-plan" },
   { emoji: "🤖", label: "AI Agent Ready", genius: true, taskId: "aeo" },
   { emoji: "🎨", label: "Redesign Hero", taskId: "redesign-hero" },
+  { emoji: "🧩", label: "Add Section", taskId: "add-section" },
 ];
 
 // Rough BILLED cost + time estimate per task, shown before running so nothing is a
@@ -374,6 +376,15 @@ const TASKS: Record<string, TaskConfig> = {
     title: "Image Alt Text",
     desc: "Descriptive alt text for product images — better SEO and accessibility.",
     areas: ["SEO"],
+    fields: [],
+    build: () => "",
+  },
+  "add-section": {
+    id: "add-section",
+    emoji: "🧩",
+    title: "Add a Section",
+    desc: "Insert a polished, ready-made section into your theme.",
+    areas: [],
     fields: [],
     build: () => "",
   },
@@ -658,6 +669,10 @@ export default function Index() {
   const [descNotes, setDescNotes] = useState("");
   const [articleCount, setArticleCount] = useState("1");
   const [articleTopic, setArticleTopic] = useState("");
+  // Section library insert.
+  const sectionFetcher = useFetcher<{ ok?: boolean; error?: string }>();
+  const [sectionKey, setSectionKey] = useState<string | null>(null);
+  const [sectionTarget, setSectionTarget] = useState("index");
   const [input, setInput] = useState("");
   const [frameKey, setFrameKey] = useState(0);
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
@@ -1148,6 +1163,8 @@ export default function Index() {
     setDescNotes("");
     setArticleCount("1");
     setArticleTopic("");
+    setSectionKey(null);
+    setSectionTarget("index");
     if (id === "write-content") {
       suggestFetcher.submit({ op: "suggest", task: "articles" }, { method: "post", action: "/api/content" });
     }
@@ -1205,6 +1222,21 @@ export default function Index() {
       { method: "post", action: "/api/content" },
     );
   }
+  const sectionBusy = sectionFetcher.state !== "idle";
+  function insertSectionAction() {
+    if (!sectionKey) return;
+    sectionFetcher.submit({ key: sectionKey, target: sectionTarget }, { method: "post", action: "/api/section" });
+  }
+  useEffect(() => {
+    if (sectionFetcher.state !== "idle" || !sectionFetcher.data?.ok) return;
+    const name = SECTION_LIBRARY.find((s) => s.key === sectionKey)?.name ?? "section";
+    const targetLabel = SECTION_TARGETS.find((t) => t.template === sectionTarget)?.label ?? sectionTarget;
+    setActiveTask(null);
+    setPending((p) => [...new Set([...p, `sections/${sectionKey}.liquid`, `templates/${sectionTarget}.json`])]);
+    setMessages((m) => [...m, { role: "assistant", text: `✓ Added the ${name} section to your ${targetLabel}. Preview it in the panel, then Accept to publish.` }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionFetcher.state, sectionFetcher.data]);
+
   function toggleSkip(id: string) {
     setContentSkip((s) => {
       const next = new Set(s);
@@ -1455,6 +1487,46 @@ export default function Index() {
     );
   }
 
+  function renderSectionTask() {
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">🧩 Add a Section</div>
+            <div className="sh-task-desc">Pick a polished, ready-made section. It's inserted into your theme (staged) — preview, then Accept to publish. No AI cost.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+        <div className="sh-task-body">
+          <div className="sh-seclib">
+            {SECTION_LIBRARY.map((s) => (
+              <button key={s.key} className={`sh-seccard${sectionKey === s.key ? " is-sel" : ""}`} onClick={() => setSectionKey(s.key)}>
+                <span className="sh-seccard-emoji">{s.emoji}</span>
+                <span className="sh-seccard-body">
+                  <span className="sh-seccard-name">{s.name}</span>
+                  <span className="sh-seccard-desc">{s.description}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <label className="sh-label" style={{ marginTop: 14 }}>Add to</label>
+          <select className="sh-ob-input" value={sectionTarget} onChange={(e) => setSectionTarget(e.target.value)} disabled={sectionBusy}>
+            {SECTION_TARGETS.map((t) => <option key={t.template} value={t.template}>{t.label}</option>)}
+          </select>
+          {sectionFetcher.data?.error && <div className="sh-err" style={{ marginTop: 10 }}>{sectionFetcher.data.error}</div>}
+        </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>$0.00</strong> · instant</span>
+          <span className="sh-task-est-note">Ready-made section — no AI generation. Staged for your approval.</span>
+        </div>
+        <div className="sh-task-foot">
+          <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+          <button className="sh-btn sh-btn-primary" disabled={!sectionKey || sectionBusy} onClick={insertSectionAction}>{sectionBusy ? "Adding…" : "Add section →"}</button>
+        </div>
+      </div>
+    );
+  }
+
   function renderContentTask(mode: "descriptions" | "seo" | "alt" | "articles") {
     const keepCount = (contentDrafts ?? []).filter((d) => !contentSkip.has(d.id)).length;
     const reviewing = !!contentDrafts;
@@ -1577,6 +1649,7 @@ export default function Index() {
     if (activeTask.id === "seo-genius") return renderContentTask("seo");
     if (activeTask.id === "alt-text") return renderContentTask("alt");
     if (activeTask.id === "write-content") return renderContentTask("articles");
+    if (activeTask.id === "add-section") return renderSectionTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();

@@ -177,6 +177,16 @@
 .sh-draft-head strong { font-size: 14px; }
 .sh-draft-after { font-size: 13px; line-height: 1.55; color: var(--sh-ink, #29313d); }
 .sh-draft-after p { margin: 0 0 8px; }
+/* Section library picker */
+.sh-seclib { display: flex; flex-direction: column; gap: 9px; }
+.sh-seccard { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 13px 14px; border: 1px solid var(--sh-line, #e6e9ef); border-radius: 12px; background: #fff; cursor: pointer; }
+.sh-seccard:hover { border-color: var(--sh-accent, #0a84ff); }
+.sh-seccard.is-sel { border-color: var(--sh-accent, #0a84ff); box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.15); }
+.sh-seccard-emoji { font-size: 22px; line-height: 1.2; }
+.sh-seccard-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sh-seccard-name { font-weight: 700; font-size: 14px; }
+.sh-seccard-desc { font-size: 12.5px; color: var(--sh-ink-soft, #5a6472); line-height: 1.45; }
+
 /* Article topic suggestions */
 .sh-topic-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; align-items: center; }
 .sh-topic-lbl { width: 100%; font-size: 11.5px; color: var(--sh-ink-faint, #98a1ad); }
