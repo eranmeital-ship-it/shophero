@@ -48,7 +48,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const byokKey = plan === "byok" ? (await resolveKey(session.shop, plan)) ?? undefined : undefined;
 
   try {
-    const res = await complete({ system: SYSTEM, user: prompt, maxTokens: 220, tier: "cheap", byokKey });
+    const res = await complete({ system: SYSTEM, user: prompt, maxTokens: 500, tier: "cheap", byokKey });
     await db.usageEvent
       .create({ data: { shop: session.shop, plan, model: res.model, kind: "refine", costUsd: res.costUsd, billedUsd: plan === "managed" ? res.costUsd * 3 : 0, inputTokens: res.inputTokens, outputTokens: res.outputTokens } })
       .catch(() => {});
@@ -67,7 +67,7 @@ export async function action({ request }: ActionFunctionArgs) {
           options: Array.isArray(q.options) ? (q.options as unknown[]).map(String).filter(Boolean).slice(0, 4) : [],
         }))
         .filter((q) => q.question && q.options.length >= 2)
-        .slice(0, 3);
+        .slice(0, 4);
       if (questions.length) return { clear: false, questions };
     }
     // Back-compat single-question shape.
