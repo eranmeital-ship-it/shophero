@@ -309,6 +309,48 @@ export async function suggestTopics(admin: AdminApiContext): Promise<{ topics: s
   }
 }
 
+export interface CampaignEmail { subject: string; preview: string; body: string; send: string }
+
+/** Write a short, on-brand email campaign series grounded in the real catalog.
+ * ShopHero can't SEND email, so this produces paste-ready copy for the merchant's
+ * ESP (Klaviyo/Shopify Email/etc.) — the on-store assets (signup section,
+ * discount, thank-you page) are built separately by the campaign kit. */
+export async function generateEmailCampaign(
+  admin: AdminApiContext,
+  shop: string,
+  opts: { goal: string; incentive: string; tone?: string; count?: number },
+): Promise<{ emails: CampaignEmail[]; costUsd: number; model: string }> {
+  const n = Math.max(1, Math.min(5, opts.count ?? 4));
+  const brand = await buildBrandContext(shop).catch(() => "");
+  const p = await adminGql<{ products?: { nodes?: { title?: string; onlineStoreUrl?: string; priceRangeV2?: { minVariantPrice?: { amount?: string; currencyCode?: string } } }[] } }>(
+    admin,
+    `{ products(first: 6, sortKey: BEST_SELLING) { nodes { title onlineStoreUrl priceRangeV2 { minVariantPrice { amount currencyCode } } } } }`,
+  );
+  const products = (p?.products?.nodes ?? [])
+    .map((x) => `${x.title}${x.priceRangeV2?.minVariantPrice?.amount ? ` (${x.priceRangeV2.minVariantPrice.currencyCode ?? ""} ${x.priceRangeV2.minVariantPrice.amount})` : ""}`)
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const SYS = `You write a ${n}-email "${opts.goal}" series for a Shopify store, grounded in the Brand Kit voice and the REAL products listed. Each email: a punchy subject (≤60 chars), preview text (≤90 chars), and a plain-text body with one clear call-to-action. Incentive to use where relevant: ${opts.incentive || "none — lead with value, no discount"}. Tone: ${opts.tone || "match the brand"}. Reference real products by name; NEVER invent reviews, ratings, stats or claims. Use {first_name|default:"there"} for the name.
+Respond with ONLY JSON, no prose, no code fences: {"emails":[{"subject":"…","preview":"…","body":"…","send":"when to send, e.g. 'Immediately' / 'Day 2'"}]}`;
+  const user = `Products: ${products.join("; ") || "(none found)"}\n\nWrite the ${n}-email series now.`;
+  try {
+    const res = await complete({ system: SYS, cachePrefix: brand || undefined, user, maxTokens: 2600, tier: "cheap" });
+    let t = cleanHtml(res.text);
+    const a = t.indexOf("{");
+    const b = t.lastIndexOf("}");
+    if (a >= 0 && b > a) t = t.slice(a, b + 1);
+    const parsed = JSON.parse(t) as { emails?: CampaignEmail[] };
+    const emails = (parsed.emails ?? [])
+      .map((e) => ({ subject: String(e.subject ?? "").trim(), preview: String(e.preview ?? "").trim(), body: String(e.body ?? "").trim(), send: String(e.send ?? "").trim() }))
+      .filter((e) => e.subject && e.body)
+      .slice(0, n);
+    return { emails, costUsd: res.costUsd, model: res.model };
+  } catch {
+    return { emails: [], costUsd: 0, model: "" };
+  }
+}
+
 const ARTICLE_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent. Use <h2>/<h3>/<ul>/<p> and end with a soft CTA; suggest internal links to relevant products/collections inline.
 Respond with ONLY JSON, no prose, no code fences: {"title":"…","metaDescription":"≤155 chars","bodyHtml":"<p>…</p> the full article in valid HTML"}. Never invent statistics.`;
 

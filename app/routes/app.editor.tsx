@@ -1519,6 +1519,26 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdpFetcher.state, pdpFetcher.data]);
 
+  // ── Email campaign kit ──────────────────────────────────────────────────
+  interface CampaignEmail { subject: string; preview: string; body: string; send: string }
+  const campaignFetcher = useFetcher<{ ok?: boolean; emails?: CampaignEmail[]; error?: string }>();
+  const campaignBusy = campaignFetcher.state !== "idle";
+  const [campGoal, setCampGoal] = useState("Welcome new subscribers");
+  const [campIncentive, setCampIncentive] = useState("10% off the first order");
+  const [campTone, setCampTone] = useState("Match my brand");
+  const campaignEmails = campaignFetcher.data?.emails ?? null;
+  function generateCampaign() {
+    campaignFetcher.submit({ goal: campGoal, incentive: campIncentive, tone: campTone, count: "4" }, { method: "post", action: "/api/campaign" });
+  }
+  function addSignupSection() {
+    sectionFetcher.submit({ key: "sh-newsletter", target: "index", variant: "" }, { method: "post", action: "/api/section" });
+  }
+  function createCampaignDiscount() {
+    const code = "WELCOME10";
+    setActiveTask(null);
+    void runChat(`Create a Shopify discount code "${code}" — ${campIncentive}, applies to a customer's first order only, one use per customer, expiring 14 days from now. Show me exactly what it will create and wait for my approval.`, false);
+  }
+
   function toggleSkip(id: string) {
     setContentSkip((s) => {
       const next = new Set(s);
@@ -1986,6 +2006,90 @@ export default function Index() {
     );
   }
 
+  function renderCampaignTask() {
+    const emails = campaignEmails;
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">🏷️ Email campaign kit</div>
+            <div className="sh-task-desc">ShopHero writes the series and builds the on-store pieces it can — an email-capture signup section and a first-order discount. Sending happens in your email tool (Klaviyo, Shopify Email…); we hand you paste-ready copy.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+        <div className="sh-task-body">
+          {campaignFetcher.data?.error && <div className="sh-err">{campaignFetcher.data.error}</div>}
+          {!emails ? (
+            <>
+              <div className="sh-task-field">
+                <label className="sh-task-label">What's the campaign for?</label>
+                <div className="sh-clarify-opts">
+                  {["Welcome new subscribers", "Win back past customers", "Announce a sale", "Launch a new product"].map((g) => (
+                    <button key={g} className={`sh-clarify-opt${campGoal === g ? " is-sel" : ""}`} onClick={() => setCampGoal(g)}>{g}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="sh-task-field">
+                <label className="sh-task-label">Incentive to offer</label>
+                <div className="sh-clarify-opts">
+                  {["10% off the first order", "Free shipping", "Free gift with purchase", "No discount — lead with value"].map((g) => (
+                    <button key={g} className={`sh-clarify-opt${campIncentive === g ? " is-sel" : ""}`} onClick={() => setCampIncentive(g)}>{g}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="sh-task-field">
+                <label className="sh-task-label">Tone</label>
+                <div className="sh-clarify-opts">
+                  {["Match my brand", "Friendly & warm", "Premium & minimal", "Playful"].map((g) => (
+                    <button key={g} className={`sh-clarify-opt${campTone === g ? " is-sel" : ""}`} onClick={() => setCampTone(g)}>{g}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sh-audit-h">Your {emails.length}-email series · click to copy</div>
+              <div className="sh-camp-emails">
+                {emails.map((e, i) => (
+                  <button key={i} className="sh-camp-email" onClick={() => { navigator.clipboard?.writeText(`Subject: ${e.subject}\nPreview: ${e.preview}\n\n${e.body}`); }} title="Copy this email">
+                    <div className="sh-camp-when">{e.send || `Email ${i + 1}`} · 📋 copy</div>
+                    <div className="sh-camp-subj">{e.subject}</div>
+                    <div className="sh-camp-prev">{e.preview}</div>
+                    <div className="sh-camp-body">{e.body}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="sh-audit-h">Build the on-store pieces</div>
+              <div className="sh-audit-checks">
+                <div className="sh-audit-check pass"><span className="sh-audit-ci">✓</span><span className="sh-audit-cb"><span className="sh-audit-cl">Email copy<span className="sh-aeo-who ai">Done</span></span><span className="sh-audit-cd">Click any email above to copy it.</span></span></div>
+                <div className="sh-audit-check fail"><span className="sh-audit-ci">＋</span><span className="sh-audit-cb"><span className="sh-audit-cl">Email signup section<span className="sh-aeo-who ai">AI builds</span></span><span className="sh-audit-cd">Add an email-capture form to your store (saves subscribers to Shopify).</span></span><button className="sh-audit-fix is-ai" disabled={sectionBusy} onClick={addSignupSection}>{sectionBusy ? "Adding…" : "Add signup →"}</button></div>
+                <div className="sh-audit-check fail"><span className="sh-audit-ci">＋</span><span className="sh-audit-cb"><span className="sh-audit-cl">First-order discount<span className="sh-aeo-who ai">AI builds</span></span><span className="sh-audit-cd">Create WELCOME10 ({campIncentive}) — staged for your approval.</span></span><button className="sh-audit-fix is-ai" onClick={createCampaignDiscount}>Create discount →</button></div>
+                <div className="sh-audit-check todo"><span className="sh-audit-ci">→</span><span className="sh-audit-cb"><span className="sh-audit-cl">Send it<span className="sh-aeo-who you">You</span></span><span className="sh-audit-cd">Paste the copy into your email tool (Klaviyo, Shopify Email, Omnisend) as an automation triggered on signup, and add the discount code.</span></span></div>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>~$0.05</strong> · a few seconds</span>
+          <span className="sh-task-est-note">Copy is generated once; the signup section is free; the discount is a real Shopify discount you approve.</span>
+        </div>
+        <div className="sh-task-foot">
+          {!emails ? (
+            <>
+              <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+              <button className="sh-btn sh-btn-primary" disabled={campaignBusy} onClick={generateCampaign}>{campaignBusy ? "Writing…" : "Write my campaign →"}</button>
+            </>
+          ) : (
+            <>
+              <button className="sh-btn sh-btn-ghost" disabled={campaignBusy} onClick={generateCampaign}>{campaignBusy ? "…" : "↻ Regenerate"}</button>
+              <button className="sh-btn sh-btn-primary" onClick={() => setActiveTask(null)}>Done</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderPdpTask() {
     const bp = PDP_BLUEPRINT_MAP[pdpBlueprint];
     return (
@@ -2222,6 +2326,7 @@ export default function Index() {
     if (activeTask.id === "add-section") return renderSectionTask();
     if (activeTask.id === "structured-data") return renderSchemaTask();
     if (activeTask.id === "build-pdp") return renderPdpTask();
+    if (activeTask.id === "launch-campaign") return renderCampaignTask();
     if (activeTask.id === "stock-images") return renderStockTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
