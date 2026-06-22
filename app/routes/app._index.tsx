@@ -14,6 +14,7 @@ import { getCachedReport } from "../lib/report.server";
 import { getPlan } from "../lib/content-plan.server";
 import { SECTION_LIBRARY, SECTION_TARGETS } from "../lib/section-library";
 import { PLAN_ROUTE_MAP, planTotals, type ActionPlanData, type PlanItem } from "../lib/plan-routes";
+import { PDP_BLUEPRINTS, PDP_BLUEPRINT_MAP, PDP_CHECKLIST } from "../lib/pdp-templates";
 import type { SchemaAudit } from "../lib/schema-audit.server";
 import { Tour, type TourStep } from "../components/tour";
 import "../styles/shophero.css";
@@ -669,6 +670,8 @@ export default function Index() {
   const [mode, setMode] = useState<"edit" | "optimize">("edit");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [pending, setPending] = useState<string[]>([]);
+  // The plan item currently being executed — auto-marked shipped when its change is accepted/applied.
+  const [runningPlanItem, setRunningPlanItem] = useState<{ planId: string; itemId: string; estUsd: number; label: string } | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Direct content generation (no agent) — descriptions task.
@@ -714,9 +717,6 @@ export default function Index() {
   const [taskValues, setTaskValues] = useState<TaskValues>({});
   const [taskSearch, setTaskSearch] = useState("");
   const productsFetcher = useFetcher<{ products: ProductLite[] }>();
-  const [selectedRecs, setSelectedRecs] = useState<Set<number>>(new Set());
-  const [batch, setBatch] = useState<{ running: boolean; total: number; currentOrig: number; doneIds: number[] } | null>(null);
-  const batchActiveRef = useRef(false);
   const [diff, setDiff] = useState<{ loading: boolean; text: string }>({ loading: false, text: "" });
   const [audit, setAudit] = useState<{ status: "idle" | "loading" | "done" | "error"; scores: Score[]; issues: Issue[]; note?: string }>({ status: "idle", scores: [], issues: [] });
   const scroller = useRef<HTMLDivElement>(null);
@@ -828,6 +828,7 @@ export default function Index() {
       let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}.`;
       if (d.error) msg += ` ⚠️ ${d.error}`;
       setMessages((m) => [...m, { role: "assistant", text: msg }]);
+      shipRunningItem(); // a staged change was accepted → mark its plan item shipped
     } else if (d.error || d.message !== "Nothing to apply") {
       // Nothing applied — keep the change staged so the merchant can discard/retry.
       if (d.pending) setPending(d.pending);
@@ -1204,9 +1205,6 @@ export default function Index() {
       runAudit();
     }
     if (id === "store-manager") {
-      const recs = report?.recommendations ?? [];
-      setSelectedRecs(new Set(recs.map((_, i) => i)));
-      setBatch(null);
       setGoalInput("");
       loadPlan();
       setActiveTask(t);
@@ -1295,20 +1293,34 @@ export default function Index() {
     setGoalInput("");
     roadmapFetcher.submit({ op: "archive", planId: actionPlan.id }, { method: "post", action: "/api/plan" });
   }
+  // When the change a plan item produced is accepted/applied, mark it shipped (date + cost).
+  function shipRunningItem(summary?: string) {
+    const r = runningPlanItem;
+    if (!r) return;
+    setRunningPlanItem(null);
+    roadmapFetcher.submit(
+      { op: "update", planId: r.planId, itemId: r.itemId, status: "done", summary: summary ?? r.label, actualUsd: String(r.estUsd) },
+      { method: "post", action: "/api/plan" },
+    );
+  }
   // Route a plan item to the cheapest correct engine, then drop into that task.
+  // Routes that stage/apply a store change arm auto-ship; informational ones don't.
   function runPlanItem(item: PlanItem) {
+    const arm = () => actionPlan && setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
     switch (item.route) {
-      case "schema": addStructuredData(); break;
+      case "schema": arm(); addStructuredData(); break;
       case "aeo-audit": openTask("structured-data"); break;
       case "aeo-targets": openTask("structured-data"); setAeoStep(2); setTimeout(() => genTargets(), 50); break;
-      case "section-faq": openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
-      case "section-trust": openTask("add-section"); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
-      case "section": openTask("add-section"); break;
-      case "descriptions": openTask("bulk-descriptions"); break;
-      case "seo": openTask("seo-genius"); break;
-      case "alt": openTask("alt-text"); break;
-      case "articles": openTask("write-content"); break;
+      case "section-faq": arm(); openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
+      case "section-trust": arm(); openTask("add-section"); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
+      case "section": arm(); openTask("add-section"); break;
+      case "pdp-template": arm(); openTask("build-pdp"); break;
+      case "descriptions": arm(); openTask("bulk-descriptions"); break;
+      case "seo": arm(); openTask("seo-genius"); break;
+      case "alt": arm(); openTask("alt-text"); break;
+      case "articles": arm(); openTask("write-content"); break;
       case "agent": default:
+        arm();
         setActiveTask(null);
         if (item.prompt) void runChat(item.prompt, false);
         break;
@@ -1355,6 +1367,22 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionFetcher.state, sectionFetcher.data]);
 
+  // PDP blueprints — apply a best-practice product-page section stack in one pass.
+  const pdpFetcher = useFetcher<{ ok?: boolean; error?: string; files?: string[] }>();
+  const pdpBusy = pdpFetcher.state !== "idle";
+  const [pdpBlueprint, setPdpBlueprint] = useState<string>(PDP_BLUEPRINTS[0].key);
+  function applyPdpBlueprint() {
+    pdpFetcher.submit({ blueprint: pdpBlueprint }, { method: "post", action: "/api/pdp-template" });
+  }
+  useEffect(() => {
+    if (pdpFetcher.state !== "idle" || !pdpFetcher.data?.ok) return;
+    const bp = PDP_BLUEPRINT_MAP[pdpBlueprint];
+    setActiveTask(null);
+    setPending((p) => [...new Set([...p, ...(pdpFetcher.data?.files ?? [])])]);
+    setMessages((m) => [...m, { role: "assistant", text: `✓ Applied the ${bp?.name ?? "PDP"} layout (${bp?.sections.length ?? 0} sections) to your product template. Preview it, then Accept to publish.` }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdpFetcher.state, pdpFetcher.data]);
+
   function toggleSkip(id: string) {
     setContentSkip((s) => {
       const next = new Set(s);
@@ -1379,6 +1407,7 @@ export default function Index() {
         text: `✓ ${articles ? "Published" : "Applied"} ${d.applied} ${articles ? "blog article" : "update"}${d.applied === 1 ? "" : "s"}${d.failed ? ` · ${d.failed} failed` : ""}.`,
         deliverables: deliverables.length ? deliverables : undefined,
       }]);
+      shipRunningItem(); // content was applied/published → mark its plan item shipped
       reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1398,37 +1427,6 @@ export default function Index() {
     setActiveTask(null);
     setMode("edit");
     void runChat(prompt, false);
-  }
-
-  // ── AI Store Manager (batch) ───────────────────────────────────────────────
-  const estimateUpside = (recs: Recommendation[]) => {
-    const pct = Math.min(0.35, recs.reduce((s, r) => s + (r.impact === "high" ? 0.035 : r.impact === "med" ? 0.02 : 0.012), 0));
-    return Math.round(((revenueAnnual > 0 ? revenueAnnual : 80000) * pct) / 100) * 100;
-  };
-  const toggleRec = (i: number) =>
-    setSelectedRecs((s) => {
-      const n = new Set(s);
-      if (n.has(i)) n.delete(i);
-      else n.add(i);
-      return n;
-    });
-  async function runStoreManager() {
-    const recs = report?.recommendations ?? [];
-    const idxs = recs.map((_, i) => i).filter((i) => selectedRecs.has(i));
-    if (!idxs.length || thinking) return;
-    if (blockedByChange()) return;
-    setMode("edit");
-    batchActiveRef.current = true;
-    setBatch({ running: true, total: idxs.length, currentOrig: idxs[0], doneIds: [] });
-    for (const i of idxs) {
-      setBatch((b) => (b ? { ...b, currentOrig: i } : b));
-      let prompt = recs[i].prompt;
-      if (report?.findings?.length) prompt += `\n\nContext from my latest store scan: ${report.findings.slice(0, 6).join("; ")}.`;
-      await runChat(prompt, false);
-      setBatch((b) => (b ? { ...b, doneIds: [...b.doneIds, i] } : b));
-    }
-    batchActiveRef.current = false;
-    setBatch((b) => (b ? { ...b, running: false, currentOrig: -1 } : b));
   }
 
   function renderStoreManager() {
@@ -1787,6 +1785,63 @@ export default function Index() {
     );
   }
 
+  function renderPdpTask() {
+    const bp = PDP_BLUEPRINT_MAP[pdpBlueprint];
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">🚀 Build a high-converting product page</div>
+            <div className="sh-task-desc">Apply a proven PDP layout instantly — a best-practice stack of theme-matched sections, added to your product template in one step. Based on the 2026 PDP playbook. $0, no AI.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+        <div className="sh-task-body">
+          {pdpFetcher.data?.error && <div className="sh-err">{pdpFetcher.data.error}</div>}
+          <div className="sh-pdp-blueprints">
+            {PDP_BLUEPRINTS.map((b) => (
+              <button key={b.key} className={`sh-pdp-bp${pdpBlueprint === b.key ? " is-sel" : ""}`} onClick={() => setPdpBlueprint(b.key)}>
+                <div className="sh-pdp-bp-top"><span className="sh-pdp-bp-emoji">{b.emoji}</span><span className="sh-pdp-bp-name">{b.name}</span><span className="sh-pdp-bp-n">{b.sections.length} sections</span></div>
+                <div className="sh-pdp-bp-desc">{b.description}</div>
+              </button>
+            ))}
+          </div>
+          {bp && (
+            <div>
+              <div className="sh-audit-h">This layout adds, in order</div>
+              <div className="sh-pdp-stack">
+                {bp.sections.map((s, i) => (
+                  <span key={i} className="sh-pdp-chip">{i + 1}. {SECTION_LIBRARY.find((x) => x.key === s.key)?.name ?? s.key}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="sh-audit-h">Best-practice checklist (17 elements)</div>
+            <div className="sh-pdp-check">
+              {PDP_CHECKLIST.map((c, i) => (
+                <div key={i} className={`sh-pdp-citem ${c.auto ? "auto" : "manual"}`}>
+                  <span className="sh-pdp-cmark">{c.auto ? "✓" : "○"}</span>
+                  <span>{c.label}</span>
+                  <span className="sh-pdp-ctag">{c.auto ? "Added" : "In your theme"}</span>
+                </div>
+              ))}
+            </div>
+            <div className="sh-task-desc" style={{ marginTop: 8 }}>“In your theme” items live in your product section (photos, title, price, variants, Add-to-Cart, sticky bar). Use the editor or ask the AI for those — this layout handles everything below the buy box.</div>
+          </div>
+        </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>$0.00</strong> · instant</span>
+          <span className="sh-task-est-note">Theme-matched sections, staged for your approval.</span>
+        </div>
+        <div className="sh-task-foot">
+          <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+          <button className="sh-btn sh-btn-primary" disabled={pdpBusy} onClick={applyPdpBlueprint}>{pdpBusy ? "Applying…" : `Apply ${bp?.name ?? "layout"} →`}</button>
+        </div>
+      </div>
+    );
+  }
+
   function renderSectionTask() {
     return (
       <div className="sh-task">
@@ -1965,6 +2020,7 @@ export default function Index() {
     if (activeTask.id === "write-content") return renderContentTask("articles");
     if (activeTask.id === "add-section") return renderSectionTask();
     if (activeTask.id === "structured-data") return renderSchemaTask();
+    if (activeTask.id === "build-pdp") return renderPdpTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();
@@ -2153,8 +2209,7 @@ export default function Index() {
           },
         ]);
         setPending(done.pending ?? []);
-        // During a Store Manager batch, accumulate proposed mutations across turns.
-        setApproval((prev) => (batchActiveRef.current ? [...prev, ...(done!.proposedMutations ?? [])] : done!.proposedMutations ?? []));
+        setApproval(done!.proposedMutations ?? []);
         setBilling(done.billing ?? null);
         // Snapshot the meters, then cheaply re-score ($0, deterministic) so the
         // merchant sees how this task moved their optimization scores.

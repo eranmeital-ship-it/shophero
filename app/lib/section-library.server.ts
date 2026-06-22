@@ -401,6 +401,52 @@ const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-logos": { liquid: LOGOS, settings: baseLogos },
 };
 
+/**
+ * Insert several library sections into a template in one pass (reads/writes the
+ * template JSON once, with collision-free ids). Used by PDP blueprints.
+ */
+export async function insertSections(
+  dir: string,
+  target: string,
+  sections: { key: string; variant?: string }[],
+): Promise<{ ok: boolean; error?: string; files: string[] }> {
+  const files: string[] = [];
+  try {
+    await mkdir(path.join(dir, "sections"), { recursive: true });
+    for (const s of sections) {
+      const def = SECTION_DEFS[s.key];
+      if (!def) return { ok: false, error: `Unknown section "${s.key}".`, files };
+      await writeFile(path.join(dir, "sections", `${s.key}.liquid`), def.liquid, "utf8");
+      files.push(`sections/${s.key}.liquid`);
+    }
+  } catch (e) {
+    return { ok: false, error: `Couldn't write a section file: ${e instanceof Error ? e.message : e}`, files };
+  }
+  const tplPath = path.join(dir, "templates", `${target}.json`);
+  let json: { sections?: Record<string, unknown>; order?: string[] };
+  try {
+    json = JSON.parse(await readFile(tplPath, "utf8"));
+  } catch {
+    return { ok: false, error: `Couldn't open the "${target}" template — it may not exist on this theme.`, files };
+  }
+  json.sections = json.sections ?? {};
+  json.order = json.order ?? [];
+  const stamp = Date.now().toString(36);
+  sections.forEach((s, i) => {
+    const def = SECTION_DEFS[s.key];
+    const id = `${s.key}_${stamp}_${i}`;
+    json.sections![id] = { type: s.key, settings: { ...def.settings, ...(s.variant ? { variant: s.variant } : {}) } };
+    json.order!.push(id);
+  });
+  try {
+    await writeFile(tplPath, JSON.stringify(json, null, 2), "utf8");
+  } catch (e) {
+    return { ok: false, error: `Couldn't update the template: ${e instanceof Error ? e.message : e}`, files };
+  }
+  files.push(`templates/${target}.json`);
+  return { ok: true, files };
+}
+
 /** Insert a library section (optionally a variant) into the chosen template. */
 export async function insertSection(dir: string, key: string, target: string, variant?: string): Promise<{ ok: boolean; error?: string }> {
   const def = SECTION_DEFS[key];

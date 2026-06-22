@@ -25,6 +25,7 @@ export const PLAN_ROUTES: PlanRoute[] = [
   { key: "section-faq", label: "Add an FAQ section", engine: "free", estUsd: 0, badge: "Free", hint: "Insert a theme-matched FAQ that also emits FAQPage rich-result schema." },
   { key: "section-trust", label: "Add trust / social-proof section", engine: "free", estUsd: 0, badge: "Free", hint: "Insert a trust bar, guarantee, stats or testimonials block." },
   { key: "section", label: "Add a high-converting section", engine: "free", estUsd: 0, badge: "Free", hint: "Insert any library section: features, promo, comparison, about, newsletter, logos." },
+  { key: "pdp-template", label: "Apply a best-practice PDP layout", engine: "free", estUsd: 0, badge: "Free", hint: "Apply a proven product-page section stack (trust, benefits, comparison, reviews, FAQ, guarantee) in one step." },
   { key: "descriptions", label: "Rewrite product descriptions", engine: "direct", estUsd: 0.18, badge: "AI · cheap", hint: "Benefit-led, on-brand descriptions. Cheap engine, batch of up to 20, review before apply." },
   { key: "seo", label: "Optimize product SEO", engine: "direct", estUsd: 0.12, badge: "AI · cheap", hint: "SEO titles + meta descriptions. Cheap engine, batch of up to 20." },
   { key: "alt", label: "Add image alt text", engine: "direct", estUsd: 0.06, badge: "AI · cheap", hint: "Accessibility + SEO alt text for product images. Cheap engine, batch of up to 20." },
