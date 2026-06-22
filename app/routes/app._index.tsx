@@ -1263,6 +1263,12 @@ export default function Index() {
   const auditBusy = auditFetcher.state !== "idle";
   const schemaAudit = auditFetcher.data?.audit;
   const [aeoStep, setAeoStep] = useState(0);
+  const targetsFetcher = useFetcher<{ ok?: boolean; targets?: import("../lib/aeo-targets.server").AeoTargets; error?: string }>();
+  const targetsBusy = targetsFetcher.state !== "idle";
+  const aeoTargets = targetsFetcher.data?.targets;
+  function genTargets() {
+    targetsFetcher.submit({ op: "generate" }, { method: "post", action: "/api/aeo-targets" });
+  }
   function runAudit() {
     auditFetcher.submit({ op: "audit" }, { method: "post", action: "/api/structured-data" });
   }
@@ -1275,6 +1281,7 @@ export default function Index() {
     if (fix.action === "add-faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); return; }
     if (fix.action === "write-descriptions") { openTask("bulk-descriptions"); return; }
     if (fix.action === "write-content") { openTask("write-content"); return; }
+    if (fix.action === "gen-targets") { genTargets(); return; }
   }
   useEffect(() => {
     if (schemaFetcher.state !== "idle" || !schemaFetcher.data?.ok) return;
@@ -1637,6 +1644,42 @@ export default function Index() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {step.key === "offsite" && (
+                    <div className="sh-aeo-targets">
+                      {targetsBusy && <div className="sh-audit-load">Generating your questions &amp; finding the sources AI cites… (~20s)</div>}
+                      {targetsFetcher.data?.error && <div className="sh-err">{targetsFetcher.data.error}</div>}
+                      {!targetsBusy && !aeoTargets && (
+                        <button className="sh-aeo-gen" onClick={genTargets}>
+                          ✨ Generate my citation targets <span>~$0.10 · finds your questions + where to earn mentions</span>
+                        </button>
+                      )}
+                      {aeoTargets && (
+                        <>
+                          <div className="sh-audit-h">Questions to win {aeoTargets.category && `· ${aeoTargets.category}`}</div>
+                          <div className="sh-aeo-qs">
+                            {aeoTargets.questions.map((q, i) => (
+                              <div key={i} className="sh-aeo-q"><span className="sh-aeo-qtag">{q.intent}</span>{q.q}</div>
+                            ))}
+                          </div>
+                          <div className="sh-audit-h">Where to earn mentions {aeoTargets.grounded ? "· live web results" : "· AI-suggested (verify in ChatGPT)"}</div>
+                          <div className="sh-aeo-srcs">
+                            {aeoTargets.sources.map((s, i) => (
+                              <div key={i} className="sh-aeo-src">
+                                <div className="sh-aeo-src-top">
+                                  <span className={`sh-aeo-srctype t-${s.type.toLowerCase().replace(/[^a-z]/g, "")}`}>{s.type}</span>
+                                  <span className="sh-aeo-srcname">{s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.source} ↗</a> : s.source}</span>
+                                </div>
+                                {s.why && <div className="sh-aeo-srcwhy">{s.why}</div>}
+                                {s.action && <div className="sh-aeo-srcact">▶ {s.action}</div>}
+                              </div>
+                            ))}
+                          </div>
+                          <button className="sh-btn sh-btn-ghost" disabled={targetsBusy} onClick={genTargets} style={{ alignSelf: "flex-start" }}>↻ Regenerate</button>
+                        </>
+                      )}
                     </div>
                   )}
 

@@ -288,10 +288,10 @@ export async function auditSchema(admin: AdminApiContext, dir: string): Promise<
   // ── Steps 3 & 4 — guided (off-site can't be auto-measured; you drive it). ──
   const offsite: SchemaCheck[] = [
     {
-      key: "prompts", label: "Build your target question list", weight: 0, who: "you", status: "todo", score: 0,
-      detail: "AI assistants turn keywords into questions. Win the questions that buyers actually ask about your category.",
-      how: "Take your money keywords (or a competitor's paid-search terms), ask ChatGPT to rewrite them as buyer questions, and keep the 10–20 that match what you sell. ShopHero can also turn your products into a starter list.",
-      fix: { label: "Generate a starter list", action: "write-content" },
+      key: "prompts", label: "Build your target question + source list", weight: 0, who: "ai", status: "todo", score: 0,
+      detail: "AI assistants turn keywords into questions. We turn your catalog into the specific buyer questions to win — and find the exact sources AI cites for them.",
+      how: "Generate a worklist below: the long-tail questions buyers ask AI about your category, plus the ranked Reddit threads, YouTube channels, roundups and blogs where you should earn a mention.",
+      fix: { label: "Generate my targets", action: "gen-targets" },
     },
     {
       key: "citations", label: "Find where AI already gets its answers", weight: 0, who: "you", status: "todo", score: 0,
