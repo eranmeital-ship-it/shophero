@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
+import { ensureTemplateInWorkspace } from "../lib/theme.server";
 import { insertSections } from "../lib/section-library.server";
 import { PDP_BLUEPRINT_MAP } from "../lib/pdp-templates";
 
@@ -15,7 +16,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const blueprint = PDP_BLUEPRINT_MAP[String(form.get("blueprint") ?? "")];
   if (!blueprint) return Response.json({ error: "Unknown PDP template." }, { status: 400 });
 
-  const { dir } = await ensureReady(ctx);
+  const { themeId, dir } = await ensureReady(ctx);
+  await ensureTemplateInWorkspace(ctx, themeId, dir, "product").catch(() => null);
   const res = await insertSections(dir, "product", blueprint.sections);
   if (!res.ok) return Response.json({ error: res.error }, { status: 400 });
   return Response.json({ ok: true, files: res.files });

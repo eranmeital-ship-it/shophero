@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
+import { ensureTemplateInWorkspace } from "../lib/theme.server";
 import { insertSection } from "../lib/section-library.server";
 
 /**
@@ -16,7 +17,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const target = String(form.get("target") ?? "index");
   const variant = String(form.get("variant") ?? "") || undefined;
 
-  const { dir } = await ensureReady(ctx);
+  const { themeId, dir } = await ensureReady(ctx);
+  // Self-heal: a partial theme pull can leave the target template missing — fetch
+  // it live before inserting so the insert doesn't fail with "may not exist".
+  await ensureTemplateInWorkspace(ctx, themeId, dir, target).catch(() => null);
   const res = await insertSection(dir, key, target, variant);
   if (!res.ok) return Response.json({ error: res.error }, { status: 400 });
   return Response.json({ ok: true, files: res.files ?? [] });

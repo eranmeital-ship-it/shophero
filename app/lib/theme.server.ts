@@ -217,6 +217,58 @@ async function getAsset(ctx: Ctx, themeId: number, key: string): Promise<string>
   return asset.value ?? asset.attachment ?? "";
 }
 
+async function writeAssetToWorkspace(ctx: Ctx, themeId: number, dir: string, key: string): Promise<string | null> {
+  const value = await getAsset(ctx, themeId, key).catch(() => "");
+  if (!value.trim()) return null;
+  const fp = path.join(dir, key);
+  await mkdir(path.dirname(fp), { recursive: true });
+  await writeFile(fp, value, "utf8");
+  return key;
+}
+
+/**
+ * Self-heal a single missing asset in the workspace (e.g. layout/theme.liquid).
+ * The first-time theme pull can be incomplete (one rate-limited request per
+ * asset), which later surfaces as "Couldn't open …". Fetches the live asset and
+ * writes it. Returns the key it ensured, or null if the theme lacks it.
+ */
+export async function ensureAssetInWorkspace(ctx: Ctx, themeId: number, dir: string, key: string): Promise<string | null> {
+  try {
+    const cur = await readFile(path.join(dir, key), "utf8");
+    if (cur.trim()) return key;
+  } catch { /* not present */ }
+  return writeAssetToWorkspace(ctx, themeId, dir, key);
+}
+
+/**
+ * Self-heal a missing template file in the workspace. Tries `templates/<target>.json`
+ * then `.liquid`, then any contextual variant (e.g. templates/product.custom.json),
+ * fetching it live from the working theme. Returns the key ensured, or null.
+ */
+export async function ensureTemplateInWorkspace(
+  ctx: Ctx,
+  themeId: number,
+  dir: string,
+  target: string,
+): Promise<string | null> {
+  const preferred = [`templates/${target}.json`, `templates/${target}.liquid`];
+  // Already on disk (and non-empty)? Nothing to do.
+  for (const key of preferred) {
+    try {
+      const cur = await readFile(path.join(dir, key), "utf8");
+      if (cur.trim()) return key;
+    } catch { /* not present */ }
+  }
+  // Find it on the live theme: exact default first, else a contextual variant.
+  let keys: string[] = [];
+  try { keys = await listAssetKeys(ctx, themeId); } catch { return null; }
+  const match =
+    preferred.find((k) => keys.includes(k)) ??
+    keys.find((k) => new RegExp(`^templates/${target}(\\.|$)`).test(k) && (k.endsWith(".json") || k.endsWith(".liquid")));
+  if (!match) return null;
+  return writeAssetToWorkspace(ctx, themeId, dir, match);
+}
+
 async function putAsset(ctx: Ctx, themeId: number, key: string, value: string): Promise<void> {
   const maxRetries = 3;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
