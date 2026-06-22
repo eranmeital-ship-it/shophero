@@ -1068,6 +1068,33 @@
 .sh-audit-tools a { font-size: 12px; font-weight: 600; color: var(--sh-accent-ink); text-decoration: none; }
 .sh-audit-tools a:hover { text-decoration: underline; }
 
+/* AEO Brain — multi-step wizard */
+.sh-aeo-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.sh-aeo-step {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; font-family: inherit;
+  padding: 9px 6px; border-radius: 12px; border: 1px solid var(--sh-line); background: rgba(0, 0, 0, 0.02);
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.sh-aeo-step:hover { border-color: rgba(10, 132, 255, 0.4); }
+.sh-aeo-step.is-active { border-color: var(--sh-accent); background: rgba(10, 132, 255, 0.07); box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1); }
+.sh-aeo-step-n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--sh-ink-faint); }
+.sh-aeo-step.is-active .sh-aeo-step-n { background: var(--sh-accent); }
+.sh-aeo-step-t { font-size: 12px; font-weight: 650; color: var(--sh-ink); }
+.sh-aeo-step-p { font-size: 10px; font-weight: 600; color: var(--sh-ink-faint); }
+
+.sh-aeo-intro { padding: 13px 15px; border-radius: 13px; border: 1px solid rgba(10, 132, 255, 0.18); background: rgba(10, 132, 255, 0.05); }
+.sh-aeo-intro-h { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 5px; }
+.sh-aeo-intro p { font-size: 12.5px; line-height: 1.55; color: var(--sh-ink-soft); margin: 0; }
+
+.sh-aeo-who { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; }
+.sh-aeo-who.ai { color: #0a7d34; background: rgba(22, 163, 74, 0.13); }
+.sh-aeo-who.you { color: #b25800; background: rgba(245, 166, 35, 0.16); }
+.sh-aeo-how { font-size: 11.5px; line-height: 1.5; color: var(--sh-ink-soft); margin-top: 5px; padding: 7px 10px; border-radius: 9px; background: rgba(0, 0, 0, 0.035); border-left: 2px solid var(--sh-line); }
+.sh-audit-fix.is-ai { color: #0a7d34; background: rgba(22, 163, 74, 0.1); border-color: rgba(22, 163, 74, 0.25); }
+.sh-audit-fix.is-ai:hover { background: rgba(22, 163, 74, 0.18); }
+.sh-audit-check.todo { background: linear-gradient(180deg, #fff, #fafbfc); }
+.sh-audit-check.todo .sh-audit-ci { background: var(--sh-accent); }
+
 /* ===================== AI Store Manager (Improve My Store) ===================== */
 .sh-sm-summary {
   display: flex; align-items: center; gap: 22px; padding: 16px 18px; border-radius: 16px;

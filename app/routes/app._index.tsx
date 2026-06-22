@@ -276,7 +276,7 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "🤖", label: "AI Agent Ready", genius: true, taskId: "aeo" },
   { emoji: "🎨", label: "Redesign Hero", taskId: "redesign-hero" },
   { emoji: "🧩", label: "Add Section", taskId: "add-section" },
-  { emoji: "🧬", label: "Structured Data", taskId: "structured-data" },
+  { emoji: "🧠", label: "AEO Brain", genius: true, taskId: "structured-data" },
 ];
 
 // Rough BILLED cost + time estimate per task, shown before running so nothing is a
@@ -1199,6 +1199,7 @@ export default function Index() {
       suggestFetcher.submit({ op: "suggest", task: "articles" }, { method: "post", action: "/api/content" });
     }
     if (id === "structured-data") {
+      setAeoStep(0);
       runAudit();
     }
     if (id === "store-manager") {
@@ -1261,6 +1262,7 @@ export default function Index() {
   const auditFetcher = useFetcher<{ ok?: boolean; audit?: SchemaAudit; error?: string }>();
   const auditBusy = auditFetcher.state !== "idle";
   const schemaAudit = auditFetcher.data?.audit;
+  const [aeoStep, setAeoStep] = useState(0);
   function runAudit() {
     auditFetcher.submit({ op: "audit" }, { method: "post", action: "/api/structured-data" });
   }
@@ -1270,7 +1272,9 @@ export default function Index() {
   function applyAuditFix(fix: NonNullable<SchemaAudit["checks"][number]["fix"]>) {
     if (fix.href) { window.open(fix.href, "_blank", "noopener"); return; }
     if (fix.action === "install") { addStructuredData(); return; }
-    if (fix.action === "add-faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); }
+    if (fix.action === "add-faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); return; }
+    if (fix.action === "write-descriptions") { openTask("bulk-descriptions"); return; }
+    if (fix.action === "write-content") { openTask("write-content"); return; }
   }
   useEffect(() => {
     if (schemaFetcher.state !== "idle" || !schemaFetcher.data?.ok) return;
@@ -1553,14 +1557,17 @@ export default function Index() {
     const a = schemaAudit;
     const gradeKey = a ? a.grade.replace(/\s+/g, "").toLowerCase() : "";
     const ringColor = a ? (a.score >= 90 ? "#16a34a" : a.score >= 70 ? "#0a84ff" : a.score >= 50 ? "#f5a623" : "#e0245e") : "#0a84ff";
-    const statusIcon = (s: string) => (s === "pass" ? "✓" : s === "partial" ? "◐" : s === "unknown" ? "•" : "✕");
-    const gaps = (a?.checks ?? []).filter((c) => c.status !== "pass" && c.status !== "unknown");
+    const statusIcon = (s: string) => (s === "pass" ? "✓" : s === "partial" ? "◐" : s === "todo" ? "→" : s === "unknown" ? "•" : "✕");
+    const steps = a?.steps ?? [];
+    const stepIdx = Math.min(aeoStep, Math.max(0, steps.length - 1));
+    const step = steps[stepIdx];
+    const stepProgress = (s: typeof step) => (s && s.scored ? `${s.items.filter((i) => i.status === "pass").length}/${s.items.length}` : "guided");
     return (
       <div className="sh-task">
         <div className="sh-task-head">
           <div>
-            <div className="sh-task-title">🧬 Schema &amp; AI Readiness</div>
-            <div className="sh-task-desc">Live, never-stale JSON-LD rendered from your real store data — so Google and AI assistants (ChatGPT, Claude, Gemini, Perplexity) always read accurate products, prices and answers. Unlike snapshot tools, we verify it on your live storefront and score the real gaps.</div>
+            <div className="sh-task-title">🧠 AEO Brain — AI Visibility Optimizer</div>
+            <div className="sh-task-desc">A guided process (not one click) to make AI assistants — ChatGPT, Gemini, AI Mode, Perplexity — find, trust and recommend your store. We fix what we can automatically; the rest we hand you with clear steps. Built on Ethan Smith's SEO/AEO playbook.</div>
           </div>
           <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
         </div>
@@ -1582,51 +1589,75 @@ export default function Index() {
                 </div>
               </div>
 
-              <div>
-                <div className="sh-audit-h">Schema coverage by page</div>
-                <div className="sh-audit-cov">
-                  {a.coverage.map((row) => (
-                    <div key={row.pageType} className={`sh-audit-covrow ${row.status}`}>
-                      <span className="sh-audit-covpage">{row.status === "active" ? "✓" : "○"} {row.pageType}</span>
-                      <span className="sh-audit-covtypes">{row.types.join(" · ")}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="sh-aeo-steps">
+                {steps.map((s, i) => (
+                  <button key={s.key} className={`sh-aeo-step${i === stepIdx ? " is-active" : ""}`} onClick={() => setAeoStep(i)}>
+                    <span className="sh-aeo-step-n">{i + 1}</span>
+                    <span className="sh-aeo-step-t">{s.title}</span>
+                    <span className="sh-aeo-step-p">{stepProgress(s)}</span>
+                  </button>
+                ))}
               </div>
 
-              <div>
-                <div className="sh-audit-h">{gaps.length ? `${gaps.length} ${gaps.length === 1 ? "gap" : "gaps"} to fix` : "All checks passing 🎉"}</div>
-                <div className="sh-audit-checks">
-                  {a.checks.map((c) => (
-                    <div key={c.key} className={`sh-audit-check ${c.status}`}>
-                      <span className="sh-audit-ci">{statusIcon(c.status)}</span>
-                      <span className="sh-audit-cb">
-                        <span className="sh-audit-cl">{c.label}<span className="sh-audit-cw">+{c.weight}</span></span>
-                        <span className="sh-audit-cd">{c.detail}</span>
-                      </span>
-                      {c.fix && <button className="sh-audit-fix" onClick={() => applyAuditFix(c.fix!)}>{c.fix.label} →</button>}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {step && (
+                <>
+                  <div className="sh-aeo-intro">
+                    <div className="sh-aeo-intro-h">{step.subtitle}</div>
+                    <p>{step.intro}</p>
+                  </div>
 
-              {a.live.url && (
-                <div className="sh-audit-tools">
-                  <a href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Open in Google Rich Results Test ↗</a>
-                  <a href={`https://validator.schema.org/#url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Schema.org validator ↗</a>
-                </div>
+                  <div className="sh-audit-checks">
+                    {step.items.map((c) => (
+                      <div key={c.key} className={`sh-audit-check ${c.status}`}>
+                        <span className="sh-audit-ci">{statusIcon(c.status)}</span>
+                        <span className="sh-audit-cb">
+                          <span className="sh-audit-cl">
+                            {c.label}
+                            <span className={`sh-aeo-who ${c.who}`}>{c.who === "ai" ? "AI fixes" : "You"}</span>
+                            {step.scored && c.weight > 0 && <span className="sh-audit-cw">+{c.weight}</span>}
+                          </span>
+                          <span className="sh-audit-cd">{c.detail}</span>
+                          {c.who === "you" && c.status !== "pass" && c.how && <span className="sh-aeo-how">{c.how}</span>}
+                        </span>
+                        {c.fix && c.status !== "pass" && (
+                          <button className={`sh-audit-fix${c.who === "ai" ? " is-ai" : ""}`} onClick={() => applyAuditFix(c.fix!)}>{c.fix.label} {c.fix.href ? "↗" : "→"}</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {step.key === "foundation" && (
+                    <div>
+                      <div className="sh-audit-h">Schema coverage by page</div>
+                      <div className="sh-audit-cov">
+                        {a.coverage.map((row) => (
+                          <div key={row.pageType} className={`sh-audit-covrow ${row.status}`}>
+                            <span className="sh-audit-covpage">{row.status === "active" ? "✓" : "○"} {row.pageType}</span>
+                            <span className="sh-audit-covtypes">{row.types.join(" · ")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {step.key === "verify" && a.live.url && (
+                    <div className="sh-audit-tools">
+                      <a href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Google Rich Results Test ↗</a>
+                      <a href={`https://validator.schema.org/#url=${encodeURIComponent(a.live.url)}`} target="_blank" rel="noopener noreferrer">Schema.org validator ↗</a>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
           {schemaFetcher.data?.error && <div className="sh-err">{schemaFetcher.data.error}</div>}
         </div>
-        <div className="sh-task-est">
-          <span>Est. cost <strong>$0.00</strong> · instant</span>
-          <span className="sh-task-est-note">Deterministic — no AI. Schema renders from live data &amp; self-updates.</span>
-        </div>
         <div className="sh-task-foot">
-          <button className="sh-btn sh-btn-ghost" disabled={auditBusy} onClick={runAudit}>{auditBusy ? "Scanning…" : "Re-scan"}</button>
-          <button className="sh-btn sh-btn-primary" disabled={schemaBusy} onClick={addStructuredData}>{schemaBusy ? "Installing…" : a?.installed ? "Refresh schema →" : "Install schema →"}</button>
+          <button className="sh-btn sh-btn-ghost" disabled={stepIdx === 0} onClick={() => setAeoStep(Math.max(0, stepIdx - 1))}>← Back</button>
+          <button className="sh-btn sh-btn-ghost" disabled={auditBusy} onClick={runAudit}>{auditBusy ? "Scanning…" : "↻ Re-scan"}</button>
+          {stepIdx < steps.length - 1
+            ? <button className="sh-btn sh-btn-primary" onClick={() => setAeoStep(stepIdx + 1)}>Next: {steps[stepIdx + 1]?.title} →</button>
+            : <button className="sh-btn sh-btn-primary" onClick={() => setActiveTask(null)}>Done</button>}
         </div>
       </div>
     );
