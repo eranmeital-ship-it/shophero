@@ -430,6 +430,31 @@ function validateThemeFile(dir: string, key: string, value: string): string | nu
 }
 
 /**
+ * Strip blank-string defaults from a section's {% schema %} — Shopify rejects
+ * `"default":""` ("setting … default can't be blank"), which fails the push.
+ * Omitting the key keeps the setting optional. Non-string blank-ish defaults
+ * (false, 0) are untouched. No-ops if there's no schema or it isn't valid JSON.
+ */
+function sanitizeSchemaDefaults(liquid: string): string {
+  return liquid.replace(/(\{%-?\s*schema\s*-?%\})([\s\S]*?)(\{%-?\s*endschema\s*-?%\})/i, (whole, open: string, body: string, close: string) => {
+    let schema: unknown;
+    try { schema = JSON.parse(body.trim()); } catch { return whole; }
+    let changed = false;
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) { node.forEach(walk); return; }
+      if (node && typeof node === "object") {
+        const obj = node as Record<string, unknown>;
+        if (obj.default === "") { delete obj.default; changed = true; }
+        for (const v of Object.values(obj)) walk(v);
+      }
+    };
+    walk(schema);
+    if (!changed) return whole;
+    return `${open}\n${JSON.stringify(schema, null, 2)}\n${close}`;
+  });
+}
+
+/**
  * Push the changed asset keys to the working theme — ATOMIC and dependency-safe:
  *  - every file's CONTENTS are validated first (JSON + section-group shape +
  *    {% schema %} + cross-references); if ANY file is invalid we push NOTHING
@@ -452,6 +477,13 @@ export async function pushWorkspaceChanges(
     let value: string;
     try { value = await readFile(path.join(dir, key), "utf8"); }
     catch (e) { failed.push({ key, reason: e instanceof Error ? e.message : String(e) }); continue; }
+    // Sanitize known Shopify-rejected patterns (e.g. blank schema defaults) so a
+    // stale/agent-written section can't block the push. Write the fix back so the
+    // committed baseline is clean too.
+    if (key.endsWith(".liquid")) {
+      const fixed = sanitizeSchemaDefaults(value);
+      if (fixed !== value) { value = fixed; await writeFile(path.join(dir, key), value, "utf8").catch(() => {}); }
+    }
     const invalid = validateThemeFile(dir, key, value);
     if (invalid) failed.push({ key, reason: invalid });
     else files.push({ key, value });
