@@ -148,6 +148,22 @@ model Job {
   @@index([dedupeKey])
 }
 
+// A persistent, routed action plan: a big goal decomposed into small,
+// cheapest-correct-route subtasks the merchant executes one-by-one. Tracks per
+// item status, cost estimate, and what shipped + when. Survives reloads so the
+// merchant can come back and see progress.
+model ActionPlan {
+  id        String   @id @default(cuid())
+  shop      String
+  goal      String
+  status    String   @default("active") // active | done | archived
+  items     String   @default("[]") // JSON PlanItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+}
+
 // Notable events + errors for the admin log/error views.
 model AppEvent {
   id        String   @id @default(cuid())

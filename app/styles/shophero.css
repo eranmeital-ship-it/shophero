@@ -1126,6 +1126,50 @@
 .sh-aeo-srcwhy { font-size: 12px; color: var(--sh-ink-soft); line-height: 1.45; margin-top: 5px; }
 .sh-aeo-srcact { font-size: 12px; color: var(--sh-ink); font-weight: 550; line-height: 1.45; margin-top: 5px; }
 
+/* Action plan — routed persistent checklist */
+.sh-plan-chips { display: flex; flex-direction: column; gap: 6px; }
+.sh-plan-chip {
+  text-align: left; font-family: inherit; font-size: 12.5px; font-weight: 560; cursor: pointer; color: var(--sh-ink);
+  padding: 9px 12px; border-radius: 10px; border: 1px solid var(--sh-line); background: rgba(0, 0, 0, 0.02); transition: border-color 0.14s ease, background 0.14s ease;
+}
+.sh-plan-chip:hover { border-color: rgba(10, 132, 255, 0.4); background: rgba(10, 132, 255, 0.05); }
+
+.sh-plan-prog { padding: 13px 15px; border-radius: 13px; border: 1px solid var(--sh-line); background: linear-gradient(180deg, #fff, #f4f7fb); box-shadow: var(--sh-shadow-sm); }
+.sh-plan-prog-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--sh-ink-soft); margin-bottom: 8px; }
+.sh-plan-prog-top strong { font-size: 15px; color: var(--sh-ink); font-weight: 750; }
+.sh-plan-bar { height: 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.07); overflow: hidden; }
+.sh-plan-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #0a84ff, #16a34a); transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+.sh-plan-list { display: flex; flex-direction: column; gap: 8px; }
+.sh-plan-item {
+  display: flex; gap: 11px; padding: 12px 13px; border-radius: 13px; border: 1px solid var(--sh-line);
+  background: linear-gradient(180deg, #fff, #f7f9fc); box-shadow: var(--sh-shadow-sm); transition: opacity 0.2s ease;
+}
+.sh-plan-item.is-done { opacity: 0.62; }
+.sh-plan-item.is-skipped { opacity: 0.48; }
+.sh-plan-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--sh-ink-faint); }
+.sh-plan-item.is-todo .sh-plan-num { background: var(--sh-accent); }
+.sh-plan-item.is-done .sh-plan-num { background: #16a34a; }
+.sh-plan-main { flex: 1; min-width: 0; }
+.sh-plan-itop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sh-plan-ititle { font-size: 13.5px; font-weight: 650; color: var(--sh-ink); }
+.sh-plan-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 7px; border-radius: 999px; color: #fff; }
+.sh-plan-badge.e-free { background: #16a34a; }
+.sh-plan-badge.e-direct { background: #0a84ff; }
+.sh-plan-badge.e-agent { background: #b25800; }
+.sh-plan-cost { font-size: 11px; font-weight: 700; color: var(--sh-ink-faint); margin-left: auto; }
+.sh-plan-idetail { font-size: 12px; color: var(--sh-ink-soft); line-height: 1.45; margin-top: 3px; }
+.sh-plan-shipped { font-size: 11.5px; font-weight: 600; color: #0a7d34; margin-top: 6px; }
+.sh-plan-actions { display: flex; gap: 8px; align-items: center; margin-top: 9px; }
+.sh-plan-run {
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; color: #fff; background: var(--sh-accent);
+  border: none; padding: 6px 14px; border-radius: 999px; transition: opacity 0.14s ease;
+}
+.sh-plan-run:hover { opacity: 0.88; }
+.sh-plan-run:disabled { opacity: 0.5; cursor: default; }
+.sh-plan-mini { font-family: inherit; font-size: 11.5px; font-weight: 550; cursor: pointer; color: var(--sh-ink-soft); background: none; border: none; padding: 6px 4px; }
+.sh-plan-mini:hover { color: var(--sh-ink); text-decoration: underline; }
+
 /* ===================== AI Store Manager (Improve My Store) ===================== */
 .sh-sm-summary {
   display: flex; align-items: center; gap: 22px; padding: 16px 18px; border-radius: 16px;

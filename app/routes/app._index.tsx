@@ -13,6 +13,7 @@ import { getShopProfile, parseRecommendations, revenueFromBucket, type Recommend
 import { getCachedReport } from "../lib/report.server";
 import { getPlan } from "../lib/content-plan.server";
 import { SECTION_LIBRARY, SECTION_TARGETS } from "../lib/section-library";
+import { PLAN_ROUTE_MAP, planTotals, type ActionPlanData, type PlanItem } from "../lib/plan-routes";
 import type { SchemaAudit } from "../lib/schema-audit.server";
 import { Tour, type TourStep } from "../components/tour";
 import "../styles/shophero.css";
@@ -1206,6 +1207,8 @@ export default function Index() {
       const recs = report?.recommendations ?? [];
       setSelectedRecs(new Set(recs.map((_, i) => i)));
       setBatch(null);
+      setGoalInput("");
+      loadPlan();
       setActiveTask(t);
       return;
     }
@@ -1268,6 +1271,48 @@ export default function Index() {
   const aeoTargets = targetsFetcher.data?.targets;
   function genTargets() {
     targetsFetcher.submit({ op: "generate" }, { method: "post", action: "/api/aeo-targets" });
+  }
+
+  // ── Routed action plan (the persistent checklist behind "Improve my store") ─
+  const roadmapFetcher = useFetcher<{ ok?: boolean; plan?: ActionPlanData | null; error?: string }>();
+  const actionPlan = roadmapFetcher.data?.plan ?? null;
+  const planBusyState = roadmapFetcher.state !== "idle";
+  const [goalInput, setGoalInput] = useState("");
+  function loadPlan() { roadmapFetcher.submit({ op: "get" }, { method: "post", action: "/api/plan" }); }
+  function buildPlan(goal: string) {
+    const g = goal.trim();
+    if (!g) return;
+    roadmapFetcher.submit({ op: "decompose", goal: g }, { method: "post", action: "/api/plan" });
+  }
+  function markPlanItem(item: PlanItem, status: "done" | "skipped" | "todo") {
+    if (!actionPlan) return;
+    const body: Record<string, string> = { op: "update", planId: actionPlan.id, itemId: item.id, status };
+    if (status === "done") { body.summary = PLAN_ROUTE_MAP[item.route]?.label ?? item.title; body.actualUsd = String(item.estUsd); }
+    roadmapFetcher.submit(body, { method: "post", action: "/api/plan" });
+  }
+  function archivePlanGoal() {
+    if (!actionPlan) return;
+    setGoalInput("");
+    roadmapFetcher.submit({ op: "archive", planId: actionPlan.id }, { method: "post", action: "/api/plan" });
+  }
+  // Route a plan item to the cheapest correct engine, then drop into that task.
+  function runPlanItem(item: PlanItem) {
+    switch (item.route) {
+      case "schema": addStructuredData(); break;
+      case "aeo-audit": openTask("structured-data"); break;
+      case "aeo-targets": openTask("structured-data"); setAeoStep(2); setTimeout(() => genTargets(), 50); break;
+      case "section-faq": openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
+      case "section-trust": openTask("add-section"); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
+      case "section": openTask("add-section"); break;
+      case "descriptions": openTask("bulk-descriptions"); break;
+      case "seo": openTask("seo-genius"); break;
+      case "alt": openTask("alt-text"); break;
+      case "articles": openTask("write-content"); break;
+      case "agent": default:
+        setActiveTask(null);
+        if (item.prompt) void runChat(item.prompt, false);
+        break;
+    }
   }
   function runAudit() {
     auditFetcher.submit({ op: "audit" }, { method: "post", action: "/api/structured-data" });
@@ -1388,76 +1433,112 @@ export default function Index() {
 
   function renderStoreManager() {
     const recs = report?.recommendations ?? [];
-    const selectedList = recs.filter((_, i) => selectedRecs.has(i));
-    const est = estimateUpside(selectedList);
-    const running = !!batch?.running;
-    const allSelected = selectedRecs.size === recs.length && recs.length > 0;
+    const quickGoals = recs.slice(0, 4).map((r) => r.title);
+    const decomposing = planBusyState && !actionPlan;
+    const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+
+    // No plan yet → goal input + quick-start chips from the store report.
+    if (!actionPlan) {
+      return (
+        <div className="sh-task">
+          <div className="sh-task-head">
+            <div>
+              <div className="sh-task-title">✨ Improve my store</div>
+              <div className="sh-task-desc">Tell me a goal. I'll break it into a checklist of small steps — each routed to the cheapest engine that does it right — that you run one by one. Your progress, costs and what shipped are saved here.</div>
+            </div>
+            <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+          </div>
+          <div className="sh-task-body">
+            {roadmapFetcher.data?.error && <div className="sh-err">{roadmapFetcher.data.error}</div>}
+            <div className="sh-task-field">
+              <label className="sh-task-label">What do you want to achieve?</label>
+              <textarea className="sh-ob-input" rows={3} placeholder="e.g. Get my store ready for AI shopping assistants · Make my homepage convert better · Rebuild my product pages"
+                value={goalInput} onChange={(e) => setGoalInput(e.target.value)} disabled={decomposing} />
+            </div>
+            {quickGoals.length > 0 && (
+              <div>
+                <div className="sh-audit-h">Or start from a ranked opportunity</div>
+                <div className="sh-plan-chips">
+                  {quickGoals.map((g, i) => (
+                    <button key={i} className="sh-plan-chip" disabled={decomposing} onClick={() => { setGoalInput(g); buildPlan(g); }}>{g}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {decomposing && <div className="sh-opt-loading"><div className="sh-spinner" /> Breaking your goal into a routed plan…</div>}
+          </div>
+          <div className="sh-task-est">
+            <span>Planning cost <strong>~$0.01</strong> · a few seconds</span>
+            <span className="sh-task-est-note">Each step then shows its own cost before you run it.</span>
+          </div>
+          <div className="sh-task-foot">
+            <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+            <button className="sh-btn sh-btn-primary" disabled={!goalInput.trim() || decomposing} onClick={() => buildPlan(goalInput)}>{decomposing ? "Building…" : "Build my plan →"}</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Have a plan → the persistent routed checklist.
+    const t = planTotals(actionPlan.items);
+    const pct = t.total ? Math.round((t.done / t.total) * 100) : 0;
     return (
       <div className="sh-task">
         <div className="sh-task-head">
           <div>
-            <div className="sh-task-title">✨ Improve my store</div>
-            <div className="sh-task-desc">Your ranked opportunities. Pick what to run — ShopHero does them all and stages everything for your approval.</div>
+            <div className="sh-task-title">✨ {actionPlan.goal}</div>
+            <div className="sh-task-desc">Your roadmap — run each step one at a time. Progress, cost and what shipped are saved automatically.</div>
           </div>
-          {!running && <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>}
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
         </div>
         <div className="sh-task-body">
-          {recs.length === 0 ? (
-            <div className="sh-opt-loading"><div className="sh-spinner" /> {reportBusy ? "Analyzing your store…" : "No report yet — give it a moment."}</div>
-          ) : (
-            <>
-              <div className="sh-sm-summary">
-                <div><div className="sh-sm-num">{selectedList.length}</div><div className="sh-sm-lbl">changes selected</div></div>
-                {est > 0 && <div><div className="sh-sm-num">+{money(est)}</div><div className="sh-sm-lbl">est. upside / year</div></div>}
-                {!running && (
-                  <button className="sh-sm-selall" onClick={() => setSelectedRecs(allSelected ? new Set() : new Set(recs.map((_, i) => i)))}>
-                    {allSelected ? "Clear all" : "Select all"}
-                  </button>
-                )}
-              </div>
-              <div className="sh-sm-list">
-                {recs.map((r, i) => {
-                  const done = batch?.doneIds.includes(i);
-                  const cur = running && batch?.currentOrig === i;
-                  const checked = selectedRecs.has(i);
-                  return (
-                    <div key={i} className={`sh-sm-item${cur ? " is-running" : ""}${done ? " is-done" : ""}`}>
-                      {batch ? (
-                        <span className="sh-sm-status">{done ? "✓" : cur ? <span className="sh-dot" /> : checked ? "•" : "–"}</span>
-                      ) : (
-                        <button type="button" className={`sh-sm-check${checked ? " is-on" : ""}`} onClick={() => toggleRec(i)}>{checked ? "✓" : ""}</button>
-                      )}
-                      <div className="sh-sm-main">
-                        <div className="sh-sm-top">
-                          <span className="sh-issue-area">{r.area}</span>
-                          <span className={`sh-impact ${impactClass(r.impact)}`}>{r.impact}</span>
-                        </div>
-                        <div className="sh-issue-title" style={{ marginTop: 4 }}>{r.title}</div>
-                        <div className="sh-issue-desc">{r.desc}</div>
-                      </div>
+          {roadmapFetcher.data?.error && <div className="sh-err">{roadmapFetcher.data.error}</div>}
+          <div className="sh-plan-prog">
+            <div className="sh-plan-prog-top">
+              <strong>{t.done}/{t.total} done</strong>
+              <span>{t.spent > 0 ? `$${t.spent.toFixed(2)} spent · ` : ""}~${t.estRemaining.toFixed(2)} left</span>
+            </div>
+            <div className="sh-plan-bar"><span style={{ width: `${pct}%` }} /></div>
+          </div>
+
+          <div className="sh-plan-list">
+            {actionPlan.items.map((item, i) => {
+              const route = PLAN_ROUTE_MAP[item.route];
+              const engine = route?.engine ?? "agent";
+              return (
+                <div key={item.id} className={`sh-plan-item is-${item.status}`}>
+                  <span className="sh-plan-num">{item.status === "done" ? "✓" : item.status === "skipped" ? "–" : i + 1}</span>
+                  <div className="sh-plan-main">
+                    <div className="sh-plan-itop">
+                      <span className="sh-plan-ititle">{item.title}</span>
+                      <span className={`sh-plan-badge e-${engine}`}>{route?.badge ?? "Agent"}</span>
+                      <span className="sh-plan-cost">{item.estUsd > 0 ? `~$${item.estUsd.toFixed(2)}` : "Free"}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                    <div className="sh-plan-idetail">{item.detail}</div>
+                    {item.status === "done" && (
+                      <div className="sh-plan-shipped">✓ Shipped {fmtDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
+                    )}
+                    {item.status !== "done" && (
+                      <div className="sh-plan-actions">
+                        <button className="sh-plan-run" disabled={planBusyState} onClick={() => runPlanItem(item)}>Run →</button>
+                        <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "done")}>Mark shipped</button>
+                        {item.status !== "skipped"
+                          ? <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "skipped")}>Skip</button>
+                          : <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Undo skip</button>}
+                      </div>
+                    )}
+                    {item.status === "done" && (
+                      <div className="sh-plan-actions"><button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Reopen</button></div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div className="sh-task-foot">
-          {running ? (
-            <div className="sh-sm-running"><span className="sh-dot" /> Running {(batch?.doneIds.length ?? 0) + 1} of {batch?.total}…</div>
-          ) : batch ? (
-            <>
-              <span className="sh-sm-donemsg">✓ Done — review &amp; apply your changes</span>
-              <button className="sh-btn sh-btn-primary" onClick={() => setActiveTask(null)}>Review changes →</button>
-            </>
-          ) : (
-            <>
-              <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
-              <button className="sh-btn sh-btn-primary" disabled={!selectedList.length || thinking} onClick={runStoreManager}>
-                Run {selectedList.length} change{selectedList.length === 1 ? "" : "s"} →
-              </button>
-            </>
-          )}
+          <button className="sh-btn sh-btn-ghost" onClick={archivePlanGoal}>New goal</button>
+          <button className="sh-btn sh-btn-primary" onClick={() => setActiveTask(null)}>{pct === 100 ? "Done 🎉" : "Close"}</button>
         </div>
       </div>
     );
