@@ -758,6 +758,9 @@ export default function Index() {
   const [autoContent, setAutoContent] = useState<{ itemId: string; type: "descriptions" | "seo" | "alt" | "articles" } | null>(null);
   // A "view what was created" link shown on a shipped step (e.g. a published article).
   const [planResult, setPlanResult] = useState<{ itemId: string; label: string; url: string } | null>(null);
+  // An apply/run error surfaced ON the running playbook step (otherwise it only
+  // lands in the chat, which isn't visible while you're in the roadmap).
+  const [planError, setPlanError] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Abort handle + client-side timeout for the chat stream (prevents a dropped
@@ -921,6 +924,7 @@ export default function Index() {
       // Some/all applied — keep any failed files staged for discard/retry.
       setPending(d.pending ?? []);
       setFrameKey((k) => k + 1);
+      setPlanError(null);
       let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}.`;
       if (d.error) msg += ` ⚠️ ${d.error}`;
       setMessages((m) => [...m, { role: "assistant", text: msg }]);
@@ -928,7 +932,9 @@ export default function Index() {
     } else if (d.error || d.message !== "Nothing to apply") {
       // Nothing applied — keep the change staged so the merchant can discard/retry.
       if (d.pending) setPending(d.pending);
-      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't apply this change. ${d.error ?? ""}`.trim() }]);
+      const err = `Couldn't apply this change. ${d.error ?? ""}`.trim();
+      if (runningPlanItem) setPlanError(err); // surface it ON the step (not just chat)
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ ${err}` }]);
     }
   }, [apply.state, apply.data]);
 
@@ -1520,6 +1526,8 @@ export default function Index() {
   // (stage a change); content/agent steps open their focused task. Arms auto-ship.
   function runPlanItem(item: PlanItem) {
     if (blockedByChange()) return; // resolve any pending change before starting a new step
+    setPlanError(null);
+    setPlanResult(null);
     const arm = () => {
       if (!actionPlan) return;
       setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
@@ -1776,6 +1784,7 @@ export default function Index() {
   // files + proposed mutations) and releases the arm.
   async function discardStep() {
     setApproval([]);
+    setPlanError(null);
     await discardStaged();
   }
   // Shared plan-step renderer — used by BOTH the store-manager plan and the
@@ -1814,7 +1823,9 @@ export default function Index() {
           )}
           {item.status !== "done" && !working && staged && (
             <div className="sh-plan-staged">
-              <div className="sh-plan-staged-label">✓ Ready to ship — preview it, then approve.</div>
+              {isRunning && planError
+                ? <div className="sh-plan-staged-err">⚠️ {planError}</div>
+                : <div className="sh-plan-staged-label">✓ Ready to ship — preview it, then approve.</div>}
               <div className="sh-plan-staged-actions">
                 {themeStaged && <button className="sh-plan-mini" onClick={openDiff}>View changes</button>}
                 <button className="sh-plan-mini sh-plan-discard" disabled={applying || discarding || approving} onClick={discardStep}>{discarding ? "Discarding…" : "Discard"}</button>

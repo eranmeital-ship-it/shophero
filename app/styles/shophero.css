@@ -1189,6 +1189,7 @@
   background: linear-gradient(180deg, #f0fbf2, #e7f7ec); border: 1px solid #bfe6c8;
 }
 .sh-plan-staged-label { font-size: 12.5px; font-weight: 650; color: #0a7d34; }
+.sh-plan-staged-err { font-size: 12.5px; font-weight: 600; color: #b42318; line-height: 1.45; }
 .sh-plan-staged-actions { display: flex; gap: 8px; align-items: center; margin-top: 9px; }
 
 /* PDP blueprints */
