@@ -383,6 +383,59 @@ export async function publishArticles(
 }
 
 /** Write approved descriptions to the live store via the Admin API. */
+/**
+ * One scheduled-job batch, cursor-paginated for exact, resumable coverage of a
+ * large catalog. Walks products in stable ID order from `cursor`, generates +
+ * applies fixes ONLY for items that still need work (cheap engine), and reports
+ * the next cursor so the daily runner picks up exactly where it left off.
+ */
+export async function runBulkContentBatch(
+  admin: AdminApiContext,
+  shop: string,
+  task: "descriptions" | "seo",
+  limit: number,
+  cursor?: string | null,
+): Promise<{ examined: number; applied: number; costUsd: number; nextCursor: string | null; hasNext: boolean }> {
+  const brand = await buildBrandContext(shop).catch(() => "");
+  const n = Math.max(1, Math.min(100, limit));
+  const d = await adminGql<{ products?: { nodes?: ProductRow[]; pageInfo?: { hasNextPage?: boolean; endCursor?: string } } }>(
+    admin,
+    `query($n:Int!,$after:String){ products(first:$n, after:$after, sortKey: ID){ nodes { id title descriptionHtml seo { title description } } pageInfo { hasNextPage endCursor } } }`,
+    { n, after: cursor ?? null },
+  );
+  const nodes = d?.products?.nodes ?? [];
+  const pageInfo = d?.products?.pageInfo;
+  let applied = 0;
+  let costUsd = 0;
+
+  for (const p of nodes) {
+    try {
+      if (task === "descriptions") {
+        if (stripHtml(p.descriptionHtml).length >= 60) continue; // already substantial
+        const before = stripHtml(p.descriptionHtml);
+        const user = `Product title: ${p.title}\nCurrent description: ${before || "(none)"}\n\nWrite the new description now.`;
+        const res = await complete({ system: DESC_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 700, tier: "cheap" });
+        costUsd += res.costUsd;
+        const r = await applyDescriptions(admin, [{ id: p.id, after: cleanHtml(res.text) }]);
+        applied += r.applied;
+      } else {
+        if (p.seo?.title?.trim() && p.seo?.description?.trim()) continue; // already set
+        const user = `Product: ${p.title}\nCurrent SEO title: ${p.seo?.title || "(none)"}\nCurrent meta description: ${p.seo?.description || "(none)"}\nProduct description: ${stripHtml(p.descriptionHtml).slice(0, 500) || "(none)"}\n\nWrite the SEO title and meta description now.`;
+        const res = await complete({ system: SEO_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 300, tier: "cheap" });
+        costUsd += res.costUsd;
+        const parsed = parseSeo(res.text);
+        if (parsed) {
+          const r = await applySeo(admin, [{ id: p.id, seoTitle: parsed.title, metaDescription: parsed.description }]);
+          applied += r.applied;
+        }
+      }
+    } catch {
+      /* skip this product; the batch continues */
+    }
+  }
+  return { examined: nodes.length, applied, costUsd, nextCursor: pageInfo?.endCursor ?? null, hasNext: !!pageInfo?.hasNextPage };
+}
+
 export async function applyDescriptions(
   admin: AdminApiContext,
   drafts: { id: string; after: string }[],

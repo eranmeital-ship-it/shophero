@@ -76,8 +76,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  // On-entry tick: advance one due scheduled job (no-op unless DRIFT_JOBS_AUTORUN=true).
-  void advanceDueJobs(session.shop, ctx).catch(() => {});
+  // On-entry tick: advance one due content job by its daily batch (cheap engine).
+  void advanceDueJobs(session.shop, admin).catch(() => {});
 
   // Spend defense gate — block the turn if a daily/monthly/global cap is hit.
   const gate = await checkSpend(session.shop, activePlan);

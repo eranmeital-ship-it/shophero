@@ -131,6 +131,10 @@ export async function maybeScheduleBulk(prompt: string, admin: AdminApiContext, 
   if (!total || total <= perDay) return null; // small enough → run inline now
 
   const title = `${JOB_TYPES[type].label} — ${total.toLocaleString()} ${JOB_TYPES[type].unit}`;
-  const { job, existed } = await getOrCreateJob({ shop, type, title, total, scope: prompt, params: { prompt } });
+  // Dedupe on a STABLE scope, not the raw prompt — otherwise re-phrasing the same
+  // ask ("rewrite all descriptions" vs "redo every product description") would
+  // slip past the guard and create duplicate jobs for the same work.
+  const scope = explicit ? `${type}:${total}` : `${type}:catalog`;
+  const { job, existed } = await getOrCreateJob({ shop, type, title, total, scope, params: { prompt } });
   return scheduledMessage(job, existed, type);
 }

@@ -3,14 +3,19 @@ import { useLoaderData, Form } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import { listJobs, setJobStatus } from "../lib/jobs.server";
+import { runJobNow } from "../lib/job-runner.server";
 import { projectEta, JOB_TYPES } from "../lib/jobs-types";
 import "../styles/shophero.css";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const fd = await request.formData();
   const id = String(fd.get("id") || "");
   const op = String(fd.get("op") || "");
+  if (id && op === "run") {
+    const res = await runJobNow(session.shop, id, admin).catch(() => null);
+    return { ok: !!res, ran: res };
+  }
   if (id && (op === "pause" || op === "resume" || op === "cancel")) {
     await setJobStatus(session.shop, id, op === "pause" ? "paused" : op === "resume" ? "scheduled" : "canceled");
   }
@@ -104,6 +109,9 @@ export default function JobsPage() {
 
                     {["scheduled", "running", "paused"].includes(j.status) && (
                       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                        {j.status !== "paused" && (
+                          <Form method="post"><input type="hidden" name="id" value={j.id} /><input type="hidden" name="op" value="run" /><button className="sh-btn sh-btn-primary">Run next batch now</button></Form>
+                        )}
                         {j.status === "paused" ? (
                           <Form method="post"><input type="hidden" name="id" value={j.id} /><input type="hidden" name="op" value="resume" /><button className="sh-btn">Resume</button></Form>
                         ) : (
