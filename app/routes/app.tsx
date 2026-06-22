@@ -25,9 +25,6 @@ export default function App() {
       <NavMenu>
         <Link to="/app" rel="home">Home</Link>
         <Link to="/app/editor">Editor</Link>
-        <Link to="/app/editor2">Editor 2</Link>
-        <Link to="/app/editor3">Editor 3</Link>
-        <Link to="/app/editor4">Editor 4 ★</Link>
         <Link to="/app/activity">Activity</Link>
         <Link to="/app/usage">Usage</Link>
         <Link to="/app/tutorials">Learn</Link>

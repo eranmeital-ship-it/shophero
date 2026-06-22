@@ -1613,6 +1613,22 @@
 }
 .sh-send:not(:disabled):hover { box-shadow: 0 12px 30px rgba(132, 204, 22, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.8); transform: translateY(-1px); }
 
-/* Hero launcher tiles inside the (narrower) editor panel → 2-up so text fits. */
-.sh-transcript .sh-e4-tiles { grid-template-columns: repeat(2, 1fr); max-width: 100%; }
+/* Hero launcher tiles inside the editor panel → adapt to the column width. */
+.sh-transcript .sh-e4-tiles { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); max-width: 760px; margin: 0 auto; }
 .sh-transcript .sh-e4-empty { justify-content: flex-start; }
+
+/* ===================== Editor 4 LIVE layout (the real /app/editor) ===================== */
+.sh-shell-e4 {
+  --e4-lime: #84cc16; --e4-lime-lt: #bef264; --e4-dark: #11150f; --e4-dark2: #1c241a;
+  display: flex; flex-direction: column;
+}
+.sh-ebar { flex-shrink: 0; }
+.sh-ebar .sh-header { background: var(--sh-glass-strong); gap: 16px; }
+.sh-ebar-modes { display: flex; align-items: center; gap: 6px; }
+.sh-ebody { flex: 1; min-height: 0; display: flex; }
+.sh-shell-e4 .sh-panel { width: auto; } /* shed the grid 440px column */
+.sh-shell-e4[data-view="manage"] .sh-preview { display: none; }
+.sh-shell-e4[data-view="manage"] .sh-panel { flex: 1; width: 100%; max-width: 1000px; margin: 0 auto; border-right: none; }
+.sh-shell-e4[data-view="preview"] .sh-panel { display: none; }
+.sh-shell-e4[data-view="preview"] .sh-preview { flex: 1; }
+@media (max-width: 760px) { .sh-ebar .sh-header { flex-wrap: wrap; } }

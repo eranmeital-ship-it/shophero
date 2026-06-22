@@ -735,7 +735,10 @@ export default function Index() {
   const restoreFetcher = useFetcher<{ restored?: number; error?: string }>();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<"edit" | "optimize">("edit");
+  const [mode, setMode] = useState<"edit" | "design" | "optimize" | "create">("create");
+  // Editor 4 layout: the main area swaps between the theme PREVIEW (edit/design,
+  // or whenever a focused panel like a task/score/draft is open) and the
+  // MANAGEMENT chat/report (create/optimize).
   const [messages, setMessages] = useState<Msg[]>([]);
   const [pending, setPending] = useState<string[]>([]);
   // The plan item currently being executed — auto-marked shipped when its change is accepted/applied.
@@ -1030,7 +1033,7 @@ export default function Index() {
   // From an Optimize-checklist card → jump to Edit and run the fix.
   function fixIssue(prompt: string) {
     if (blockedByChange()) return;
-    setMode("edit");
+    setMode("create");
     if (!thinking) void runChat(prompt, false);
   }
 
@@ -1268,7 +1271,7 @@ export default function Index() {
       `Locate the matching section/block in the theme files and make ONLY this change.`;
     setSelection(null);
     setEditMode(false);
-    setMode("edit");
+    setMode("create");
     void runChat(prompt, false);
   }
 
@@ -1555,7 +1558,7 @@ export default function Index() {
     }
     if (activeTask.id === "mobile-opt") setDevice("mobile"); // preview the work where it matters
     setActiveTask(null);
-    setMode("edit");
+    setMode("create");
     void runChat(prompt, false);
   }
 
@@ -2482,74 +2485,61 @@ export default function Index() {
     );
   }
 
+  const view: "preview" | "manage" =
+    planReview || activeTask || (activeScore && mode === "optimize") || mode === "edit" || mode === "design"
+      ? "preview" : "manage";
   return (
-    <div className="sh-shell">
+    <div className="sh-shell sh-shell-e4" data-view={view}>
       {tourOpen && <Tour steps={TOUR_STEPS} onClose={finishTour} />}
 
-      {/* ---------------- Left: control panel ---------------- */}
-      <div className="sh-panel">
-        {/* Top zone (~30%): brand, modes, health */}
-        <div className="sh-top">
-          <div className="sh-header">
-            <div className="sh-brand" title="ShopHero edits a safe, unpublished copy of your theme — your live store is never touched until you approve.">
-              <div className="sh-brand-mark sh-brand-mark-theme">🎨</div>
-              <div>
-                <div className="sh-brand-name">{themeInfo?.name || "Working copy"}</div>
-                <div className="sh-brand-shop">
-                  Safe working copy{themeInfo?.copiedAt ? ` · copied ${new Date(themeInfo.copiedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : ""}
-                </div>
+      {/* ---------------- Top bar: brand + mode switcher ---------------- */}
+      <header className="sh-ebar">
+        <div className="sh-header">
+          <div className="sh-brand" title="ShopHero edits a safe, unpublished copy of your theme — your live store is never touched until you approve.">
+            <div className="sh-brand-mark sh-brand-mark-theme">🎨</div>
+            <div>
+              <div className="sh-brand-name">{themeInfo?.name || "Working copy"}</div>
+              <div className="sh-brand-shop">
+                Safe working copy{themeInfo?.copiedAt ? ` · copied ${new Date(themeInfo.copiedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : ""}
               </div>
-            </div>
-            <div className="sh-header-right" data-tour="header">
-              <div className="sh-hr-stack">
-                <span className="sh-pill sh-pill-sm" title="AI usage this session — drawn from your monthly allowance ($15 included, then $50 auto top-ups)">
-                  Usage <strong>${usageDisplay.toFixed(2)}</strong>
-                </span>
-                <span className="sh-pill sh-pill-sm">{activePlan === "managed" ? "Managed AI" : "BYOK"}</span>
-              </div>
-              <div className="sh-hr-stack">
-                <button className="sh-icon-btn sh-icon-btn-sm" title="How it works" onClick={() => setTourOpen(true)}>?</button>
-                <button className="sh-icon-btn sh-icon-btn-sm" title="Version history" onClick={openHistory}>🕘</button>
-              </div>
-              {activePlan === "byok" && (
-                <button className="sh-icon-btn" title="Settings" onClick={() => navigate("/app/settings")}>⚙</button>
-              )}
             </div>
           </div>
-
-          <div className="sh-modes" role="tablist" data-tour="modes">
-            <button className={`sh-mode${mode === "edit" ? " is-active" : ""}`} onClick={() => setMode("edit")} role="tab">
-              Edit
-            </button>
-            <button className={`sh-mode${mode === "optimize" ? " is-active" : ""}`} onClick={() => setMode("optimize")} role="tab">
-              Optimize
-            </button>
-            <div className={`sh-mode-ind${mode === "optimize" ? " is-right" : ""}`} />
+          <div className="sh-ebar-modes" role="tablist" data-tour="modes">
+            <span className="sh-e4-modegrp">
+              <button className={`sh-e4-mode${mode === "edit" ? " is-active" : ""}`} onClick={() => setMode("edit")} role="tab">Edit</button>
+              <button className={`sh-e4-mode${mode === "design" ? " is-active" : ""}`} onClick={() => setMode("design")} role="tab">Design</button>
+            </span>
+            <span className="sh-e4-modesep">preview</span>
+            <span className="sh-e4-modegrp">
+              <button className={`sh-e4-mode${mode === "optimize" ? " is-active" : ""}`} onClick={() => setMode("optimize")} role="tab">Optimize</button>
+              <button className={`sh-e4-mode${mode === "create" ? " is-active" : ""}`} onClick={() => setMode("create")} role="tab">Create</button>
+            </span>
+            <span className="sh-e4-modesep">manage</span>
           </div>
-
-          {mode === "optimize" && report?.health != null && (
-            <div className="sh-health-overall">
-              <div className="sh-health-overall-top">
-                <span className="sh-health-overall-lbl">Site Health</span>
-                <span
-                  className="sh-health-overall-pct"
-                  style={{ color: report.health >= 80 ? "#34c759" : report.health >= 60 ? "#ff9500" : "#ff3b30" }}
-                >
-                  {report.health}%
-                </span>
-              </div>
-              <div className="sh-health-overall-track">
-                <div
-                  className="sh-health-overall-fill"
-                  style={{ width: `${report.health}%`, background: report.health >= 80 ? "#34c759" : report.health >= 60 ? "#ff9500" : "#ff3b30" }}
-                />
-              </div>
+          <div className="sh-header-right" data-tour="header">
+            <div className="sh-hr-stack">
+              <span className="sh-pill sh-pill-sm" title="AI usage this session — drawn from your monthly allowance ($15 included, then $50 auto top-ups)">
+                Usage <strong>${usageDisplay.toFixed(2)}</strong>
+              </span>
+              <span className="sh-pill sh-pill-sm">{activePlan === "managed" ? "Managed AI" : "BYOK"}</span>
             </div>
-          )}
+            <div className="sh-hr-stack">
+              <button className="sh-icon-btn sh-icon-btn-sm" title="How it works" onClick={() => setTourOpen(true)}>?</button>
+              <button className="sh-icon-btn sh-icon-btn-sm" title="Version history" onClick={openHistory}>🕘</button>
+            </div>
+            {activePlan === "byok" && (
+              <button className="sh-icon-btn" title="Settings" onClick={() => navigate("/app/settings")}>⚙</button>
+            )}
+          </div>
         </div>
+      </header>
 
-        {/* ===================== EDIT MODE ===================== */}
-        {mode === "edit" && (
+      <div className="sh-ebody">
+      {/* ---------------- Manage column (chat / report) ---------------- */}
+      <div className="sh-panel">
+
+        {/* ===================== CREATE MODE (chat) ===================== */}
+        {mode === "create" && (
           <>
             {messages.length > 0 && (
               <div className="sh-quick" data-tour="tools">
@@ -2903,6 +2893,7 @@ export default function Index() {
         </div>
         )}
       </div>
+      </div>{/* /sh-ebody */}
 
       {/* ---------------- Page selector menu ---------------- */}
       {menuPos && (
