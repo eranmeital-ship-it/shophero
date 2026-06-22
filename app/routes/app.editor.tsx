@@ -14,6 +14,7 @@ import { getCachedReport } from "../lib/report.server";
 import { getPlan } from "../lib/content-plan.server";
 import { SECTION_LIBRARY, SECTION_TARGETS } from "../lib/section-library";
 import { PLAN_ROUTE_MAP, planTotals, type ActionPlanData, type PlanItem } from "../lib/plan-routes";
+import { FEATURE_FLOWS, type Answers } from "../lib/feature-flows";
 import { PDP_BLUEPRINTS, PDP_BLUEPRINT_MAP, PDP_CHECKLIST } from "../lib/pdp-templates";
 import type { SchemaAudit } from "../lib/schema-audit.server";
 import { Tour, type TourStep } from "../components/tour";
@@ -396,6 +397,15 @@ const TASKS: Record<string, TaskConfig> = {
     title: "Structured Data (AEO)",
     desc: "Add JSON-LD so Google and AI agents can read your store.",
     areas: ["SEO"],
+    fields: [],
+    build: () => "",
+  },
+  "feature-flow": {
+    id: "feature-flow",
+    emoji: "✨",
+    title: "Guided flow",
+    desc: "A short, guided setup that builds a tailored plan.",
+    areas: [],
     fields: [],
     build: () => "",
   },
@@ -1325,9 +1335,50 @@ export default function Index() {
     if (t.fields.some((f) => f.type === "product") && !productsFetcher.data) productsFetcher.load("/api/products");
   }
   // Hero tile → the right real flow (faq is a section insert; rest are tasks).
-  function launchFeature(task: string) {
-    if (task === "faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); return; }
-    openTask(task);
+  // ── Guided feature flows (tile → intro → questions → tailored checklist) ──
+  const [flow, setFlow] = useState<{ key: string; phase: "intro" | "q" | "plan"; step: number; answers: Answers } | null>(null);
+  const [flowText, setFlowText] = useState("");
+  function startFlow(key: string) {
+    if (blockedByChange()) return;
+    setFlow({ key, phase: "intro", step: 0, answers: {} });
+    setFlowText("");
+    setActiveTask(TASKS["feature-flow"]);
+  }
+  function launchFeature(key: string) {
+    if (FEATURE_FLOWS[key]) return startFlow(key);
+    // Tiles that already have a rich, dedicated panel keep it:
+    if (key === "product") return openTask("build-pdp");
+    if (key === "ai") return openTask("structured-data");
+    if (key === "images") return openTask("stock-images");
+    openTask(key);
+  }
+  function flowVisible(f: (typeof FEATURE_FLOWS)[string], answers: Answers) {
+    return f.steps.filter((s) => !s.showIf || s.showIf(answers));
+  }
+  function flowToggle(stepId: string, value: string, multi: boolean) {
+    setFlow((fl) => {
+      if (!fl) return fl;
+      const cur = fl.answers[stepId] ?? [];
+      const nextVals = multi ? (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]) : [value];
+      return { ...fl, answers: { ...fl.answers, [stepId]: nextVals } };
+    });
+  }
+  function flowAdvance(extra?: { stepId: string; values: string[] }) {
+    if (!flow) return;
+    const answers = extra ? { ...flow.answers, [extra.stepId]: extra.values } : flow.answers;
+    const f = FEATURE_FLOWS[flow.key];
+    const visible = flowVisible(f, answers);
+    const next = flow.step + 1;
+    setFlowText("");
+    if (next >= visible.length) {
+      buildPlan(f.goal(answers)); // decompose → tailored checklist
+      setFlow({ ...flow, answers, phase: "plan" });
+    } else {
+      setFlow({ ...flow, answers, step: next });
+    }
+  }
+  function flowBack() {
+    setFlow((fl) => (!fl ? fl : fl.phase === "q" && fl.step === 0 ? { ...fl, phase: "intro" } : { ...fl, step: Math.max(0, fl.step - 1) }));
   }
   const setField = (key: string, value: unknown) => setTaskValues((v) => ({ ...v, [key]: value }));
   const toggleMulti = (key: string, opt: string) =>
@@ -2006,6 +2057,146 @@ export default function Index() {
     );
   }
 
+  function renderFeatureFlow() {
+    if (!flow) return null;
+    const f = FEATURE_FLOWS[flow.key];
+    if (!f) return null;
+    const visible = flowVisible(f, flow.answers);
+    const step = visible[flow.step];
+    const plan = actionPlan;
+    const t = plan ? planTotals(plan.items) : null;
+
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">{f.emoji} {f.title}</div>
+            <div className="sh-task-desc">{f.blurb}</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => { setFlow(null); setActiveTask(null); }}>✕</button>
+        </div>
+
+        <div className="sh-task-body">
+          {/* ---- Intro ---- */}
+          {flow.phase === "intro" && (
+            <div className="sh-flow-intro">
+              <div className="sh-flow-emoji">{f.emoji}</div>
+              <h2>{f.title}</h2>
+              <p>{f.blurb}</p>
+              <div className="sh-flow-ahead">
+                <div className="sh-flow-ahead-h">Here's what's ahead</div>
+                {f.ahead.map((s, i) => (
+                  <div key={i} className="sh-flow-ahead-row"><span className="sh-flow-ahead-n">{i + 1}</span>{s}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ---- Questions ---- */}
+          {flow.phase === "q" && step && (
+            <div className="sh-flow-q">
+              <div className="sh-flow-progress">
+                <span>Question {flow.step + 1} of {visible.length}</span>
+                <div className="sh-clarify-dots">{visible.map((_, i) => <span key={i} className={`sh-clarify-dot${i <= flow.step ? " on" : ""}`} />)}</div>
+              </div>
+              <div className="sh-flow-qtitle">{step.q}</div>
+              {step.help && <div className="sh-flow-qhelp">{step.help}</div>}
+              {step.options.length > 0 && (
+                <div className="sh-clarify-opts">
+                  {step.options.map((o) => {
+                    const sel = (flow.answers[step.id] ?? []).includes(o.value);
+                    return (
+                      <button key={o.value} className={`sh-clarify-opt${sel ? " is-sel" : ""}`} title={o.hint}
+                        onClick={() => (step.multi ? flowToggle(step.id, o.value, true) : flowAdvance({ stepId: step.id, values: [o.value] }))}>
+                        {o.label}{o.hint ? <span className="sh-flow-opt-hint"> · {o.hint}</span> : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {step.allowText && (
+                <textarea className="sh-ob-input sh-ob-textarea" rows={3} value={flowText} placeholder="Type your answer…" onChange={(e) => setFlowText(e.target.value)} style={{ marginTop: 10 }} />
+              )}
+              <div className="sh-flow-nav">
+                <button className="sh-btn sh-btn-ghost" onClick={flowBack}>← Back</button>
+                {(step.multi || step.allowText) && (
+                  <button className="sh-btn sh-btn-primary"
+                    disabled={step.allowText && !flowText.trim() && !(flow.answers[step.id]?.length)}
+                    onClick={() => flowAdvance(step.allowText && flowText.trim() ? { stepId: step.id, values: [flowText.trim()] } : undefined)}>
+                    {flow.step + 1 >= visible.length ? "Build my plan →" : "Next →"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---- Tailored checklist (decomposed from the answers) ---- */}
+          {flow.phase === "plan" && (
+            planBusyState && !plan ? (
+              <div className="sh-opt-loading"><div className="sh-spinner" /> Analyzing your store &amp; building your plan…</div>
+            ) : plan ? (
+              <>
+                <div className="sh-flow-planhead">
+                  <div className="sh-flow-plantitle">Your plan · {f.title}</div>
+                  {t && <div className="sh-flow-plansub">{t.done}/{t.total} done · run them one at a time</div>}
+                </div>
+                <div className="sh-plan-list">
+                  {plan.items.map((item, i) => {
+                    const route = PLAN_ROUTE_MAP[item.route];
+                    const engine = route?.engine ?? "agent";
+                    return (
+                      <div key={item.id} className={`sh-plan-item is-${item.status}`}>
+                        <span className="sh-plan-num">{item.status === "done" ? "✓" : item.status === "skipped" ? "–" : i + 1}</span>
+                        <div className="sh-plan-main">
+                          <div className="sh-plan-itop">
+                            <span className="sh-plan-ititle">{item.title}</span>
+                            <span className={`sh-plan-badge e-${engine}`}>{route?.badge ?? "Agent"}</span>
+                            <span className="sh-plan-cost">{item.estUsd > 0 ? `~$${item.estUsd.toFixed(2)}` : "Free"}</span>
+                          </div>
+                          <div className="sh-plan-idetail">{item.detail}</div>
+                          {item.status === "done" ? (
+                            <div className="sh-plan-actions"><button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Reopen</button></div>
+                          ) : (
+                            <div className="sh-plan-actions">
+                              <button className="sh-plan-run" disabled={planBusyState} onClick={() => runPlanItem(item)}>Run →</button>
+                              <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "done")}>Mark done</button>
+                              {item.status !== "skipped" && <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "skipped")}>Skip</button>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="sh-err">Couldn't build a plan — try again or rephrase.{roadmapFetcher.data?.error ? ` (${roadmapFetcher.data.error})` : ""}</div>
+            )
+          )}
+        </div>
+
+        <div className="sh-task-est">
+          {flow.phase === "plan"
+            ? <><span>Each step shows its own cost</span><span className="sh-task-est-note">Deterministic steps are free; AI steps are billed only for what's used.</span></>
+            : <><span>Planning cost <strong>~$0.01</strong></span><span className="sh-task-est-note">Then each step shows its cost before you run it.</span></>}
+        </div>
+
+        <div className="sh-task-foot">
+          {flow.phase === "intro" ? (
+            <>
+              <button className="sh-btn sh-btn-ghost" onClick={() => { setFlow(null); setActiveTask(null); }}>Cancel</button>
+              <button className="sh-btn sh-btn-primary" onClick={() => setFlow({ ...flow, phase: "q", step: 0 })}>Start →</button>
+            </>
+          ) : flow.phase === "plan" ? (
+            <button className="sh-btn sh-btn-primary" onClick={() => { setFlow(null); setActiveTask(null); }}>Done</button>
+          ) : (
+            <span className="sh-flow-foothint">Pick an option to continue</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderCampaignTask() {
     const emails = campaignEmails;
     return (
@@ -2330,6 +2521,7 @@ export default function Index() {
     if (activeTask.id === "structured-data") return renderSchemaTask();
     if (activeTask.id === "build-pdp") return renderPdpTask();
     if (activeTask.id === "launch-campaign") return renderCampaignTask();
+    if (activeTask.id === "feature-flow") return renderFeatureFlow();
     if (activeTask.id === "stock-images") return renderStockTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
@@ -2668,7 +2860,7 @@ export default function Index() {
                   <p style={{ marginBottom: 20 }}>Pick what you want to do — or just ask below.</p>
                   <div className="sh-e4-tiles">
                     {FEATURE_TILES.map((f) => (
-                      <button key={f.key} className="sh-e4-tile" disabled={thinking} onClick={() => launchFeature(f.task)}>
+                      <button key={f.key} className="sh-e4-tile" disabled={thinking} onClick={() => launchFeature(f.key)}>
                         <span className="sh-e4-tile-cat">{f.cat}</span>
                         <span className="sh-e4-tile-title"><span className="sh-e4-tile-emoji">{f.emoji}</span> {f.label}</span>
                         <span className="sh-e4-tile-sub">{f.sub}</span>
