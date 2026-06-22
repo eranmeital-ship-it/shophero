@@ -11,10 +11,18 @@ export type { PlanName };
 // Set DRIFT_BILLING_TEST=false in production.
 const BILLING_TEST = process.env.DRIFT_BILLING_TEST !== "false";
 
+/** The pilot/dev plan from DRIFT_DEV_PLAN. Forgiving: any non-empty value enables
+ * the pilot (→ "managed"), except an explicit "byok". So "yes"/"true"/"1" don't
+ * silently fall through to "no plan" and dead-end every task. */
+export function devPlanOverride(): PlanName | null {
+  const d = process.env.DRIFT_DEV_PLAN?.trim().toLowerCase();
+  if (!d) return null;
+  return d === "byok" ? "byok" : "managed";
+}
+
 /** Dev bypass active → no real Shopify subscription exists, so skip metering. */
 export function billingBypassed(): boolean {
-  const d = process.env.DRIFT_DEV_PLAN;
-  return d === "managed" || d === "byok";
+  return devPlanOverride() !== null;
 }
 
 /**
@@ -28,8 +36,8 @@ export async function getActivePlan(
   // ("Apps without a public distribution cannot use the Billing API").
   // Set DRIFT_DEV_PLAN=managed|byok in .env to skip the live billing check
   // locally. Leave unset in production so real subscriptions are enforced.
-  const devPlan = process.env.DRIFT_DEV_PLAN;
-  if (devPlan === "managed" || devPlan === "byok") return devPlan;
+  const devPlan = devPlanOverride();
+  if (devPlan) return devPlan;
 
   const response = await admin.graphql(`
     query {

@@ -28,8 +28,7 @@ const CAPS = {
 };
 
 function pilotMode(): boolean {
-  const d = process.env.DRIFT_DEV_PLAN;
-  return d === "managed" || d === "byok";
+  return !!process.env.DRIFT_DEV_PLAN?.trim(); // any non-empty value = pilot
 }
 
 async function shopSpend(shop: string, since: Date, byok: boolean): Promise<number> {
