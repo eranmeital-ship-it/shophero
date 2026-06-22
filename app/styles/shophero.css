@@ -1170,7 +1170,19 @@
 .sh-plan-run:hover { opacity: 0.88; }
 .sh-plan-run:disabled { opacity: 0.5; cursor: default; }
 .sh-plan-mini { font-family: inherit; font-size: 11.5px; font-weight: 550; cursor: pointer; color: var(--sh-ink-soft); background: none; border: none; padding: 6px 4px; }
-.sh-plan-mini:hover { color: var(--sh-ink); text-decoration: underline; }
+.sh-plan-mini:hover:not(:disabled) { color: var(--sh-ink); text-decoration: underline; }
+.sh-plan-mini:disabled { opacity: 0.45; cursor: default; }
+.sh-plan-discard { color: #c0392b; }
+.sh-plan-discard:hover:not(:disabled) { color: #a93226; }
+
+/* Inline running / staged state on the active plan step */
+.sh-plan-running { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--sh-ink-soft); }
+.sh-plan-staged {
+  margin-top: 10px; padding: 11px 13px; border-radius: 12px;
+  background: linear-gradient(180deg, #f0fbf2, #e7f7ec); border: 1px solid #bfe6c8;
+}
+.sh-plan-staged-label { font-size: 12.5px; font-weight: 650; color: #0a7d34; }
+.sh-plan-staged-actions { display: flex; gap: 8px; align-items: center; margin-top: 9px; }
 
 /* PDP blueprints */
 .sh-pdp-blueprints { display: flex; flex-direction: column; gap: 8px; }

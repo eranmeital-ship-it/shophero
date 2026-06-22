@@ -1488,13 +1488,13 @@ export default function Index() {
     if (s.includes("collection")) return "collection";
     return "index";
   }
-  // Insert a section directly (stages it) — keeps the merchant in flow; the
-  // staged change + Accept bar appear, instead of the generic section picker.
+  // Insert a section directly (stages it). When run from a plan we DON'T leave the
+  // roadmap — the running step shows its own staged/accept controls inline.
   function insertSectionStep(key: string, target: string) {
     setSectionKey(key);
     setSectionTarget(target);
     setSectionVariant("");
-    setActiveTask(null);
+    if (!runningPlanItem) setActiveTask(null);
     sectionFetcher.submit({ key, target, variant: "" }, { method: "post", action: "/api/section" });
   }
   // Route a plan item to the cheapest correct engine. Deterministic steps EXECUTE
@@ -1503,7 +1503,7 @@ export default function Index() {
     if (blockedByChange()) return; // resolve any pending change before starting a new step
     const arm = () => actionPlan && setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
     switch (item.route) {
-      case "schema": arm(); setActiveTask(null); addStructuredData(); break;
+      case "schema": arm(); addStructuredData(); break;
       case "section-faq": arm(); insertSectionStep("sh-faq", targetFor(item)); break;
       case "section-trust": arm(); insertSectionStep("sh-trust-bar", targetFor(item)); break;
       case "section": arm(); insertSectionStep(sectionFor(item), targetFor(item)); break;
@@ -1534,14 +1534,22 @@ export default function Index() {
     if (fix.action === "gen-targets") { genTargets(); return; }
   }
   useEffect(() => {
-    if (schemaFetcher.state !== "idle" || !schemaFetcher.data?.ok) return;
+    if (schemaFetcher.state !== "idle" || !schemaFetcher.data) return;
+    if (!schemaFetcher.data.ok) {
+      if (runningPlanItem) setRunningPlanItem(null); // release the arm so the step can be retried
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't add structured data. ${schemaFetcher.data?.error ?? ""}`.trim() }]);
+      return;
+    }
     if (schemaFetcher.data.alreadyPresent) {
-      setMessages((m) => [...m, { role: "assistant", text: "✓ Structured data is already set up on your theme." }]);
+      // Nothing to stage. From a plan step this would otherwise dead-end ("already
+      // set up" with no next action) — so mark the step shipped and move on.
+      if (runningPlanItem) shipRunningItem("Already in place");
+      else setMessages((m) => [...m, { role: "assistant", text: "✓ Structured data is already set up on your theme." }]);
     } else {
       setPending((p) => [...new Set([...p, "snippets/sh-structured-data.liquid", "layout/theme.liquid"])]);
       setMessages((m) => [...m, { role: "assistant", text: "✓ Added the full JSON-LD schema set (Organization, WebSite + search, Product, Breadcrumbs, Collection, Article, FAQ). Accept to publish — then re-run the audit to verify it live." }]);
     }
-    runAudit(); // refresh the score after install
+    if (!runningPlanItem) runAudit(); // refresh the score after install (skip mid-plan)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemaFetcher.state, schemaFetcher.data]);
 
@@ -1551,10 +1559,17 @@ export default function Index() {
     sectionFetcher.submit({ key: sectionKey, target: sectionTarget, variant: sectionVariant }, { method: "post", action: "/api/section" });
   }
   useEffect(() => {
-    if (sectionFetcher.state !== "idle" || !sectionFetcher.data?.ok) return;
+    if (sectionFetcher.state !== "idle" || !sectionFetcher.data) return;
+    if (!sectionFetcher.data.ok) {
+      if (runningPlanItem) setRunningPlanItem(null); // release the arm so the step can be retried
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ Couldn't add the section. ${sectionFetcher.data?.error ?? ""}`.trim() }]);
+      return;
+    }
     const name = SECTION_LIBRARY.find((s) => s.key === sectionKey)?.name ?? "section";
     const targetLabel = SECTION_TARGETS.find((t) => t.template === sectionTarget)?.label ?? sectionTarget;
-    setActiveTask(null);
+    // From a plan step we stay in the roadmap (the step shows its own staged controls);
+    // from a tile/manual run we drop into the chat view with the staged-change bar.
+    if (!runningPlanItem) setActiveTask(null);
     setPending((p) => [...new Set([...p, `sections/${sectionKey}.liquid`, `templates/${sectionTarget}.json`])]);
     setMessages((m) => [...m, { role: "assistant", text: `✓ Added the ${name} section to your ${targetLabel}. Preview it in the panel, then Accept to publish.` }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1744,6 +1759,9 @@ export default function Index() {
             {actionPlan.items.map((item, i) => {
               const route = PLAN_ROUTE_MAP[item.route];
               const engine = route?.engine ?? "agent";
+              const isRunning = runningPlanItem?.itemId === item.id;
+              const staging = isRunning && (sectionFetcher.state !== "idle" || schemaFetcher.state !== "idle");
+              const staged = isRunning && pending.length > 0;
               return (
                 <div key={item.id} className={`sh-plan-item is-${item.status}`}>
                   <span className="sh-plan-num">{item.status === "done" ? "✓" : item.status === "skipped" ? "–" : i + 1}</span>
@@ -1757,13 +1775,26 @@ export default function Index() {
                     {item.status === "done" && (
                       <div className="sh-plan-shipped">✓ Shipped {fmtDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
                     )}
-                    {item.status !== "done" && (
+                    {item.status !== "done" && staging && (
+                      <div className="sh-plan-running"><span className="sh-spinner" /> Adding this to your store…</div>
+                    )}
+                    {item.status !== "done" && !staging && staged && (
+                      <div className="sh-plan-staged">
+                        <div className="sh-plan-staged-label">✓ Staged on your working copy — preview, then approve to ship.</div>
+                        <div className="sh-plan-staged-actions">
+                          <button className="sh-plan-mini" onClick={openDiff}>View changes</button>
+                          <button className="sh-plan-mini sh-plan-discard" disabled={applying || discarding} onClick={discardStaged}>{discarding ? "Discarding…" : "Discard"}</button>
+                          <button className="sh-plan-run" disabled={applying || discarding} onClick={applyChanges}>{applying ? "Shipping…" : "Accept & ship →"}</button>
+                        </div>
+                      </div>
+                    )}
+                    {item.status !== "done" && !staging && !staged && (
                       <div className="sh-plan-actions">
-                        <button className="sh-plan-run" disabled={planBusyState} onClick={() => runPlanItem(item)}>Run →</button>
-                        <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "done")}>Mark shipped</button>
+                        <button className="sh-plan-run" disabled={planBusyState || !!runningPlanItem} onClick={() => runPlanItem(item)}>Run →</button>
+                        <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "done")}>Mark shipped</button>
                         {item.status !== "skipped"
-                          ? <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "skipped")}>Skip</button>
-                          : <button className="sh-plan-mini" disabled={planBusyState} onClick={() => markPlanItem(item, "todo")}>Undo skip</button>}
+                          ? <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "skipped")}>Skip</button>
+                          : <button className="sh-plan-mini" disabled={planBusyState || !!runningPlanItem} onClick={() => markPlanItem(item, "todo")}>Undo skip</button>}
                       </div>
                     )}
                     {item.status === "done" && (
@@ -2986,7 +3017,7 @@ export default function Index() {
             {pending.length > 0 && (
               <div className="sh-bar sh-bar-apply">
                 <span className="sh-bar-label">
-                  <strong>{pending.length}</strong> change(s) staged — accept or discard to continue
+                  <strong>{pending.length}</strong> change{pending.length === 1 ? "" : "s"} staged on your working copy — preview it, then Accept to publish (or Discard).
                 </span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
