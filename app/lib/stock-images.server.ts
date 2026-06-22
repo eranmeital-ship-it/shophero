@@ -98,11 +98,14 @@ export async function importToShopify(admin: AdminApiContext, shop: string, imag
       `mutation($files:[FileCreateInput!]!){ fileCreate(files:$files){ files{ id fileStatus } userErrors{ message } } }`,
       { variables: { files: [{ originalSource: image.full, contentType: "IMAGE", alt: (image.alt ?? "").slice(0, 512) }] } },
     );
-    const d = (await r.json()) as { data?: { fileCreate?: { files?: { id?: string }[]; userErrors?: { message?: string }[] } } };
+    const d = (await r.json()) as { data?: { fileCreate?: { files?: { id?: string; fileStatus?: string }[]; userErrors?: { message?: string }[] } } };
     const err = d.data?.fileCreate?.userErrors?.[0]?.message;
     if (err) return { ok: false, error: err };
-    const id = d.data?.fileCreate?.files?.[0]?.id;
-    return id ? { ok: true, id } : { ok: false, error: "Shopify didn't accept the image." };
+    const file = d.data?.fileCreate?.files?.[0];
+    if (!file?.id) return { ok: false, error: "Shopify didn't accept the image." };
+    // fileCreate is async; an immediate FAILED means a bad/unreachable source URL.
+    if (file.fileStatus === "FAILED") return { ok: false, error: "Shopify couldn't fetch that image." };
+    return { ok: true, id: file.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Import failed." };
   }

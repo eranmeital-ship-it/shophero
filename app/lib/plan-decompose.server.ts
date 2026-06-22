@@ -66,7 +66,8 @@ export async function decomposeGoal(
     parsed = {};
   }
 
-  const items: PlanItem[] = (parsed.items ?? [])
+  const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+  const items: PlanItem[] = rawItems
     .map((it) => {
       const route = PLAN_ROUTE_MAP[String(it.route ?? "")] ? String(it.route) : "agent";
       const meta = PLAN_ROUTE_MAP[route];

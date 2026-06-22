@@ -49,9 +49,12 @@ export function classifyBulk(prompt: string): JobType | null {
   return null;
 }
 
-/** Pull an explicit count from the prompt ("create 50 articles" → 50). */
+/** Pull an explicit count from the prompt ("create 50 articles" → 50). Only when
+ * the number is tied to a quantity noun, so years/prices ("by 2024", "$50") and
+ * other stray digits don't become a job size. */
 export function parseCount(prompt: string): number | null {
-  const m = prompt.match(/\b(\d{1,5})\b/);
+  const m = prompt.match(/\b(\d{1,5})\s+(?:more\s+|new\s+|of\s+(?:my|the|our)\s+)?(products?|descriptions?|articles?|posts?|pages?|items?|variants?|collections?|skus?)\b/i)
+    || prompt.match(/\b(?:top|first|next)\s+(\d{1,5})\b/i);
   if (!m) return null;
   const n = parseInt(m[1], 10);
   return Number.isFinite(n) && n > 0 ? n : null;

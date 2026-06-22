@@ -8,7 +8,8 @@ import { searchStock, importToShopify } from "../lib/stock-images.server";
  */
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
-  const form = await request.formData();
+  const form = await request.formData().catch(() => null);
+  if (!form) return Response.json({ error: "Bad request." }, { status: 400 });
   const op = String(form.get("op") ?? "search");
 
   if (op === "search") {

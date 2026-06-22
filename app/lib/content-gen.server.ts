@@ -395,7 +395,7 @@ export async function runBulkContentBatch(
   task: "descriptions" | "seo",
   limit: number,
   cursor?: string | null,
-): Promise<{ examined: number; applied: number; costUsd: number; nextCursor: string | null; hasNext: boolean }> {
+): Promise<{ ok: boolean; examined: number; applied: number; costUsd: number; nextCursor: string | null; hasNext: boolean }> {
   const brand = await buildBrandContext(shop).catch(() => "");
   const n = Math.max(1, Math.min(100, limit));
   const d = await adminGql<{ products?: { nodes?: ProductRow[]; pageInfo?: { hasNextPage?: boolean; endCursor?: string } } }>(
@@ -403,8 +403,11 @@ export async function runBulkContentBatch(
     `query($n:Int!,$after:String){ products(first:$n, after:$after, sortKey: ID){ nodes { id title descriptionHtml seo { title description } } pageInfo { hasNextPage endCursor } } }`,
     { n, after: cursor ?? null },
   );
-  const nodes = d?.products?.nodes ?? [];
-  const pageInfo = d?.products?.pageInfo;
+  // Null `products` means the page fetch itself failed (throttle/transient) — do
+  // NOT treat that as end-of-catalog, or we'd mark the job done having done nothing.
+  if (!d?.products) return { ok: false, examined: 0, applied: 0, costUsd: 0, nextCursor: cursor ?? null, hasNext: true };
+  const nodes = d.products.nodes ?? [];
+  const pageInfo = d.products.pageInfo;
   let applied = 0;
   let costUsd = 0;
 
@@ -433,7 +436,7 @@ export async function runBulkContentBatch(
       /* skip this product; the batch continues */
     }
   }
-  return { examined: nodes.length, applied, costUsd, nextCursor: pageInfo?.endCursor ?? null, hasNext: !!pageInfo?.hasNextPage };
+  return { ok: true, examined: nodes.length, applied, costUsd, nextCursor: pageInfo?.endCursor ?? null, hasNext: !!pageInfo?.hasNextPage };
 }
 
 export async function applyDescriptions(

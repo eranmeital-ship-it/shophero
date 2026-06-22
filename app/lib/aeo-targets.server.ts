@@ -101,7 +101,7 @@ Return the 8 highest-leverage targets, ranked. End your reply with ONLY this JSO
       const msg = await client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1800,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 } as unknown as Anthropic.Tool],
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 } as unknown as Anthropic.Tool],
         messages: [{ role: "user", content: sourcePrompt }],
       });
       const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");

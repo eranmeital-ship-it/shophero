@@ -867,6 +867,7 @@ export default function Index() {
       await fetch("/api/discard", { method: "post" });
       setPending([]);
       setGateMsg(null);
+      setRunningPlanItem(null); // abandoned change → don't auto-ship the armed plan item
       setMessages((m) => [...m, { role: "assistant", text: "↩︎ Change discarded — nothing was applied to your theme." }]);
     } catch {
       setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't discard the change. Please try again." }]);
@@ -1190,10 +1191,13 @@ export default function Index() {
   }
 
   // ── Task launcher ──────────────────────────────────────────────────────────
-  function openTask(id: string) {
+  function openTask(id: string, keepPlanRun = false) {
     if (blockedByChange()) return;
     const t = TASKS[id];
     if (!t) return;
+    // Opening a task that ISN'T part of a plan-item run clears any stale arm, so
+    // a later unrelated "Accept" can't falsely mark a plan item shipped.
+    if (!keepPlanRun) setRunningPlanItem(null);
     setContentDrafts(null);
     setContentSkip(new Set());
     setDescWhich(
@@ -1316,19 +1320,20 @@ export default function Index() {
   // Route a plan item to the cheapest correct engine, then drop into that task.
   // Routes that stage/apply a store change arm auto-ship; informational ones don't.
   function runPlanItem(item: PlanItem) {
+    if (blockedByChange()) return; // resolve any pending change before starting a new step
     const arm = () => actionPlan && setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
     switch (item.route) {
       case "schema": arm(); addStructuredData(); break;
       case "aeo-audit": openTask("structured-data"); break;
       case "aeo-targets": openTask("structured-data"); setAeoStep(2); setTimeout(() => genTargets(), 50); break;
-      case "section-faq": arm(); openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
-      case "section-trust": arm(); openTask("add-section"); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
-      case "section": arm(); openTask("add-section"); break;
-      case "pdp-template": arm(); openTask("build-pdp"); break;
-      case "descriptions": arm(); openTask("bulk-descriptions"); break;
-      case "seo": arm(); openTask("seo-genius"); break;
-      case "alt": arm(); openTask("alt-text"); break;
-      case "articles": arm(); openTask("write-content"); break;
+      case "section-faq": arm(); openTask("add-section", true); setSectionKey("sh-faq"); setSectionVariant("bordered"); break;
+      case "section-trust": arm(); openTask("add-section", true); setSectionKey("sh-trust-bar"); setSectionVariant("inline"); break;
+      case "section": arm(); openTask("add-section", true); break;
+      case "pdp-template": arm(); openTask("build-pdp", true); break;
+      case "descriptions": arm(); openTask("bulk-descriptions", true); break;
+      case "seo": arm(); openTask("seo-genius", true); break;
+      case "alt": arm(); openTask("alt-text", true); break;
+      case "articles": arm(); openTask("write-content", true); break;
       case "agent": default:
         arm();
         setActiveTask(null);

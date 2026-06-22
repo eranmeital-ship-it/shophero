@@ -31,29 +31,29 @@ export async function runJobBatch(shop: string, job: Job, admin: AdminApiContext
   const task = taskFor(type);
   if (!task) return null; // non-content jobs don't auto-run yet
 
-  const left = job.total - job.completed;
-  if (left <= 0) {
-    await db.job.update({ where: { id: job.id }, data: { status: "done" } }).catch(() => {});
-    return { examined: 0, applied: 0, done: true };
-  }
-
   let params: { cursor?: string | null; prompt?: string } = {};
   try { params = job.params ? JSON.parse(job.params) : {}; } catch { params = {}; }
-  const batch = Math.min(job.perDay, left);
   const today = todayKey();
 
   try {
-    await db.job.update({ where: { id: job.id }, data: { status: "running" } });
-    const r = await runBulkContentBatch(admin, shop, task, batch, params.cursor ?? null);
-    const completed = Math.min(job.total, job.completed + r.examined);
-    const done = completed >= job.total || !r.hasNext;
+    const r = await runBulkContentBatch(admin, shop, task, job.perDay, params.cursor ?? null);
+    // Transient page-fetch failure — back off to the next day, don't mark done.
+    if (!r.ok) {
+      await db.job.update({ where: { id: job.id }, data: { status: "scheduled", lastRunOn: today, error: "Couldn't reach the catalog this run; will retry next batch." } }).catch(() => {});
+      return null;
+    }
+    // Completion is driven by the CURSOR (the source of truth), not the frozen
+    // total — so a grown/shrunk catalog can't strand or prematurely end the job.
+    const examinedTotal = job.completed + r.examined;
+    const done = !r.hasNext;
     await db.job.update({
       where: { id: job.id },
       data: {
-        completed,
+        completed: done ? Math.max(job.total, examinedTotal) : examinedTotal,
         doneToday: r.examined,
         lastRunOn: today,
         status: done ? "done" : "scheduled",
+        error: null,
         params: JSON.stringify({ ...params, cursor: r.nextCursor }),
       },
     });
@@ -64,32 +64,57 @@ export async function runJobBatch(shop: string, job: Job, admin: AdminApiContext
         .catch(() => {});
     }
     await db.appEvent
-      .create({ data: { shop, level: "info", type: "job_progress", message: `${job.title}: examined +${r.examined}, updated ${r.applied} (${completed}/${job.total})` } })
+      .create({ data: { shop, level: "info", type: "job_progress", message: `${job.title}: examined +${r.examined}, updated ${r.applied}${done ? " — done" : ""}` } })
       .catch(() => {});
     return { examined: r.examined, applied: r.applied, done };
   } catch (err) {
+    // Back off to next day on hard failure so we don't hot-loop the same job.
     await db.job
-      .update({ where: { id: job.id }, data: { status: "scheduled", error: String(err instanceof Error ? err.message : err).slice(0, 300) } })
+      .update({ where: { id: job.id }, data: { status: "scheduled", lastRunOn: today, error: String(err instanceof Error ? err.message : err).slice(0, 300) } })
       .catch(() => {});
     return null;
   }
+}
+
+/**
+ * Atomically claim a job for today's run (prevents the chat-tick and the cron
+ * from double-processing the same job). Returns the claimed job or null if it
+ * was already claimed/advanced today.
+ */
+async function claimJob(jobId: string, today: string): Promise<Job | null> {
+  const res = await db.job.updateMany({
+    where: { id: jobId, status: { in: ["scheduled", "running"] }, NOT: { lastRunOn: today } },
+    data: { status: "running", lastRunOn: today },
+  });
+  if (res.count !== 1) return null;
+  return db.job.findUnique({ where: { id: jobId } });
 }
 
 /** On-entry tick: advance the oldest content job not yet run today. */
 export async function advanceDueJobs(shop: string, admin: AdminApiContext): Promise<void> {
   if (!AUTORUN) return;
   const today = todayKey();
-  const job = await db.job.findFirst({
+  const candidate = await db.job.findFirst({
     where: { shop, status: { in: ["scheduled", "running"] }, type: { in: AUTO_TYPES }, NOT: { lastRunOn: today } },
     orderBy: { createdAt: "asc" },
   });
+  if (!candidate) return;
+  const job = await claimJob(candidate.id, today); // claim resets lastRunOn — restore for the worker
   if (!job) return;
-  await runJobBatch(shop, job, admin);
+  await runJobBatch(shop, { ...job, lastRunOn: null }, admin);
 }
 
-/** Merchant-initiated "run the next batch now" for a specific job. */
+/** Merchant-initiated "run the next batch now" for a specific job (no daily gate). */
 export async function runJobNow(shop: string, jobId: string, admin: AdminApiContext): Promise<{ examined: number; applied: number; done: boolean } | null> {
   const job = await db.job.findFirst({ where: { id: jobId, shop, status: { in: ["scheduled", "running"] } } });
   if (!job) return null;
   return runJobBatch(shop, job, admin);
+}
+
+/** Claim + run a specific candidate job (used by the cron, which already filtered to due jobs). */
+export async function claimAndRun(shop: string, jobId: string, admin: AdminApiContext): Promise<{ examined: number; applied: number; done: boolean } | null> {
+  const today = todayKey();
+  const job = await claimJob(jobId, today);
+  if (!job) return null;
+  return runJobBatch(shop, { ...job, lastRunOn: null }, admin);
 }

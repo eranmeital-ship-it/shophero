@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { unauthenticated } from "../shopify.server";
 import db from "../db.server";
-import { todayKey, ACTIVE_STATUSES } from "../lib/jobs.server";
-import { runJobBatch } from "../lib/job-runner.server";
+import { todayKey } from "../lib/jobs.server";
+import { claimAndRun } from "../lib/job-runner.server";
 import type { JobType } from "../lib/jobs-types";
 
 /**
@@ -15,7 +15,7 @@ import type { JobType } from "../lib/jobs-types";
  * single run stays bounded; the next tick continues.
  */
 const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo"];
-const MAX_SHOPS_PER_RUN = Number(process.env.DRIFT_CRON_MAX_SHOPS ?? 25) || 25;
+const MAX_JOBS_PER_RUN = Number(process.env.DRIFT_CRON_MAX_SHOPS ?? 50) || 50;
 
 function authorized(request: Request): boolean {
   const secret = process.env.DRIFT_CRON_SECRET;
@@ -31,29 +31,34 @@ async function run(request: Request): Promise<Response> {
   if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const today = todayKey();
-  // Distinct shops with a due content job (not yet advanced today).
-  const due = await db.job.findMany({
-    where: { status: { in: [...ACTIVE_STATUSES.filter((s) => s !== "paused")] }, type: { in: AUTO_TYPES }, NOT: { lastRunOn: today } },
+  // All due content jobs (not yet advanced today) — every job, across shops, so a
+  // shop with two jobs doesn't starve. Bounded per run; the next tick continues.
+  const dueAll = await db.job.findMany({
+    where: { status: { in: ["scheduled", "running"] }, type: { in: AUTO_TYPES }, NOT: { lastRunOn: today } },
     orderBy: { createdAt: "asc" },
     take: 500,
   });
-  const shops = [...new Set(due.map((j) => j.shop))].slice(0, MAX_SHOPS_PER_RUN);
+  const due = dueAll.slice(0, MAX_JOBS_PER_RUN);
 
+  // One offline admin client per shop, reused across that shop's jobs.
+  const admins = new Map<string, Awaited<ReturnType<typeof unauthenticated.admin>>["admin"]>();
   const results: { shop: string; job: string; examined: number; applied: number; done: boolean }[] = [];
-  for (const shop of shops) {
-    const job = due.find((j) => j.shop === shop);
-    if (!job) continue;
+  for (const job of due) {
     try {
-      const { admin } = await unauthenticated.admin(shop);
-      const r = await runJobBatch(shop, job, admin);
-      if (r) results.push({ shop, job: job.title, ...r });
+      let admin = admins.get(job.shop);
+      if (!admin) {
+        admin = (await unauthenticated.admin(job.shop)).admin;
+        admins.set(job.shop, admin);
+      }
+      const r = await claimAndRun(job.shop, job.id, admin); // atomic claim guards against double-runs
+      if (r) results.push({ shop: job.shop, job: job.title, ...r });
     } catch (e) {
       await db.appEvent
-        .create({ data: { shop, level: "warn", type: "cron_job", message: `cron run failed: ${e instanceof Error ? e.message : e}`.slice(0, 200) } })
+        .create({ data: { shop: job.shop, level: "warn", type: "cron_job", message: `cron run failed: ${e instanceof Error ? e.message : e}`.slice(0, 200) } })
         .catch(() => {});
     }
   }
-  return Response.json({ ok: true, ranShops: results.length, pendingShops: Math.max(0, [...new Set(due.map((j) => j.shop))].length - shops.length), results });
+  return Response.json({ ok: true, ranJobs: results.length, pendingJobs: Math.max(0, dueAll.length - due.length), results });
 }
 
 // Accept POST (preferred) and GET (some schedulers only do GET).
