@@ -46,6 +46,16 @@ export default function Terms() {
         Shopify; charges already incurred are non-refundable except where required by law or
         Shopify policy.
       </p>
+      <p>
+        <strong>How AI usage is measured.</strong> AI tasks consume third-party model usage
+        as they run. You are charged for the AI compute actually used by a task — <strong>including
+        tasks that you stop, that time out, or that don&apos;t finish or fully apply</strong> — because
+        that compute is consumed regardless of the outcome. We meter usage transparently; you can
+        review it any time on the <strong>Usage</strong> page, and per-shop daily and monthly
+        spend caps protect you from runaway cost. To keep usage low, prefer small, focused
+        operations and let large, catalog-wide work run through the one-click bulk tools and
+        scheduled jobs, which process your whole store cheaply in the background.
+      </p>
 
       <h2>Acceptable use</h2>
       <p>

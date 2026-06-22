@@ -71,6 +71,19 @@ export default function Usage() {
           cost is shown live in the editor under each reply, and summed in the “Usage” pill.
         </p>
 
+        <div className="sh-card" style={{ borderColor: "rgba(245,166,35,0.35)", background: "rgba(245,166,35,0.06)" }}>
+          <h3><span className="sh-card-emoji">💡</span> How AI usage is counted</h3>
+          <p style={{ margin: 0 }}>
+            AI tasks use third-party model compute as they run, so you&apos;re charged for what a
+            task actually uses — <strong>including tasks you stop, that time out, or that don&apos;t
+            finish or fully apply</strong>. Deterministic actions (schema, sections, PDP layouts)
+            and the version/restore tools are free. To keep usage low on a large store, run small,
+            focused operations and let catalog-wide work go through the one-click bulk tools and
+            scheduled jobs — they process your whole store cheaply in the background. Per-shop
+            daily &amp; monthly caps protect you from runaway cost.
+          </p>
+        </div>
+
         <div className="sh-card">
           <h3><span className="sh-card-emoji">💳</span> Current plan</h3>
           {plan ? (

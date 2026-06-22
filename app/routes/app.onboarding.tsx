@@ -577,6 +577,15 @@ export default function Onboarding() {
             <span><strong>Nothing is changed without my approval.</strong> Design edits are staged; live-store changes are explained first.</span>
           </label>
 
+          <div style={{ marginTop: 16, padding: "13px 15px", borderRadius: 13, border: "1px solid rgba(245,166,35,0.32)", background: "rgba(245,166,35,0.07)", fontSize: 13, lineHeight: 1.55, textAlign: "left" }}>
+            <strong>💡 A note on AI usage.</strong> AI tasks are billed for the model compute they
+            actually use — including tasks you stop or that don&apos;t finish. To keep usage low:
+            run <strong>small, focused tasks</strong>, and for whole-catalog work use the
+            one-click <strong>bulk tools</strong> &amp; scheduled jobs (they run cheaply in the
+            background). Deterministic actions like schema, sections and PDP layouts are free, and
+            daily/monthly caps protect you from surprises.
+          </div>
+
           <p className="sh-ob-fineprint">Your data is processed securely, never sold and never shared — used only to improve your store.</p>
           {ad?.error && <div className="sh-ob-error">{ad.error}</div>}
 

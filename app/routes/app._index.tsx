@@ -2246,7 +2246,7 @@ export default function Index() {
         </div>
         <div className="sh-task-est">
           <span>Est. cost <strong>~${taskEstimate(activeTask.id).usd.toFixed(2)}</strong> · {fmtSecs(taskEstimate(activeTask.id).secs)}</span>
-          <span className="sh-task-est-note">Rough estimate — you're billed only for what's actually used.</span>
+          <span className="sh-task-est-note">Rough estimate — you're billed for the AI a task actually uses, including runs you stop or that don't finish. Start small on big stores.</span>
         </div>
         <div className="sh-task-foot">
           <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
@@ -2357,7 +2357,7 @@ export default function Index() {
       const aborted = e instanceof DOMException && e.name === "AbortError";
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: aborted ? "⏹ Stopped — nothing unapproved was applied to your store." : `⚠️ ${e instanceof Error ? e.message : String(e)}` },
+        { role: "assistant", text: aborted ? "⏹ Stopped — nothing unapproved was applied. Note: the AI used up to this point still counts toward your usage." : `⚠️ ${e instanceof Error ? e.message : String(e)}` },
       ]);
     } finally {
       clearTimeout(clientTimeout);
