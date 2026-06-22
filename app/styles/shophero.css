@@ -1340,20 +1340,20 @@
 @keyframes sh-e4-blink { 50% { opacity: 0; } }
 .sh-e4-empty > p { color: var(--sh-ink-soft); font-size: 14px; margin: 0 0 26px; }
 
-/* Feature tiles — 2 rows of bigger squares, homepage dark + lime palette */
-.sh-e4-tiles { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 12px; width: 100%; max-width: 560px; }
+/* Feature tiles — compact grid (~12), homepage dark + lime palette, simple words */
+.sh-e4-tiles { display: grid; grid-template-columns: repeat(4, minmax(112px, 1fr)); gap: 9px; width: 100%; max-width: 600px; }
 .sh-e4-tile {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; cursor: pointer;
-  aspect-ratio: 1.35 / 1; padding: 16px; border-radius: 18px; font: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; cursor: pointer;
+  padding: 13px 8px; border-radius: 13px; font: inherit;
   background: linear-gradient(165deg, var(--e4-dark2), var(--e4-dark)); color: #fff;
-  border: 1px solid rgba(190,242,100,0.16); box-shadow: var(--sh-shadow); position: relative; overflow: hidden;
+  border: 1px solid rgba(190,242,100,0.16); box-shadow: var(--sh-shadow-sm); position: relative; overflow: hidden;
   transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.sh-e4-tile::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 85% -10%, rgba(190,242,100,0.22), transparent 60%); opacity: 0.7; }
-.sh-e4-tile:hover { transform: translateY(-3px); border-color: var(--e4-lime); box-shadow: 0 14px 32px rgba(17,21,15,0.28); }
-.sh-e4-tile-emoji { font-size: 26px; position: relative; }
-.sh-e4-tile-label { font-size: 14.5px; font-weight: 720; margin-top: auto; position: relative; }
-.sh-e4-tile-sub { font-size: 11.5px; color: rgba(255,255,255,0.62); position: relative; }
+.sh-e4-tile::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 85% -10%, rgba(190,242,100,0.2), transparent 60%); opacity: 0.7; }
+.sh-e4-tile:hover { transform: translateY(-2px); border-color: var(--e4-lime); box-shadow: 0 10px 24px rgba(17,21,15,0.26); }
+.sh-e4-tile-emoji { font-size: 21px; position: relative; line-height: 1; }
+.sh-e4-tile-label { font-size: 12.5px; font-weight: 640; position: relative; line-height: 1.25; }
+@media (max-width: 600px) { .sh-e4-tiles { grid-template-columns: repeat(3, 1fr); max-width: 420px; } }
 
 .sh-e4-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; }
 .sh-e4-guided { background: #fff; border: 1px solid var(--sh-line); border-radius: 16px; padding: 16px 18px; box-shadow: var(--sh-shadow-sm); }

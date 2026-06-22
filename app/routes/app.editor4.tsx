@@ -12,12 +12,18 @@ import "../styles/shophero.css";
 type Mode = "edit" | "design" | "optimize" | "create";
 
 const FEATURES = [
-  { key: "improve", emoji: "✨", label: "Improve my store", sub: "Ranked plan of fixes" },
-  { key: "pdp", emoji: "🚀", label: "Build a PDP", sub: "High-converting product page" },
-  { key: "seo", emoji: "🔍", label: "SEO", sub: "Titles, meta, structure" },
-  { key: "aeo", emoji: "🧠", label: "AEO Brain", sub: "Get found by AI search" },
-  { key: "section", emoji: "🧩", label: "Add a Section", sub: "Trust, FAQ, comparison…" },
-  { key: "content", emoji: "📝", label: "Write Content", sub: "Articles & descriptions" },
+  { key: "improve", emoji: "✨", label: "Improve my store" },
+  { key: "product", emoji: "🛍️", label: "Fix a product" },
+  { key: "redesign", emoji: "🎨", label: "Redesign a page" },
+  { key: "descriptions", emoji: "✍️", label: "Write descriptions" },
+  { key: "blog", emoji: "📝", label: "Write a blog" },
+  { key: "google", emoji: "🔍", label: "Get found on Google" },
+  { key: "ai", emoji: "🤖", label: "Get found by AI" },
+  { key: "sales", emoji: "📈", label: "Sell more" },
+  { key: "trust", emoji: "🛡️", label: "Add trust badges" },
+  { key: "faq", emoji: "❓", label: "Add an FAQ" },
+  { key: "images", emoji: "🖼️", label: "Find photos" },
+  { key: "speed", emoji: "⚡", label: "Make it faster" },
 ];
 
 const HEADLINES = [
@@ -120,7 +126,6 @@ export default function Editor4() {
                       <button key={f.key} className="sh-e4-tile" onClick={() => setFlow(f.key)}>
                         <span className="sh-e4-tile-emoji">{f.emoji}</span>
                         <span className="sh-e4-tile-label">{f.label}</span>
-                        <span className="sh-e4-tile-sub">{f.sub}</span>
                       </button>
                     ))}
                   </div>
