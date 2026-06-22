@@ -144,6 +144,8 @@
   animation: sh-slide 1.25s ease-in-out infinite;
 }
 .sh-loader-text { font-size: 13px; font-weight: 700; color: var(--sh-ink); display: flex; align-items: center; gap: 8px; }
+.sh-stop-btn { margin-left: auto; font-family: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer; color: #b3261e; background: rgba(255, 80, 80, 0.1); border: 1px solid rgba(255, 80, 80, 0.28); padding: 4px 12px; border-radius: 999px; }
+.sh-stop-btn:hover { background: rgba(255, 80, 80, 0.18); }
 .sh-loader-text .sh-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--sh-accent);
   animation: sh-pulse 1.1s ease-in-out infinite;

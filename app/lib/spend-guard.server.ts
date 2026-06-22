@@ -24,7 +24,13 @@ const CAPS = {
   shopDaily: num("DRIFT_CAP_SHOP_DAILY_USD", 25),
   shopMonthly: num("DRIFT_CAP_SHOP_MONTHLY_USD", 250),
   globalDaily: num("DRIFT_CAP_GLOBAL_DAILY_USD", 200),
+  pilotDailyCost: num("DRIFT_PILOT_CAP_USD", 15), // hard REAL-cost ceiling for the free pilot
 };
+
+function pilotMode(): boolean {
+  const d = process.env.DRIFT_DEV_PLAN;
+  return d === "managed" || d === "byok";
+}
 
 async function shopSpend(shop: string, since: Date, byok: boolean): Promise<number> {
   const agg = await db.usageEvent.aggregate({
@@ -58,5 +64,20 @@ export async function checkSpend(
       return { allowed: false, reason: "ShopHero is at capacity right now. Please try again shortly." };
     }
   }
+  // Free pilot: a hard ceiling on REAL Anthropic cost (the billed-$ caps above
+  // don't bound actual credit burn when nobody is charged).
+  if (pilotMode() && CAPS.pilotDailyCost > 0) {
+    const agg = await db.usageEvent.aggregate({ where: { shop, createdAt: { gte: dayStart } }, _sum: { costUsd: true } });
+    if ((agg._sum.costUsd ?? 0) >= CAPS.pilotDailyCost) {
+      return { allowed: false, reason: `Daily AI usage limit reached for the pilot ($${CAPS.pilotDailyCost}). It resets at midnight.` };
+    }
+  }
   return { allowed: true };
+}
+
+/** Convenience for non-chat LLM routes: returns a 402 Response if over a cap, else null. */
+export async function enforceSpend(shop: string, plan: string | null): Promise<Response | null> {
+  const gate = await checkSpend(shop, plan);
+  if (gate.allowed) return null;
+  return Response.json({ error: gate.reason ?? "Usage limit reached." }, { status: 402 });
 }

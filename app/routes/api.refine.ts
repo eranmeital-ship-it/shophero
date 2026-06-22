@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getActivePlan } from "../lib/billing.server";
+import { checkSpend } from "../lib/spend-guard.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { complete } from "../lib/llm.server";
 import db from "../db.server";
@@ -28,6 +29,8 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!prompt) return { clear: true };
 
   const plan = await getActivePlan(admin).catch(() => null);
+  // Over a spend cap → skip triage (the actual run is gated by the chat route anyway).
+  if (!(await checkSpend(session.shop, plan)).allowed) return { clear: true };
   const byokKey = plan === "byok" ? (await resolveKey(session.shop, plan)) ?? undefined : undefined;
 
   try {

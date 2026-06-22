@@ -29,7 +29,22 @@ type ActionResult =
   | { ok: true; report: VisibilityReport }
   | { ok: false; error: string };
 
+// Best-effort per-IP throttle for this public, unauthenticated endpoint.
+const rlHits = new Map<string, number[]>();
+const RL_MAX = 8; // checks
+const RL_WINDOW_MS = 10 * 60 * 1000; // per 10 minutes
+function rateLimited(request: Request): boolean {
+  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || request.headers.get("cf-connecting-ip") || "unknown";
+  const now = Date.now();
+  const hits = (rlHits.get(ip) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  hits.push(now);
+  rlHits.set(ip, hits);
+  if (rlHits.size > 5000) for (const [k, v] of rlHits) if (!v.some((t) => now - t < RL_WINDOW_MS)) rlHits.delete(k);
+  return hits.length > RL_MAX;
+}
+
 export async function action({ request }: ActionFunctionArgs): Promise<ActionResult> {
+  if (rateLimited(request)) return { ok: false, error: "You've run a lot of checks — please wait a few minutes and try again." };
   const fd = await request.formData();
   const url = String(fd.get("url") || "").trim();
   if (!url) return { ok: false, error: "Enter your store URL to run the check." };

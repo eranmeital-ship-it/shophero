@@ -7,7 +7,51 @@
  * no Shopify auth, no Claude API call, so it's instant and costs nothing to run.
  *
  * The checks mirror the in-app AEO scorecard but work from public signals only.
+ *
+ * SECURITY: this is an UNAUTHENTICATED, public endpoint that fetches a
+ * user-supplied URL — a classic SSRF surface. Every fetch resolves the host to
+ * its IP and refuses private/loopback/link-local/metadata ranges, follows
+ * redirects MANUALLY (re-validating each hop), and is byte/time-capped.
  */
+import { lookup } from "node:dns/promises";
+import net from "node:net";
+
+/** Reject loopback, private, link-local, CGNAT and cloud-metadata addresses. */
+function isPrivateIp(ip: string): boolean {
+  const v = net.isIP(ip);
+  if (v === 4) {
+    const p = ip.split(".").map(Number);
+    if (p.some((n) => Number.isNaN(n))) return true;
+    if (p[0] === 0 || p[0] === 10 || p[0] === 127) return true;
+    if (p[0] === 169 && p[1] === 254) return true; // link-local + 169.254.169.254 metadata
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true;
+    if (p[0] === 192 && p[1] === 168) return true;
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true; // CGNAT
+    return false;
+  }
+  if (v === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (lower.startsWith("fe80") || lower.startsWith("fc") || lower.startsWith("fd")) return true;
+    const mapped = lower.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return false;
+  }
+  return true; // not a valid IP → block
+}
+
+/** Resolve a host and return a public IP, or null if it's an IP we must refuse. */
+async function resolvePublicHost(hostname: string): Promise<string | null> {
+  if (net.isIP(hostname)) return isPrivateIp(hostname) ? null : hostname;
+  try {
+    const results = await lookup(hostname, { all: true });
+    if (!results.length) return null;
+    for (const r of results) if (isPrivateIp(r.address)) return null; // any private answer → block
+    return results[0].address;
+  } catch {
+    return null;
+  }
+}
 
 export type CheckStatus = "pass" | "warn" | "fail";
 export interface VisibilityCheck {
@@ -66,41 +110,62 @@ function normalizeUrl(raw: string): { url: string; origin: string; host: string 
 }
 
 async function fetchText(url: string, cap = MAX_HTML_BYTES): Promise<{ ok: boolean; status: number; body: string }> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      redirect: "follow",
-      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml,text/plain,*/*" },
-    });
-    const reader = res.body?.getReader();
-    if (!reader) {
-      const body = await res.text();
-      return { ok: res.ok, status: res.status, body: body.slice(0, cap) };
-    }
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    while (total < cap) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        total += value.length;
-      }
-    }
+  let current = url;
+  // Manual redirect handling so every hop's resolved IP is re-validated (a public
+  // host that 302s to 169.254.169.254 must NOT be followed).
+  for (let hop = 0; hop < 4; hop++) {
+    let u: URL;
     try {
-      await reader.cancel();
+      u = new URL(current);
     } catch {
-      /* ignore */
+      return { ok: false, status: 0, body: "" };
     }
-    const body = new TextDecoder("utf-8", { fatal: false }).decode(concat(chunks)).slice(0, cap);
-    return { ok: res.ok, status: res.status, body };
-  } catch {
-    return { ok: false, status: 0, body: "" };
-  } finally {
-    clearTimeout(t);
+    if (!/^https?:$/.test(u.protocol)) return { ok: false, status: 0, body: "" };
+    if (!(await resolvePublicHost(u.hostname))) return { ok: false, status: 0, body: "" }; // private/blocked
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(current, {
+        signal: ctrl.signal,
+        redirect: "manual",
+        headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml,text/plain,*/*" },
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) return { ok: false, status: res.status, body: "" };
+        current = new URL(loc, current).toString();
+        continue; // re-validate the redirect target on the next iteration
+      }
+      const reader = res.body?.getReader();
+      if (!reader) {
+        const body = await res.text();
+        return { ok: res.ok, status: res.status, body: body.slice(0, cap) };
+      }
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      while (total < cap) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          total += value.length;
+        }
+      }
+      try {
+        await reader.cancel();
+      } catch {
+        /* ignore */
+      }
+      const body = new TextDecoder("utf-8", { fatal: false }).decode(concat(chunks)).slice(0, cap);
+      return { ok: res.ok, status: res.status, body };
+    } catch {
+      return { ok: false, status: 0, body: "" };
+    } finally {
+      clearTimeout(t);
+    }
   }
+  return { ok: false, status: 0, body: "" }; // too many redirects
 }
 
 function concat(chunks: Uint8Array[]): Uint8Array {

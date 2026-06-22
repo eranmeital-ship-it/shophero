@@ -2,6 +2,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import type { Job } from "@prisma/client";
 import db from "../db.server";
 import { getActivePlan } from "./billing.server";
+import { checkSpend } from "./spend-guard.server";
 import { runBulkContentBatch } from "./content-gen.server";
 import { todayKey, type JobType } from "./jobs.server";
 
@@ -35,6 +36,14 @@ export async function runJobBatch(shop: string, job: Job, admin: AdminApiContext
   try { params = job.params ? JSON.parse(job.params) : {}; } catch { params = {}; }
   const today = todayKey();
 
+  // Respect the spend caps — background batches are real spend too. If over a
+  // cap, pause for the day (lastRunOn) and resume tomorrow without burning more.
+  const plan = await getActivePlan(admin).catch(() => null);
+  if (!(await checkSpend(shop, plan)).allowed) {
+    await db.job.update({ where: { id: job.id }, data: { status: "scheduled", lastRunOn: today } }).catch(() => {});
+    return null;
+  }
+
   try {
     const r = await runBulkContentBatch(admin, shop, task, job.perDay, params.cursor ?? null);
     // Transient page-fetch failure — back off to the next day, don't mark done.
@@ -58,7 +67,6 @@ export async function runJobBatch(shop: string, job: Job, admin: AdminApiContext
       },
     });
     if (r.costUsd > 0) {
-      const plan = await getActivePlan(admin).catch(() => null);
       await db.usageEvent
         .create({ data: { shop, plan, kind: "job", costUsd: r.costUsd, billedUsd: plan === "managed" ? r.costUsd * 3 : 0 } })
         .catch(() => {});

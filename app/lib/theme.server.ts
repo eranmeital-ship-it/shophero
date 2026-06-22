@@ -1,4 +1,5 @@
 import { writeFile, mkdir, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import db from "../db.server";
 import { decrypt } from "./crypto.server";
@@ -278,13 +279,63 @@ export interface PushResult {
   failed: { key: string; reason: string }[]; // keys that were rejected/invalid
 }
 
+/** Validate one theme file's CONTENTS before it ever hits the API. Returns an
+ * error reason, or null if it's safe to push. Catches the malformed-Liquid/JSON
+ * class that used to break the theme on apply (e.g. a section group missing
+ * `name`, or a template referencing a section that doesn't exist). */
+function validateThemeFile(dir: string, key: string, value: string): string | null {
+  // Liquid: if it declares a {% schema %}, the schema body must be valid JSON.
+  if (key.endsWith(".liquid")) {
+    const m = value.match(/\{%-?\s*schema\s*-?%\}([\s\S]*?)\{%-?\s*endschema\s*-?%\}/i);
+    if (m) {
+      try { JSON.parse(m[1].trim()); }
+      catch (e) { return `invalid {% schema %} JSON — ${e instanceof Error ? e.message : "parse error"}`; }
+    }
+    return null;
+  }
+  if (!key.endsWith(".json")) return null;
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(value); }
+  catch (e) { return `invalid JSON — ${e instanceof Error ? e.message : "parse error"}`; }
+  if (!parsed || typeof parsed !== "object") return null;
+  const obj = parsed as Record<string, unknown>;
+
+  const isTemplate = key.startsWith("templates/");
+  const isSectionGroup = /^sections\/.*\.json$/.test(key);
+  // Section GROUPS require these top-level keys (the past "missing required key name" crash).
+  if (isSectionGroup) {
+    for (const req of ["name", "type", "sections", "order"]) {
+      if (!(req in obj)) return `section group is missing required key "${req}"`;
+    }
+  }
+  // Templates / groups with a sections map: order must be an array and every
+  // referenced section TYPE must resolve to a section file (on disk or in this push).
+  if ((isTemplate || isSectionGroup) && obj.sections && typeof obj.sections === "object") {
+    if (obj.order !== undefined && !Array.isArray(obj.order)) return `"order" must be an array`;
+    const sections = obj.sections as Record<string, { type?: unknown }>;
+    for (const [id, s] of Object.entries(sections)) {
+      const type = s?.type;
+      if (typeof type !== "string" || !type) return `section "${id}" is missing a "type"`;
+      // App-embedded / theme app extension blocks (shopify://) aren't local files.
+      if (type.startsWith("shopify://")) continue;
+      if (!existsSync(path.join(dir, "sections", `${type}.liquid`)) && !existsSync(path.join(dir, "sections", `${type}.json`))) {
+        return `references section "${type}" which doesn't exist`;
+      }
+    }
+  }
+  return null;
+}
+
 /**
- * Push the given changed asset keys to the working theme — resilient by design:
- *  - JSON theme files are validated locally first (a malformed section/template/
- *    config is caught without wasting an API call), and
- *  - each file is pushed independently, so one bad file doesn't block the rest.
- * Returns which keys applied and which failed (with reasons) so the caller can
- * commit the good ones and keep the bad ones staged for discard/retry.
+ * Push the changed asset keys to the working theme — ATOMIC and dependency-safe:
+ *  - every file's CONTENTS are validated first (JSON + section-group shape +
+ *    {% schema %} + cross-references); if ANY file is invalid we push NOTHING
+ *    and leave everything staged, so the theme is never left half-consistent;
+ *  - valid files are pushed sections/snippets FIRST, then templates/groups, so
+ *    even a mid-flight API failure can't leave a template pointing at a section
+ *    that didn't get pushed.
+ * Returns which keys applied and which failed (with reasons).
  */
 export async function pushWorkspaceChanges(
   ctx: Ctx,
@@ -292,29 +343,42 @@ export async function pushWorkspaceChanges(
   dir: string,
   keys: string[],
 ): Promise<PushResult> {
-  const applied: string[] = [];
+  // 1. Read + validate everything up front.
+  const files: { key: string; value: string }[] = [];
   const failed: { key: string; reason: string }[] = [];
   for (const key of keys) {
-    try {
-      const value = await readFile(path.join(dir, key), "utf8");
-      // Validate JSON theme files (sections/templates/config/locales) up front.
-      if (key.endsWith(".json")) {
-        try {
-          JSON.parse(value);
-        } catch (e) {
-          failed.push({ key, reason: `invalid JSON — ${e instanceof Error ? e.message : "parse error"}` });
-          continue;
-        }
-      }
-      await putAsset(ctx, themeId, key, value);
-      applied.push(key);
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : String(e);
-      console.warn(`[theme] push failed for ${key}: ${reason}`);
-      failed.push({ key, reason });
-    }
+    let value: string;
+    try { value = await readFile(path.join(dir, key), "utf8"); }
+    catch (e) { failed.push({ key, reason: e instanceof Error ? e.message : String(e) }); continue; }
+    const invalid = validateThemeFile(dir, key, value);
+    if (invalid) failed.push({ key, reason: invalid });
+    else files.push({ key, value });
   }
-  return { applied, failed };
+  // All-or-nothing: if anything is invalid/unreadable, push nothing and keep it
+  // all staged for the merchant to discard/retry — never ship a partial change.
+  if (failed.length) {
+    return { applied: [], failed: [...failed, ...files.map((f) => ({ key: f.key, reason: "held back — another file in this change was invalid" }))] };
+  }
+
+  // 2. Push dependencies (sections/snippets) before the templates that use them.
+  const rank = (k: string) => (k.startsWith("sections/") && k.endsWith(".liquid") ? 0 : k.startsWith("snippets/") ? 1 : k.endsWith(".json") ? 3 : 2);
+  files.sort((a, b) => rank(a.key) - rank(b.key));
+
+  const applied: string[] = [];
+  try {
+    for (const f of files) {
+      await putAsset(ctx, themeId, f.key, f.value);
+      applied.push(f.key);
+    }
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    console.warn(`[theme] push failed: ${reason}`);
+    // Whatever didn't apply stays staged. Dependency ordering means anything that
+    // DID apply (sections/snippets) is safe to leave — no template references it yet.
+    const remaining = files.map((f) => f.key).filter((k) => !applied.includes(k));
+    return { applied, failed: remaining.map((k) => ({ key: k, reason })) };
+  }
+  return { applied, failed: [] };
 }
 
 export function previewUrl(shop: string, themeId: number): string {

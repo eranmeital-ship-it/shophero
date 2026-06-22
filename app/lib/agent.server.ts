@@ -188,10 +188,26 @@ function agentRoutes(opts: AgentTurnOpts): AgentRoute[] {
   return routes;
 }
 
-/** Build the SDK subprocess env for a route, isolating provider flags. */
+// Only these env vars reach the agent subprocess. We deliberately do NOT pass the
+// whole process.env — that holds SHOPIFY_API_SECRET, DATABASE_URL, the Anthropic
+// key POOL, the cron + encryption secrets, etc., which a prompt-injected/jailbroken
+// turn could otherwise exfiltrate. Tools run in the parent process and read
+// process.env directly, so scrubbing the child env doesn't break them.
+const AGENT_ENV_ALLOW = new Set([
+  "PATH", "HOME", "SHELL", "TERM", "USER", "LANG", "LC_ALL", "LC_CTYPE", "TZ",
+  "TMPDIR", "TEMP", "TMP", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR",
+  "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
+]);
+
+/** Build the minimal, scrubbed SDK subprocess env for a route. */
 function routeEnv(route: AgentRoute): Record<string, string> {
   const base: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined) base[k] = v;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v === undefined) continue;
+    // Allowlisted OS vars + the Claude Code / Anthropic SDK config it needs.
+    if (AGENT_ENV_ALLOW.has(k) || /^(CLAUDE_CODE_|ANTHROPIC_)/.test(k)) base[k] = v;
+  }
+  delete base.ANTHROPIC_API_KEYS; // never leak the rotation pool — only the one route key
   delete base.CLAUDE_CODE_USE_BEDROCK;
   delete base.CLAUDE_CODE_USE_VERTEX;
   if (route.provider !== "anthropic") delete base.ANTHROPIC_API_KEY; // force the cloud provider
@@ -292,10 +308,12 @@ async function runQuery(
   const proposed: { summary: string }[] = [];
   const delivered: Deliverable[] = [];
 
-  // Bash = shell exec on the server; the biggest attack surface. Allowed by
-  // default (theme tooling uses it), set DRIFT_ALLOW_BASH=false to drop it.
+  // Bash = shell exec on the server (shared, multi-tenant process) — the biggest
+  // attack surface, reachable via prompt injection from store content. OFF by
+  // default; the theme tooling works fine with Read/Write/Edit/Glob/Grep. Opt in
+  // with DRIFT_ALLOW_BASH=true only in an isolated/sandboxed deployment.
   const allowedTools = ["Read", "Write", "Edit", "Glob", "Grep"];
-  if (process.env.DRIFT_ALLOW_BASH !== "false") allowedTools.push("Bash");
+  if (process.env.DRIFT_ALLOW_BASH === "true") allowedTools.push("Bash");
   allowedTools.push(...BRAIN_TOOL_NAMES); // domain brains — always available
   if (opts.shop) allowedTools.push(REMEMBER_TOOL_NAME); // long-term memory
   if (admin) allowedTools.push(SHOPIFY_TOOL_NAME);

@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
+import { enforceSpend } from "../lib/spend-guard.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { decomposeGoal } from "../lib/plan-decompose.server";
 import { getCurrentPlan, createPlan, updatePlanItem, archivePlan } from "../lib/plan.server";
@@ -28,6 +29,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const goal = String(form.get("goal") ?? "").trim();
     if (!goal) return Response.json({ error: "Tell me the goal first." }, { status: 400 });
     const plan = await getActivePlan(admin).catch(() => null);
+    const blocked = await enforceSpend(shop, plan);
+    if (blocked) return blocked;
     const byokKey = plan === "byok" ? (await resolveKey(shop, plan)) ?? undefined : undefined;
     try {
       const { items, costUsd } = await decomposeGoal(admin, goal, byokKey);

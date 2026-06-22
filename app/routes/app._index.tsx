@@ -684,6 +684,10 @@ export default function Index() {
   const [runningPlanItem, setRunningPlanItem] = useState<{ planId: string; itemId: string; estUsd: number; label: string } | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
+  // Abort handle + client-side timeout for the chat stream (prevents a dropped
+  // connection from leaving a permanent "thinking" spinner with no recovery).
+  const chatAbortRef = useRef<AbortController | null>(null);
+  function stopChat() { chatAbortRef.current?.abort(); }
   // Direct content generation (no agent) — descriptions task.
   const contentFetcher = useFetcher<{ drafts?: ContentDraft[]; total?: number; costUsd?: number; applied?: number; failed?: number; error?: string; links?: { title: string; adminUrl: string }[] }>();
   const suggestFetcher = useFetcher<{ topics?: string[] }>();
@@ -2264,8 +2268,13 @@ export default function Index() {
     fd.set("prompt", prompt);
     if (approve) fd.set("allowMutations", "1");
 
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
+    // Hard client ceiling just above the server's 240s cap, so a dropped socket
+    // (no clean done/error frame) can never strand the UI in a thinking state.
+    const clientTimeout = setTimeout(() => controller.abort(), 280_000);
     try {
-      const res = await fetch("/api/chat", { method: "post", body: fd });
+      const res = await fetch("/api/chat", { method: "post", body: fd, signal: controller.signal });
       if (!res.ok || !res.body) {
         throw new Error((await res.text().catch(() => "")) || `Request failed (${res.status})`);
       }
@@ -2326,11 +2335,14 @@ export default function Index() {
         reportFetcher.submit({}, { method: "post", action: "/api/report" });
       }
     } catch (e) {
+      const aborted = e instanceof DOMException && e.name === "AbortError";
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: `⚠️ ${e instanceof Error ? e.message : String(e)}` },
+        { role: "assistant", text: aborted ? "⏹ Stopped — nothing unapproved was applied to your store." : `⚠️ ${e instanceof Error ? e.message : String(e)}` },
       ]);
     } finally {
+      clearTimeout(clientTimeout);
+      chatAbortRef.current = null;
       setThinking(false);
       setLive({ text: "", tools: [] });
     }
@@ -2537,6 +2549,7 @@ export default function Index() {
                   <div className="sh-loader-bar" />
                   <div className="sh-loader-text">
                     <span className="sh-dot" /> {live.tools.length || live.text ? "Working on your store…" : "Thinking…"}
+                    <button className="sh-stop-btn" onClick={stopChat} title="Stop this task">Stop</button>
                   </div>
                   {live.tools.length > 0 && (
                     <div className="sh-steps">

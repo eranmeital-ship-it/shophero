@@ -286,7 +286,7 @@ async function gatherArticleContext(admin: AdminApiContext): Promise<{ titles: s
 }
 
 /** Suggest the 5 most useful NEW article topics for this store (grounded, no repeats). */
-export async function suggestTopics(admin: AdminApiContext): Promise<string[]> {
+export async function suggestTopics(admin: AdminApiContext): Promise<{ topics: string[]; costUsd: number; model: string }> {
   const { titles, types } = await gatherArticleContext(admin);
   const user = [
     types.length ? `The store sells: ${types.join(", ")}.` : "A Shopify store.",
@@ -302,9 +302,10 @@ export async function suggestTopics(admin: AdminApiContext): Promise<string[]> {
     const b = t.lastIndexOf("]");
     if (a >= 0 && b > a) t = t.slice(a, b + 1);
     const arr = JSON.parse(t) as unknown;
-    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 5) : [];
+    const topics = Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 5) : [];
+    return { topics, costUsd: res.costUsd, model: res.model };
   } catch {
-    return [];
+    return { topics: [], costUsd: 0, model: "" };
   }
 }
 

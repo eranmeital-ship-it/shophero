@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
+import { enforceSpend } from "../lib/spend-guard.server";
 import { generateDescriptions, applyDescriptions, generateSeo, applySeo, generateAlt, applyAlt, generateArticles, publishArticles, suggestTopics, type ContentDraft } from "../lib/content-gen.server";
 
 /**
@@ -19,9 +20,20 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ error: "Unsupported content task" }, { status: 400 });
   }
 
+  // Gate every LLM-spending op behind the spend caps (apply only writes to the store).
+  const plan = await getActivePlan(admin).catch(() => null);
+  if (op === "suggest" || op === "generate") {
+    const blocked = await enforceSpend(session.shop, plan);
+    if (blocked) return blocked;
+  }
+
   // Topic suggestions for the article writer.
   if (op === "suggest") {
-    return Response.json({ topics: await suggestTopics(admin) });
+    const { topics, costUsd, model } = await suggestTopics(admin);
+    if (costUsd > 0) {
+      await db.usageEvent.create({ data: { shop: session.shop, plan, model, kind: "content", costUsd, billedUsd: plan === "managed" ? costUsd * 3 : 0 } }).catch(() => {});
+    }
+    return Response.json({ topics });
   }
 
   if (op === "generate") {
@@ -37,7 +49,6 @@ export async function action({ request }: ActionFunctionArgs) {
       : task === "articles" ? await generateArticles(admin, session.shop, { count: Number(form.get("count") ?? 1) || 1, topic: String(form.get("topic") ?? "") || undefined, notes: genOpts.notes })
       : await generateDescriptions(admin, session.shop, genOpts);
     // Meter the generation cost (billed 3x on managed) for the Usage view.
-    const plan = await getActivePlan(admin).catch(() => null);
     if (costUsd > 0) {
       await db.usageEvent
         .create({ data: { shop: session.shop, plan, kind: "content", costUsd, billedUsd: plan === "managed" ? costUsd * 3 : 0 } })

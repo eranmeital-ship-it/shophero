@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { getActivePlan } from "../lib/billing.server";
+import { enforceSpend } from "../lib/spend-guard.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { generateAeoTargets } from "../lib/aeo-targets.server";
 
@@ -13,6 +14,8 @@ import { generateAeoTargets } from "../lib/aeo-targets.server";
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const plan = await getActivePlan(admin).catch(() => null);
+  const blocked = await enforceSpend(session.shop, plan);
+  if (blocked) return blocked;
   const byokKey = plan === "byok" ? (await resolveKey(session.shop, plan)) ?? undefined : undefined;
 
   try {
