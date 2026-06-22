@@ -352,11 +352,12 @@ Respond with ONLY JSON, no prose, no code fences: {"emails":[{"subject":"…","p
 }
 
 const ARTICLE_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent. Use <h2>/<h3>/<ul>/<p> and end with a soft CTA; suggest internal links to relevant products/collections inline.
+The store renders the article TITLE automatically above the body, so do NOT repeat the title as a heading in the body — start the body with the opening paragraph.
 Respond in EXACTLY this format and nothing else (no JSON, no code fences):
 TITLE: <the article title, one line>
 META: <meta description, ≤155 chars, one line>
 BODY:
-<the full article as valid HTML — multiple lines are fine>
+<the full article as valid HTML — multiple lines are fine, NO title heading>
 Never invent statistics.`;
 
 export async function generateArticles(
@@ -400,6 +401,10 @@ export async function generateArticles(
         } catch { /* fall through */ }
       }
       if (!title || !body) continue;
+      // Defensively drop a leading heading that just repeats the title — the theme
+      // renders the title itself, so otherwise it shows twice.
+      const norm = (s: string) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+      body = body.replace(/^\s*<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>\s*/i, (m, inner: string) => (norm(inner) === norm(title!) ? "" : m));
       used.push(title);
       drafts.push({ id: `article-${i}`, title, before: opts.topic || "new article", after: cleanHtml(body), metaDescription: String(metaDescription ?? "").slice(0, 160) });
     } catch {
