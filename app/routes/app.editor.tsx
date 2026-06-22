@@ -645,6 +645,55 @@ const ISSUES: Issue[] = [
 
 const impactClass = (i: string) => (i === "high" ? "sh-impact-high" : i === "med" ? "sh-impact-med" : "sh-impact-low");
 
+// The hero feature launcher — plain-word, benefit-led tiles wired to real flows.
+const FEATURE_TILES: { key: string; cat: string; emoji: string; label: string; sub: string; task: string }[] = [
+  { key: "improve", cat: "Store-wide", emoji: "✨", label: "Improve My Store", sub: "Find and fix what's costing you sales", task: "store-manager" },
+  { key: "product", cat: "Products", emoji: "🛍️", label: "Boost a Product", sub: "Upgrade any product page to sell more", task: "build-pdp" },
+  { key: "redesign", cat: "Design", emoji: "🎨", label: "Redesign a Page", sub: "Transform any page in seconds", task: "redesign-hero" },
+  { key: "descriptions", cat: "Copy", emoji: "✍️", label: "Make Products Irresistible", sub: "High-converting descriptions & copy", task: "bulk-descriptions" },
+  { key: "blog", cat: "Content", emoji: "📝", label: "Publish a Blog Post", sub: "SEO content ready in minutes", task: "write-content" },
+  { key: "google", cat: "Google", emoji: "🔍", label: "Rank Higher on Google", sub: "Fix SEO and attract more buyers", task: "seo-genius" },
+  { key: "ai", cat: "AI Search", emoji: "🤖", label: "Get Recommended by AI", sub: "Show up in ChatGPT, Claude & AI search", task: "structured-data" },
+  { key: "sales", cat: "Conversion", emoji: "📈", label: "Increase Conversions", sub: "Turn more visitors into customers", task: "cro-boost" },
+  { key: "trust", cat: "Trust", emoji: "🛡️", label: "Build Customer Trust", sub: "Add trust signals that boost sales", task: "trust-builder" },
+  { key: "faq", cat: "FAQ", emoji: "❓", label: "Answer Customer Questions", sub: "Create FAQs that remove objections", task: "faq" },
+  { key: "images", cat: "Images", emoji: "🖼️", label: "Find Better Product Images", sub: "Discover visuals that help products sell", task: "stock-images" },
+  { key: "speed", cat: "Speed", emoji: "⚡", label: "Speed Up My Store", sub: "Faster pages, better conversions", task: "speed-boost" },
+];
+
+const HEADLINES = [
+  "What do you want to create?",
+  "Let's grow your store today.",
+  "What should we improve first?",
+  "Tell me a goal — I'll build the plan.",
+  "Ready to convert more visitors?",
+  "Let's get you recommended by AI.",
+  "Describe it. I'll handle the rest.",
+  "What can I build for you?",
+];
+
+/** Self-contained typewriter headline (kept out of the big component body). */
+function TypedHeadline() {
+  const [i, setI] = useState(0);
+  const [txt, setTxt] = useState("");
+  const [phase, setPhase] = useState<"type" | "hold" | "erase">("type");
+  useEffect(() => {
+    const full = HEADLINES[i];
+    let to: ReturnType<typeof setTimeout>;
+    if (phase === "type") {
+      if (txt.length < full.length) to = setTimeout(() => setTxt(full.slice(0, txt.length + 1)), 42);
+      else to = setTimeout(() => setPhase("hold"), 1600);
+    } else if (phase === "hold") {
+      to = setTimeout(() => setPhase("erase"), 1400);
+    } else {
+      if (txt.length > 0) to = setTimeout(() => setTxt(full.slice(0, txt.length - 1)), 22);
+      else { setPhase("type"); setI((n) => (n + 1) % HEADLINES.length); }
+    }
+    return () => clearTimeout(to);
+  }, [txt, phase, i]);
+  return <h2 className="sh-e4-type">{txt}<span className="sh-e4-caret" /></h2>;
+}
+
 export default function Index() {
   const { shop, previews, activePlan, recommendations, report: initialReport, revenueAnnual, plan: initialPlan, themeError, preparing, themeInfo, usageThisCycle } = useLoaderData<typeof loader>();
 
@@ -1268,6 +1317,11 @@ export default function Index() {
     setTaskSearch("");
     setActiveTask(t);
     if (t.fields.some((f) => f.type === "product") && !productsFetcher.data) productsFetcher.load("/api/products");
+  }
+  // Hero tile → the right real flow (faq is a section insert; rest are tasks).
+  function launchFeature(task: string) {
+    if (task === "faq") { openTask("add-section"); setSectionKey("sh-faq"); setSectionVariant("bordered"); return; }
+    openTask(task);
   }
   const setField = (key: string, value: unknown) => setTaskValues((v) => ({ ...v, [key]: value }));
   const toggleMulti = (key: string, opt: string) =>
@@ -2497,52 +2551,39 @@ export default function Index() {
         {/* ===================== EDIT MODE ===================== */}
         {mode === "edit" && (
           <>
-            <div className="sh-quick" data-tour="tools">
-              {QUICK_ACTIONS.map((a) => (
-                <button
-                  key={a.label}
-                  className={`sh-chip${a.genius ? " sh-genius" : ""}`}
-                  onClick={() => openTask(a.taskId)}
-                  title={a.label}
-                >
-                  <span className="sh-chip-emoji">{a.emoji}</span>
-                  {a.label}
-                </button>
-              ))}
-            </div>
+            {messages.length > 0 && (
+              <div className="sh-quick" data-tour="tools">
+                {QUICK_ACTIONS.map((a) => (
+                  <button
+                    key={a.label}
+                    className={`sh-chip${a.genius ? " sh-genius" : ""}`}
+                    onClick={() => openTask(a.taskId)}
+                    title={a.label}
+                  >
+                    <span className="sh-chip-emoji">{a.emoji}</span>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div ref={scroller} className="sh-transcript" data-tour="plan">
               {messages.length === 0 && !thinking && (
-                recs.length > 0 ? (
-                  <div className="sh-plan">
-                    <div className="sh-plan-head">
-                      <h2>⚡ Your growth plan</h2>
-                      <p>Your biggest wins, ranked by impact and ready to ship — pulled from a scan of your store and millions of high-converting ones. Tap one to fix it in a click, or ask for anything.</p>
-                    </div>
-                    {recs.map((r) => (
-                      <div key={r.title} className="sh-plan-card">
-                        <div className="sh-plan-top">
-                          <span className="sh-issue-area">{r.area}</span>
-                          <span className={`sh-impact ${impactClass(r.impact)}`}>{r.impact}</span>
-                        </div>
-                        <div className="sh-issue-title" style={{ marginTop: 6 }}>{r.title}</div>
-                        <div className="sh-issue-desc">{r.desc}</div>
-                        <button className="sh-issue-fix" disabled={thinking} onClick={() => fixIssue(r.prompt)}>
-                          Start →
-                        </button>
-                      </div>
+                /* Hero launcher — benefit tiles wired to the real flows. */
+                <div className="sh-e4-empty" style={{ padding: "10px 4px 8px" }}>
+                  <div className="sh-e4-logo"><span className="sh-e4-logo-mark">◆</span> ShopHero</div>
+                  <TypedHeadline />
+                  <p style={{ marginBottom: 20 }}>Pick what you want to do — or just ask below.</p>
+                  <div className="sh-e4-tiles">
+                    {FEATURE_TILES.map((f) => (
+                      <button key={f.key} className="sh-e4-tile" disabled={thinking} onClick={() => launchFeature(f.task)}>
+                        <span className="sh-e4-tile-cat">{f.cat}</span>
+                        <span className="sh-e4-tile-title"><span className="sh-e4-tile-emoji">{f.emoji}</span> {f.label}</span>
+                        <span className="sh-e4-tile-sub">{f.sub}</span>
+                      </button>
                     ))}
                   </div>
-                ) : (
-                  <div className="sh-empty">
-                    <h2>What should we build today?</h2>
-                    <p>
-                      Ask for anything across your store — theme, products, collections,
-                      pages, blogs, SEO — or tap a shortcut above. Switch to{" "}
-                      <strong>Optimize</strong> for ranked, one-tap improvements.
-                    </p>
-                  </div>
-                )
+                </div>
               )}
 
               {messages.map((m, i) => (
