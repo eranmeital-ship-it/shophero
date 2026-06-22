@@ -750,6 +750,9 @@ export default function Index() {
   const [pending, setPending] = useState<string[]>([]);
   // The plan item currently being executed — auto-marked shipped when its change is accepted/applied.
   const [runningPlanItem, setRunningPlanItem] = useState<{ planId: string; itemId: string; estUsd: number; label: string } | null>(null);
+  // Which plan host panel ("feature-flow" | "store-manager") to return to after a
+  // content step finishes in its own task panel — so Run loops back to the playbook.
+  const [planHost, setPlanHost] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   // Abort handle + client-side timeout for the chat stream (prevents a dropped
@@ -1501,7 +1504,11 @@ export default function Index() {
   // (stage a change); content/agent steps open their focused task. Arms auto-ship.
   function runPlanItem(item: PlanItem) {
     if (blockedByChange()) return; // resolve any pending change before starting a new step
-    const arm = () => actionPlan && setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
+    const arm = () => {
+      if (!actionPlan) return;
+      setRunningPlanItem({ planId: actionPlan.id, itemId: item.id, estUsd: item.estUsd, label: PLAN_ROUTE_MAP[item.route]?.label ?? item.title });
+      setPlanHost(activeTask?.id ?? null); // remember the playbook panel to return to
+    };
     switch (item.route) {
       case "schema": arm(); addStructuredData(); break;
       case "section-faq": arm(); insertSectionStep("sh-faq", targetFor(item)); break;
@@ -1655,7 +1662,6 @@ export default function Index() {
       setContentCost(d.costUsd ?? 0);
     } else if (typeof d.applied === "number") {
       setContentDrafts(null);
-      setActiveTask(null);
       const articles = !!d.links;
       const deliverables = (d.links ?? []).map((l) => ({ type: "article", title: l.title, adminUrl: l.adminUrl }));
       setMessages((m) => [...m, {
@@ -1663,11 +1669,26 @@ export default function Index() {
         text: `✓ ${articles ? "Published" : "Applied"} ${d.applied} ${articles ? "blog article" : "update"}${d.applied === 1 ? "" : "s"}${d.failed ? ` · ${d.failed} failed` : ""}.`,
         deliverables: deliverables.length ? deliverables : undefined,
       }]);
+      // If this ran from a playbook, loop back to it (with the step now checked)
+      // instead of dropping the merchant into the chat view.
+      const host = runningPlanItem ? planHost : null;
       shipRunningItem(); // content was applied/published → mark its plan item shipped
       reportFetcher.submit({}, { method: "post", action: "/api/report" }); // re-score
+      if (host && TASKS[host]) { setPlanHost(null); setActiveTask(TASKS[host]); }
+      else setActiveTask(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentFetcher.state, contentFetcher.data]);
+
+  // Leaving a content panel without finishing → release the plan arm and return
+  // to the playbook if we launched from one (otherwise just close to chat).
+  function exitContentTask() {
+    const host = runningPlanItem ? planHost : null;
+    setRunningPlanItem(null);
+    setPlanHost(null);
+    setContentDrafts(null);
+    setActiveTask(host && TASKS[host] ? TASKS[host] : null);
+  }
 
   function runTask() {
     if (!activeTask || !taskReady() || thinking) return;
@@ -2223,7 +2244,7 @@ export default function Index() {
             planBusyState && !plan ? (
               <div className="sh-opt-loading"><div className="sh-spinner" /> Analyzing your store &amp; building your plan…</div>
             ) : plan ? (
-              <div className="sh-flow-wrap">
+              <div className="sh-flow-wrap sh-flow-plan">
                 <div className="sh-flow-planhead">
                   <div className="sh-flow-plantitle">Your plan · {f.title}</div>
                   {t && <div className="sh-flow-plansub">{t.done}/{t.total} done · run them one at a time</div>}
@@ -2502,7 +2523,7 @@ export default function Index() {
             <div className="sh-task-title">{META.title}</div>
             <div className="sh-task-desc">{META.desc}</div>
           </div>
-          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+          <button className="sh-icon-btn" onClick={exitContentTask}>✕</button>
         </div>
 
         <div className="sh-task-body">
@@ -2581,7 +2602,7 @@ export default function Index() {
               <span className="sh-task-est-note">Direct generation — billed only for what's used. Live changes need your approval.</span>
             </div>
             <div className="sh-task-foot">
-              <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Cancel</button>
+              <button className="sh-btn sh-btn-ghost" onClick={exitContentTask}>Cancel</button>
               <button className="sh-btn sh-btn-primary" disabled={contentBusy} onClick={genContent}>{contentBusy ? "Writing…" : META.btn}</button>
             </div>
           </>

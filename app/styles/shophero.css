@@ -1147,11 +1147,11 @@
   display: flex; gap: 11px; padding: 12px 13px; border-radius: 13px; border: 1px solid var(--sh-line);
   background: linear-gradient(180deg, #fff, #f7f9fc); box-shadow: var(--sh-shadow-sm); transition: opacity 0.2s ease;
 }
-.sh-plan-item.is-done { opacity: 0.62; }
-.sh-plan-item.is-skipped { opacity: 0.48; }
-.sh-plan-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--sh-ink-faint); }
+.sh-plan-item.is-done { opacity: 0.92; border-color: #bfe6c8; background: linear-gradient(180deg, #f6fdf8, #edf9f1); }
+.sh-plan-item.is-skipped { opacity: 0.5; }
+.sh-plan-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--sh-ink-faint); }
 .sh-plan-item.is-todo .sh-plan-num { background: var(--sh-accent); }
-.sh-plan-item.is-done .sh-plan-num { background: #16a34a; }
+.sh-plan-item.is-done .sh-plan-num { background: #16a34a; font-size: 14px; box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
 .sh-plan-main { flex: 1; min-width: 0; }
 .sh-plan-itop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sh-plan-ititle { font-size: 13.5px; font-weight: 650; color: var(--sh-ink); }
@@ -1660,6 +1660,7 @@
 /* Guided feature flow (tile → intro → questions → plan) */
 /* Guided feature flow — centered, boxed, content-rich */
 .sh-flow-wrap { max-width: 600px; margin: 0 auto; padding: 8px 4px 6px; width: 100%; }
+.sh-flow-wrap.sh-flow-plan { max-width: 880px; }
 .sh-flow-intro { text-align: center; padding: 14px 8px 4px; }
 .sh-flow-emoji { font-size: 44px; line-height: 1; }
 .sh-flow-intro h2 { font-size: 25px; font-weight: 760; letter-spacing: -0.02em; margin: 12px 0 6px; }
