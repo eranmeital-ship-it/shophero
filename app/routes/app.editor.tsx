@@ -2013,11 +2013,14 @@ export default function Index() {
         <div className="sh-task-head">
           <div>
             <div className="sh-task-title">🏷️ Email campaign kit</div>
-            <div className="sh-task-desc">ShopHero writes the series and builds the on-store pieces it can — an email-capture signup section and a first-order discount. Sending happens in your email tool (Klaviyo, Shopify Email…); we hand you paste-ready copy.</div>
+            <div className="sh-task-desc">ShopHero plans, writes and captures — you send.</div>
           </div>
           <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
         </div>
         <div className="sh-task-body">
+          <div className="sh-callout">
+            <strong>ℹ️ Heads up:</strong> Shopify doesn&apos;t allow apps to send email through its Admin API, so no app (including ShopHero) can send campaigns for you. ShopHero <strong>plans the series, writes the copy, and builds the on-store pieces</strong> (an email-capture signup form + a discount). You do the actual <strong>send</strong> in your email tool — Shopify Email, Klaviyo, Omnisend — by pasting the copy in.
+          </div>
           {campaignFetcher.data?.error && <div className="sh-err">{campaignFetcher.data.error}</div>}
           {!emails ? (
             <>

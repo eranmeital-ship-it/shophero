@@ -1643,6 +1643,8 @@
 }
 .sh-newfeat:hover { transform: translateY(-1px); border-color: rgba(132, 204, 22, 0.6); }
 
+.sh-callout { font-size: 12.5px; line-height: 1.5; color: var(--sh-ink); padding: 11px 14px; border-radius: 12px; background: rgba(10, 132, 255, 0.06); border: 1px solid rgba(10, 132, 255, 0.2); }
+
 /* Email campaign kit */
 .sh-camp-emails { display: flex; flex-direction: column; gap: 9px; }
 .sh-camp-email {
