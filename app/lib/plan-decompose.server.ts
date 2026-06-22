@@ -11,16 +11,21 @@ import { PLAN_ROUTES, PLAN_ROUTE_MAP, type PlanItem } from "./plan-routes";
  * always executable, instead of one long pricey agent run.
  */
 
-const ROUTE_LINES = PLAN_ROUTES.map((r) => `- ${r.key} (${r.engine}, ~$${r.estUsd.toFixed(2)}): ${r.hint}`).join("\n");
+// Routes a plan STEP may use. Exclude the meta "tools" (aeo-audit, aeo-targets):
+// they open their own multi-step optimizers, so as a checklist step "Run" would
+// teleport the merchant out of their plan. Steps must be concrete build actions.
+const STEP_ROUTES = PLAN_ROUTES.filter((r) => r.key !== "aeo-audit" && r.key !== "aeo-targets");
+const ROUTE_LINES = STEP_ROUTES.map((r) => `- ${r.key} (${r.engine}, ~$${r.estUsd.toFixed(2)}): ${r.hint}`).join("\n");
 
 const SYSTEM = `You are a Shopify growth strategist. Break the merchant's GOAL into an ORDERED checklist of small, single-purpose subtasks they can run one at a time.
 
 Rules:
 - Choose EXACTLY ONE route per subtask, from this catalog (use the route KEY verbatim):
 ${ROUTE_LINES}
+- EVERY step must be a CONCRETE BUILD action that changes the store — install, add, write, create, redesign, optimize. NEVER produce an "audit", "analyze", "review", "score", "check" or "identify gaps" step: the analysis is already done, the checklist IS the result. The first step should already be building something.
 - Prefer the CHEAPEST correct route. Use "free" deterministic routes whenever they cover the need, then the cheap "direct" routes. Only use "agent" for genuinely open-ended design/structural work no other route covers — never for things a direct/free route already does.
 - Split bulk work into batches the engines can actually handle (e.g. product descriptions run ~20 at a time → if the store is large, add a couple of batches, not one giant step).
-- Keep it to 4–9 well-sequenced subtasks. Foundation/quick wins first.
+- Keep it to 4–9 well-sequenced subtasks, each directly serving the goal. Foundation/quick wins first.
 - For each subtask write a "prompt": for "agent" a concrete agent instruction; for content routes (descriptions/seo/alt/articles) the scope (e.g. "products missing descriptions"); for section routes the section to add; for "free" routes a short note. Keep prompts to one sentence.
 
 Respond with ONLY JSON, no prose, no code fences:
@@ -69,7 +74,10 @@ export async function decomposeGoal(
   const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
   const items: PlanItem[] = rawItems
     .map((it) => {
-      const route = PLAN_ROUTE_MAP[String(it.route ?? "")] ? String(it.route) : "agent";
+      let route = PLAN_ROUTE_MAP[String(it.route ?? "")] ? String(it.route) : "agent";
+      // Safety: the meta "tools" are never plan steps (they'd teleport out of the
+      // plan). Remap a stray pick to the concrete build it implies.
+      if (route === "aeo-audit" || route === "aeo-targets") route = "schema";
       const meta = PLAN_ROUTE_MAP[route];
       return {
         id: nextId(),
