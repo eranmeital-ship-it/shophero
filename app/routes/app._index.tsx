@@ -279,6 +279,7 @@ const QUICK_ACTIONS: { emoji: string; label: string; genius?: boolean; taskId: s
   { emoji: "🎨", label: "Redesign Hero", taskId: "redesign-hero" },
   { emoji: "🧩", label: "Add Section", taskId: "add-section" },
   { emoji: "🧠", label: "AEO Brain", genius: true, taskId: "structured-data" },
+  { emoji: "🖼️", label: "Stock Images", taskId: "stock-images" },
 ];
 
 // Rough BILLED cost + time estimate per task, shown before running so nothing is a
@@ -398,6 +399,15 @@ const TASKS: Record<string, TaskConfig> = {
     title: "Structured Data (AEO)",
     desc: "Add JSON-LD so Google and AI agents can read your store.",
     areas: ["SEO"],
+    fields: [],
+    build: () => "",
+  },
+  "stock-images": {
+    id: "stock-images",
+    emoji: "🖼️",
+    title: "Stock Images",
+    desc: "Search license-clean photos and add them to your Shopify Files.",
+    areas: [],
     fields: [],
     build: () => "",
   },
@@ -1367,6 +1377,34 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionFetcher.state, sectionFetcher.data]);
 
+  // Stock images — search a connected provider + import to Shopify Files.
+  interface StockImg { id: string; thumb: string; full: string; alt: string; photographer: string; photographerUrl: string; downloadLocation?: string }
+  const stockSearchFetcher = useFetcher<{ images?: StockImg[]; provider?: string; error?: string }>();
+  const stockImportFetcher = useFetcher<{ ok?: boolean; id?: string; error?: string }>();
+  const [stockQuery, setStockQuery] = useState("");
+  const [stockImported, setStockImported] = useState<Set<string>>(new Set());
+  const [stockImporting, setStockImporting] = useState<string | null>(null);
+  const stockSearching = stockSearchFetcher.state !== "idle";
+  function searchStockImages() {
+    const q = stockQuery.trim();
+    if (!q) return;
+    stockSearchFetcher.submit({ op: "search", q }, { method: "post", action: "/api/stock-images" });
+  }
+  function importStockImage(img: StockImg) {
+    setStockImporting(img.id);
+    stockImportFetcher.submit(
+      { op: "import", full: img.full, alt: img.alt, downloadLocation: img.downloadLocation ?? "" },
+      { method: "post", action: "/api/stock-images" },
+    );
+  }
+  useEffect(() => {
+    if (stockImportFetcher.state !== "idle" || !stockImportFetcher.data) return;
+    const id = stockImporting;
+    setStockImporting(null);
+    if (stockImportFetcher.data.ok && id) setStockImported((s) => new Set([...s, id]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockImportFetcher.state, stockImportFetcher.data]);
+
   // PDP blueprints — apply a best-practice product-page section stack in one pass.
   const pdpFetcher = useFetcher<{ ok?: boolean; error?: string; files?: string[] }>();
   const pdpBusy = pdpFetcher.state !== "idle";
@@ -1785,6 +1823,71 @@ export default function Index() {
     );
   }
 
+  function renderStockTask() {
+    const data = stockSearchFetcher.data;
+    const images = data?.images ?? [];
+    const noKey = data?.error?.includes("Settings");
+    return (
+      <div className="sh-task">
+        <div className="sh-task-head">
+          <div>
+            <div className="sh-task-title">🖼️ Stock Images</div>
+            <div className="sh-task-desc">Search license-clean photos and add them straight to your Shopify Files — then use them in the theme editor, sections or product media.</div>
+          </div>
+          <button className="sh-icon-btn" onClick={() => setActiveTask(null)}>✕</button>
+        </div>
+        <div className="sh-task-body">
+          {noKey ? (
+            <div className="sh-empty" style={{ textAlign: "center", padding: "20px 0" }}>
+              <p>Connect a free stock-photo account first.</p>
+              <button className="sh-btn sh-btn-primary" style={{ marginTop: 10 }} onClick={() => navigate("/app/settings")}>Open Settings →</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input className="sh-ob-input" style={{ flex: 1 }} placeholder="Search photos — e.g. minimalist desk, coffee, skincare"
+                  value={stockQuery} onChange={(e) => setStockQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") searchStockImages(); }} />
+                <button className="sh-btn sh-btn-primary" disabled={stockSearching || !stockQuery.trim()} onClick={searchStockImages}>{stockSearching ? "Searching…" : "Search"}</button>
+              </div>
+              {data?.error && !noKey && <div className="sh-err">{data.error}</div>}
+              {stockImportFetcher.data?.error && <div className="sh-err">{stockImportFetcher.data.error}</div>}
+              {images.length > 0 && (
+                <>
+                  <div className="sh-stock-grid">
+                    {images.map((img) => {
+                      const done = stockImported.has(img.id);
+                      const busy = stockImporting === img.id;
+                      return (
+                        <div key={img.id} className="sh-stock-cell">
+                          <img src={img.thumb} alt={img.alt} loading="lazy" />
+                          <div className="sh-stock-overlay">
+                            <button className="sh-stock-add" disabled={busy || done} onClick={() => importStockImage(img)}>
+                              {done ? "✓ In Files" : busy ? "Adding…" : "Add to Files"}
+                            </button>
+                            {img.photographer && <a className="sh-stock-cred" href={img.photographerUrl} target="_blank" rel="noopener noreferrer">{img.photographer}</a>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="sh-task-desc">Imported photos appear under <strong>Content → Files</strong> in Shopify and in the theme editor&apos;s image pickers. Credit the photographer where shown ({data?.provider === "unsplash" ? "Unsplash" : "Pexels"} license).</div>
+                </>
+              )}
+              {data && images.length === 0 && !data.error && <div className="sh-empty">No photos found — try a different search.</div>}
+            </>
+          )}
+        </div>
+        <div className="sh-task-est">
+          <span>Est. cost <strong>$0.00</strong></span>
+          <span className="sh-task-est-note">Free via your connected provider. Importing copies the photo into your Shopify Files.</span>
+        </div>
+        <div className="sh-task-foot">
+          <button className="sh-btn sh-btn-ghost" onClick={() => setActiveTask(null)}>Close</button>
+        </div>
+      </div>
+    );
+  }
+
   function renderPdpTask() {
     const bp = PDP_BLUEPRINT_MAP[pdpBlueprint];
     return (
@@ -2021,6 +2124,7 @@ export default function Index() {
     if (activeTask.id === "add-section") return renderSectionTask();
     if (activeTask.id === "structured-data") return renderSchemaTask();
     if (activeTask.id === "build-pdp") return renderPdpTask();
+    if (activeTask.id === "stock-images") return renderStockTask();
     const products = productsFetcher.data?.products ?? [];
     const loadingProducts = productsFetcher.state !== "idle" && !productsFetcher.data;
     const q = taskSearch.toLowerCase();

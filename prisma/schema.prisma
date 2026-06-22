@@ -35,6 +35,8 @@ model Session {
   plan            String?
   anthropicApiKey String?
   themeToken      String?  // encrypted custom-app token for theme writes on this shop
+  stockKey        String?  // encrypted Pexels/Unsplash API key for stock images
+  stockProvider   String?  // "pexels" | "unsplash"
 }
 
 // One row per agent turn — powers usage, cost, and revenue reporting.

@@ -4,6 +4,7 @@ import { authenticate } from "../shopify.server";
 import { getActivePlan } from "../lib/billing.server";
 import { encrypt, isValidAnthropicKey, isValidThemeToken } from "../lib/crypto.server";
 import { clearThemeTokenCache } from "../lib/theme.server";
+import { isLikelyStockKey } from "../lib/stock-images.server";
 import db from "../db.server";
 import "../styles/shophero.css";
 
@@ -11,7 +12,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const activePlan = await getActivePlan(admin);
   const record = await db.session.findFirst({ where: { shop: session.shop } });
-  return { activePlan, hasKey: !!record?.anthropicApiKey, hasThemeToken: !!record?.themeToken, shop: session.shop };
+  return { activePlan, hasKey: !!record?.anthropicApiKey, hasThemeToken: !!record?.themeToken, hasStockKey: !!record?.stockKey, stockProvider: record?.stockProvider ?? "pexels", shop: session.shop };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -67,16 +68,42 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ success: true });
   }
 
+  if (intent === "saveStock") {
+    const provider = String(form.get("stockProvider") ?? "pexels");
+    const rawKey = String(form.get("stockKey") ?? "").trim();
+    if (provider !== "pexels" && provider !== "unsplash") {
+      return Response.json({ error: "Pick Pexels or Unsplash." }, { status: 400 });
+    }
+    if (!isLikelyStockKey(provider, rawKey)) {
+      return Response.json({ error: `That doesn't look like a ${provider === "pexels" ? "Pexels" : "Unsplash"} key.` }, { status: 400 });
+    }
+    await db.session.updateMany({
+      where: { shop: session.shop },
+      data: { stockKey: encrypt(rawKey), stockProvider: provider },
+    });
+    return Response.json({ success: true });
+  }
+
+  if (intent === "removeStock") {
+    await db.session.updateMany({
+      where: { shop: session.shop },
+      data: { stockKey: null, stockProvider: null },
+    });
+    return Response.json({ success: true });
+  }
+
   return Response.json({ error: "Unknown intent" }, { status: 400 });
 }
 
 export default function Settings() {
-  const { activePlan, hasKey, hasThemeToken } = useLoaderData<typeof loader>();
+  const { activePlan, hasKey, hasThemeToken, hasStockKey, stockProvider } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<{ error?: string; success?: boolean }>();
   const themeFetcher = useFetcher<{ error?: string; success?: boolean }>();
+  const stockFetcher = useFetcher<{ error?: string; success?: boolean }>();
   const navigate = useNavigate();
   const saving = fetcher.state !== "idle";
   const savingTheme = themeFetcher.state !== "idle";
+  const savingStock = stockFetcher.state !== "idle";
 
   return (
     <div className="sh-docbg">
@@ -140,6 +167,48 @@ export default function Settings() {
                 </button>
               </div>
             </themeFetcher.Form>
+          )}
+        </div>
+
+        <div className="sh-card">
+          <h3><span className="sh-card-emoji">🖼️</span> Stock images</h3>
+          {hasStockKey ? (
+            <div>
+              <p style={{ marginBottom: 12 }}>Connected to <strong>{stockProvider === "unsplash" ? "Unsplash" : "Pexels"}</strong>. Search license-clean photos and add them to your Files from the editor&apos;s Stock Images tool.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <span className="sh-keymask">••••••••••••••••</span>
+                <stockFetcher.Form method="post" style={{ display: "inline" }}>
+                  <input type="hidden" name="intent" value="removeStock" />
+                  <button className="sh-btn" style={{ background: "linear-gradient(180deg,#fff,#f7eceb)", color: "#c0392b" }} type="submit" disabled={savingStock}>
+                    Disconnect
+                  </button>
+                </stockFetcher.Form>
+              </div>
+            </div>
+          ) : (
+            <stockFetcher.Form method="post" className="sh-field">
+              <input type="hidden" name="intent" value="saveStock" />
+              <p style={{ marginBottom: 10 }}>
+                Connect a free stock-photo account so ShopHero can pull real, license-clean images into your store instead of placeholders.
+              </p>
+              <label className="sh-label" htmlFor="stockProvider">Provider</label>
+              <select id="stockProvider" name="stockProvider" className="sh-text-input" defaultValue={stockProvider}>
+                <option value="pexels">Pexels (free)</option>
+                <option value="unsplash">Unsplash (free)</option>
+              </select>
+              <label className="sh-label" htmlFor="stockKey" style={{ marginTop: 10 }}>API key</label>
+              <input id="stockKey" name="stockKey" type="password" className="sh-text-input" placeholder="Paste your API key" autoComplete="off" required />
+              <p className="sh-hint">
+                <strong>Pexels:</strong> create a free key at pexels.com/api. <strong>Unsplash:</strong> create an app at unsplash.com/developers and copy the Access Key. Encrypted at rest.
+              </p>
+              {stockFetcher.data?.error && <div className="sh-err">{stockFetcher.data.error}</div>}
+              {stockFetcher.data?.success && <div className="sh-ok">Connected. Open the Stock Images tool in the editor to search.</div>}
+              <div>
+                <button className="sh-btn sh-btn-dark" type="submit" disabled={savingStock}>
+                  {savingStock ? "Saving…" : "Connect"}
+                </button>
+              </div>
+            </stockFetcher.Form>
           )}
         </div>
 
