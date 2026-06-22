@@ -12,18 +12,18 @@ import "../styles/shophero.css";
 type Mode = "edit" | "design" | "optimize" | "create";
 
 const FEATURES = [
-  { key: "improve", emoji: "✨", label: "Improve my store" },
-  { key: "product", emoji: "🛍️", label: "Fix a product" },
-  { key: "redesign", emoji: "🎨", label: "Redesign a page" },
-  { key: "descriptions", emoji: "✍️", label: "Write descriptions" },
-  { key: "blog", emoji: "📝", label: "Write a blog" },
-  { key: "google", emoji: "🔍", label: "Get found on Google" },
-  { key: "ai", emoji: "🤖", label: "Get found by AI" },
-  { key: "sales", emoji: "📈", label: "Sell more" },
-  { key: "trust", emoji: "🛡️", label: "Add trust badges" },
-  { key: "faq", emoji: "❓", label: "Add an FAQ" },
-  { key: "images", emoji: "🖼️", label: "Find photos" },
-  { key: "speed", emoji: "⚡", label: "Make it faster" },
+  { key: "improve", cat: "Store-wide", emoji: "✨", label: "Improve My Store", sub: "Find and fix what's costing you sales" },
+  { key: "product", cat: "Products", emoji: "🛍️", label: "Boost a Product", sub: "Upgrade any product page to sell more" },
+  { key: "redesign", cat: "Design", emoji: "🎨", label: "Redesign a Page", sub: "Transform any page in seconds" },
+  { key: "descriptions", cat: "Copy", emoji: "✍️", label: "Make Products Irresistible", sub: "High-converting descriptions & copy" },
+  { key: "blog", cat: "Content", emoji: "📝", label: "Publish a Blog Post", sub: "SEO content ready in minutes" },
+  { key: "google", cat: "Google", emoji: "🔍", label: "Rank Higher on Google", sub: "Fix SEO and attract more buyers" },
+  { key: "ai", cat: "AI Search", emoji: "🤖", label: "Get Recommended by AI", sub: "Show up in ChatGPT, Claude & AI search" },
+  { key: "sales", cat: "Conversion", emoji: "📈", label: "Increase Conversions", sub: "Turn more visitors into customers" },
+  { key: "trust", cat: "Trust", emoji: "🛡️", label: "Build Customer Trust", sub: "Add trust signals that boost sales" },
+  { key: "faq", cat: "FAQ", emoji: "❓", label: "Answer Customer Questions", sub: "Create FAQs that remove objections" },
+  { key: "images", cat: "Images", emoji: "🖼️", label: "Find Better Product Images", sub: "Discover visuals that help products sell" },
+  { key: "speed", cat: "Speed", emoji: "⚡", label: "Speed Up My Store", sub: "Faster pages, better conversions" },
 ];
 
 const HEADLINES = [
@@ -124,8 +124,9 @@ export default function Editor4() {
                   <div className="sh-e4-tiles">
                     {FEATURES.map((f) => (
                       <button key={f.key} className="sh-e4-tile" onClick={() => setFlow(f.key)}>
-                        <span className="sh-e4-tile-emoji">{f.emoji}</span>
-                        <span className="sh-e4-tile-label">{f.label}</span>
+                        <span className="sh-e4-tile-cat">{f.cat}</span>
+                        <span className="sh-e4-tile-title"><span className="sh-e4-tile-emoji">{f.emoji}</span> {f.label}</span>
+                        <span className="sh-e4-tile-sub">{f.sub}</span>
                       </button>
                     ))}
                   </div>
