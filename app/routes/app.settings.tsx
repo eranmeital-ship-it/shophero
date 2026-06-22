@@ -5,13 +5,13 @@ import { getActivePlan } from "../lib/billing.server";
 import { encrypt, isValidAnthropicKey, isValidThemeToken } from "../lib/crypto.server";
 import { clearThemeTokenCache } from "../lib/theme.server";
 import { isLikelyStockKey } from "../lib/stock-images.server";
-import db from "../db.server";
+import { getShopSettings, setShopSettings } from "../lib/shop-settings.server";
 import "../styles/shophero.css";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const activePlan = await getActivePlan(admin);
-  const record = await db.session.findFirst({ where: { shop: session.shop } });
+  const record = await getShopSettings(session.shop);
   return { activePlan, hasKey: !!record?.anthropicApiKey, hasThemeToken: !!record?.themeToken, hasStockKey: !!record?.stockKey, stockProvider: record?.stockProvider ?? "pexels", shop: session.shop };
 }
 
@@ -28,18 +28,12 @@ export async function action({ request }: ActionFunctionArgs) {
         { status: 400 },
       );
     }
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { anthropicApiKey: encrypt(rawKey), plan: "byok" },
-    });
+    await setShopSettings(session.shop, { anthropicApiKey: encrypt(rawKey), plan: "byok" });
     return Response.json({ success: true });
   }
 
   if (intent === "remove") {
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { anthropicApiKey: null },
-    });
+    await setShopSettings(session.shop, { anthropicApiKey: null });
     return Response.json({ success: true });
   }
 
@@ -51,19 +45,13 @@ export async function action({ request }: ActionFunctionArgs) {
         { status: 400 },
       );
     }
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { themeToken: encrypt(rawToken) },
-    });
+    await setShopSettings(session.shop, { themeToken: encrypt(rawToken) });
     clearThemeTokenCache(session.shop);
     return Response.json({ success: true });
   }
 
   if (intent === "removeTheme") {
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { themeToken: null },
-    });
+    await setShopSettings(session.shop, { themeToken: null });
     clearThemeTokenCache(session.shop);
     return Response.json({ success: true });
   }
@@ -77,18 +65,12 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!isLikelyStockKey(provider, rawKey)) {
       return Response.json({ error: `That doesn't look like a ${provider === "pexels" ? "Pexels" : "Unsplash"} key.` }, { status: 400 });
     }
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { stockKey: encrypt(rawKey), stockProvider: provider },
-    });
+    await setShopSettings(session.shop, { stockKey: encrypt(rawKey), stockProvider: provider });
     return Response.json({ success: true });
   }
 
   if (intent === "removeStock") {
-    await db.session.updateMany({
-      where: { shop: session.shop },
-      data: { stockKey: null, stockProvider: null },
-    });
+    await setShopSettings(session.shop, { stockKey: null, stockProvider: null });
     return Response.json({ success: true });
   }
 

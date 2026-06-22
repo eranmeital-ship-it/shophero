@@ -150,6 +150,21 @@ model Job {
   @@index([dedupeKey])
 }
 
+// App-owned settings, keyed by shop and OWNED BY US — deliberately separate from
+// the Shopify-managed Session row, whose lifecycle (uninstall, reauth, token
+// exchange creating fresh rows) would otherwise delete or shadow the merchant's
+// BYOK key / theme token / stock key / plan.
+model ShopSettings {
+  shop            String   @id
+  plan            String?
+  anthropicApiKey String?  // encrypted
+  themeToken      String?  // encrypted
+  stockKey        String?  // encrypted
+  stockProvider   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 // A persistent, routed action plan: a big goal decomposed into small,
 // cheapest-correct-route subtasks the merchant executes one-by-one. Tracks per
 // item status, cost estimate, and what shipped + when. Survives reloads so the

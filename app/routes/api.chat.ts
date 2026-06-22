@@ -42,7 +42,7 @@ export async function action({ request }: ActionFunctionArgs) {
   let apiKey: string | undefined;
 
   if (activePlan === "byok") {
-    const record = await db.session.findFirst({ where: { shop: session.shop } });
+    const record = await db.shopSettings.findUnique({ where: { shop: session.shop } });
     if (!record?.anthropicApiKey) {
       // BYOK plan but no key saved yet
       return Response.json(

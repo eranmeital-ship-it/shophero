@@ -6,6 +6,7 @@ import { AdminNav } from "../components/admin-nav";
 import db from "../db.server";
 import { getBrandKit, getMemory, clearAgentSession } from "../lib/brand.server";
 import { setStatus } from "../lib/content-plan.server";
+import { setShopSettings } from "../lib/shop-settings.server";
 import "../styles/shophero.css";
 
 function jparse<T>(s: string | null | undefined, fb: T): T {
@@ -42,7 +43,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         break;
       case "set-plan": {
         const plan = String(fd.get("plan") || "").trim() || null;
-        await db.session.updateMany({ where: { shop }, data: { plan } });
+        await setShopSettings(shop, { plan });
         break;
       }
       case "add-note": {

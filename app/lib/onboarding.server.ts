@@ -161,7 +161,7 @@ function safeParseRecs(text: string): Recommendation[] {
 
 export async function resolveKey(shop: string, plan: string | null): Promise<string | undefined> {
   if (plan === "byok") {
-    const rec = await db.session.findFirst({ where: { shop } });
+    const rec = await db.shopSettings.findUnique({ where: { shop } });
     return rec?.anthropicApiKey ? decrypt(rec.anthropicApiKey) : undefined;
   }
   return orderedKeys()[0] ?? process.env.ANTHROPIC_API_KEY ?? undefined;

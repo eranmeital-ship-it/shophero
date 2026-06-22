@@ -28,7 +28,7 @@ export interface StockConfig {
 }
 
 export async function getStockConfig(shop: string): Promise<StockConfig | null> {
-  const row = await db.session.findFirst({ where: { shop }, select: { stockKey: true, stockProvider: true } });
+  const row = await db.shopSettings.findUnique({ where: { shop }, select: { stockKey: true, stockProvider: true } });
   if (!row?.stockKey || !row.stockProvider) return null;
   try {
     return { provider: row.stockProvider as StockProvider, key: decrypt(row.stockKey) };

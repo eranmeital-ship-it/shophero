@@ -16,7 +16,7 @@ async function shopThemeToken(shop: string): Promise<string | null> {
   if (cached && Date.now() - cached.at < 30_000) return cached.token;
   let token: string | null = null;
   try {
-    const row = await db.session.findFirst({ where: { shop, themeToken: { not: null } } });
+    const row = await db.shopSettings.findUnique({ where: { shop } });
     token = row?.themeToken ? decrypt(row.themeToken) : null;
   } catch {
     token = null;
