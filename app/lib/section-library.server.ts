@@ -260,6 +260,101 @@ const ABOUT = `{%- style -%}${BASE}
 ],"presets":[{"name":"About / Story"}] }
 {% endschema %}`;
 
+// ── Newsletter ────────────────────────────────────────────────────────────────
+const NEWSLETTER = `{%- style -%}${BASE}
+  .sh-nl{max-width:640px;margin:0 auto;padding:54px 16px;text-align:center}
+  .sh-nl h2{font-size:30px;margin:0 0 8px}
+  .sh-nl p{opacity:.75;margin:0 0 22px}
+  .sh-nl form{display:flex;gap:10px;max-width:460px;margin:0 auto;flex-wrap:wrap}
+  .sh-nl input{flex:1 1 220px;padding:13px 16px;border-radius:10px;border:1px solid rgb(var(--color-foreground,22 24 28)/.25);font-size:15px;background:rgb(var(--color-background,255 255 255));color:inherit}
+  .sh-nl small{display:block;margin-top:12px;opacity:.6;font-size:12px}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-nl">
+  <h2>{{ section.settings.heading }}</h2>
+  {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+  {%- form 'customer' -%}
+    <input type="hidden" name="contact[tags]" value="newsletter">
+    <input type="email" name="contact[email]" placeholder="{{ section.settings.placeholder }}" required>
+    <button type="submit" class="sh-btn">{{ section.settings.btn_label }}</button>
+  {%- endform -%}
+  {%- if section.settings.note != blank -%}<small>{{ section.settings.note }}</small>{%- endif -%}
+</div>
+{% schema %}
+{ "name":"Newsletter","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"Get 10% off your first order"},
+  {"type":"text","id":"text","label":"Subtext","default":"Join our list for exclusive offers and new arrivals."},
+  {"type":"text","id":"placeholder","label":"Input placeholder","default":"Enter your email"},
+  {"type":"text","id":"btn_label","label":"Button label","default":"Subscribe"},
+  {"type":"text","id":"note","label":"Fine print","default":"No spam. Unsubscribe anytime."}
+],"presets":[{"name":"Newsletter"}] }
+{% endschema %}`;
+
+// ── Guarantee ─────────────────────────────────────────────────────────────────
+const GUARANTEE = `{%- style -%}${BASE}
+  .sh-guar{max-width:680px;margin:0 auto;padding:52px 16px;text-align:center}
+  .sh-guar__ic{font-size:48px;line-height:1}
+  .sh-guar h2{font-size:28px;margin:12px 0 8px}
+  .sh-guar p{opacity:.78;line-height:1.65;margin:0}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-guar">
+  <div class="sh-guar__ic">{{ section.settings.icon }}</div>
+  <h2>{{ section.settings.heading }}</h2>
+  <p>{{ section.settings.text }}</p>
+</div>
+{% schema %}
+{ "name":"Guarantee","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"icon","label":"Icon","default":"🛡️"},
+  {"type":"text","id":"heading","label":"Heading","default":"100% satisfaction guarantee"},
+  {"type":"textarea","id":"text","label":"Text","default":"Love it or your money back within 30 days — no questions asked. We stand behind everything we make."}
+],"presets":[{"name":"Guarantee"}] }
+{% endschema %}`;
+
+// ── Stats Bar ─────────────────────────────────────────────────────────────────
+const STATS = `{%- style -%}${BASE}
+  .sh-stats{max-width:1000px;margin:0 auto;padding:46px 16px;display:flex;justify-content:space-around;gap:24px;flex-wrap:wrap;text-align:center}
+  .sh-stats__n{font-size:36px;font-weight:800;color:rgb(var(--color-button,10 132 255))}
+  .sh-stats__l{opacity:.7;font-size:13px;margin-top:2px}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-stats">
+  {%- for i in (1..4) -%}{%- assign n = 'num' | append: i -%}{%- assign l = 'label' | append: i -%}
+    {%- if section.settings[n] != blank -%}<div><div class="sh-stats__n">{{ section.settings[n] }}</div><div class="sh-stats__l">{{ section.settings[l] }}</div></div>{%- endif -%}
+  {%- endfor -%}
+</div>
+{% schema %}
+{ "name":"Stats Bar","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"num1","label":"Number 1","default":"10k+"},{"type":"text","id":"label1","label":"Label 1","default":"Orders shipped"},
+  {"type":"text","id":"num2","label":"Number 2","default":"4.8★"},{"type":"text","id":"label2","label":"Label 2","default":"Average rating"},
+  {"type":"text","id":"num3","label":"Number 3","default":"30-day"},{"type":"text","id":"label3","label":"Label 3","default":"Money-back guarantee"},
+  {"type":"text","id":"num4","label":"Number 4","default":"24/7"},{"type":"text","id":"label4","label":"Label 4","default":"Customer support"}
+],"presets":[{"name":"Stats Bar"}] }
+{% endschema %}`;
+
+// ── Logo Bar ──────────────────────────────────────────────────────────────────
+const LOGOS = `{%- style -%}${BASE}
+  .sh-logos{max-width:1000px;margin:0 auto;padding:38px 16px;text-align:center}
+  .sh-logos h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;opacity:.55;margin:0 0 20px}
+  .sh-logos__row{display:flex;justify-content:center;align-items:center;gap:34px;flex-wrap:wrap}
+  .sh-logos__row img{height:34px;width:auto;object-fit:contain;opacity:.7;filter:grayscale(1)}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-logos">
+  {%- if section.settings.heading != blank -%}<h3>{{ section.settings.heading }}</h3>{%- endif -%}
+  <div class="sh-logos__row">
+    {%- for i in (1..5) -%}{%- assign img = 'logo' | append: i -%}
+      {%- if section.settings[img] != blank -%}<img src="{{ section.settings[img] | image_url: width: 240 }}" alt="logo" loading="lazy">{%- endif -%}
+    {%- endfor -%}
+  </div>
+</div>
+{% schema %}
+{ "name":"Logo Bar","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"As seen in"},
+  {"type":"image_picker","id":"logo1","label":"Logo 1"},{"type":"image_picker","id":"logo2","label":"Logo 2"},{"type":"image_picker","id":"logo3","label":"Logo 3"},{"type":"image_picker","id":"logo4","label":"Logo 4"},{"type":"image_picker","id":"logo5","label":"Logo 5"}
+],"presets":[{"name":"Logo Bar"}] }
+{% endschema %}`;
+
 const baseTrust = { color_scheme: "scheme-1", icon1: "🚚", title1: "Free shipping", text1: "On orders over $50", icon2: "🔒", title2: "Secure checkout", text2: "Encrypted & protected", icon3: "↩️", title3: "Easy returns", text3: "30-day money back", icon4: "⭐", title4: "Loved by customers", text4: "Rated & reviewed" };
 const baseFaq = { color_scheme: "scheme-1", heading: "Frequently asked questions", q1: "How long does shipping take?", a1: "Most orders arrive within 3–7 business days.", q2: "What is your return policy?", a2: "Returns are accepted within 30 days, no questions asked.", q3: "Is checkout secure?", a3: "Yes — payments are encrypted and processed securely by Shopify.", q4: "Do you offer support?", a4: "Absolutely — reach out any time and we'll help.", q5: "", a5: "" };
 const baseFeat = { color_scheme: "scheme-1", heading: "Why choose us", icon1: "🏆", title1: "Premium quality", text1: "Built to last with materials we'd use ourselves.", icon2: "⚡", title2: "Fast delivery", text2: "Quick dispatch and reliable shipping to your door.", icon3: "💬", title3: "Real support", text3: "Friendly help whenever you need it." };
@@ -268,6 +363,10 @@ const baseCmp = { color_scheme: "scheme-1", heading: "Why we're the better choic
 const baseTm = { color_scheme: "scheme-1", heading: "What customers say", quote1: "Exactly what I needed — quality is excellent and shipping was fast.", author1: "Sarah M.", quote2: "Better than I expected. I've already ordered again.", author2: "James T.", quote3: "Great experience start to finish. Highly recommend.", author3: "Priya K." };
 const baseIt = { color_scheme: "scheme-1", reverse: false, heading: "Crafted with care", text: "Tell your story here — what makes your products special and why customers love them.", btn_label: "Learn more", btn_link: "/pages/about" };
 const baseAbout = { color_scheme: "scheme-1", heading: "Our story", body: "<p>Share what your brand stands for, who it's for, and why you started. A genuine story builds trust and turns visitors into customers.</p>", stat1: "10k+", label1: "Happy customers", stat2: "4.8★", label2: "Average rating", stat3: "", label3: "" };
+const baseNl = { color_scheme: "scheme-1", heading: "Get 10% off your first order", text: "Join our list for exclusive offers and new arrivals.", placeholder: "Enter your email", btn_label: "Subscribe", note: "No spam. Unsubscribe anytime." };
+const baseGuar = { color_scheme: "scheme-1", icon: "🛡️", heading: "100% satisfaction guarantee", text: "Love it or your money back within 30 days — no questions asked. We stand behind everything we make." };
+const baseStats = { color_scheme: "scheme-1", num1: "10k+", label1: "Orders shipped", num2: "4.8★", label2: "Average rating", num3: "30-day", label3: "Money-back guarantee", num4: "24/7", label4: "Customer support" };
+const baseLogos = { color_scheme: "scheme-1", heading: "As seen in" };
 
 const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-trust-bar": { liquid: TRUST_BAR, settings: { ...baseTrust, variant: "inline" } },
@@ -278,6 +377,10 @@ const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-testimonials": { liquid: TESTIMONIALS, settings: { ...baseTm, variant: "cards" } },
   "sh-image-text": { liquid: IMAGE_TEXT, settings: baseIt },
   "sh-about": { liquid: ABOUT, settings: baseAbout },
+  "sh-newsletter": { liquid: NEWSLETTER, settings: baseNl },
+  "sh-guarantee": { liquid: GUARANTEE, settings: baseGuar },
+  "sh-stats": { liquid: STATS, settings: baseStats },
+  "sh-logos": { liquid: LOGOS, settings: baseLogos },
 };
 
 /** Insert a library section (optionally a variant) into the chosen template. */

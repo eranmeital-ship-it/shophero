@@ -22,6 +22,10 @@ export const SECTION_LIBRARY: SectionMeta[] = [
   { key: "sh-testimonials", name: "Testimonials", emoji: "💬", category: "Trust", description: "Customer quotes in clean cards to build social proof.", variants: [{ value: "cards", label: "Cards" }, { value: "minimal", label: "Minimal" }] },
   { key: "sh-image-text", name: "Image + Text", emoji: "🖼️", category: "Content", description: "A two-column image-and-text block to tell your story or feature a product." },
   { key: "sh-about", name: "About / Story", emoji: "📖", category: "Content", description: "A brand-story block with a headline, paragraph and key stats." },
+  { key: "sh-newsletter", name: "Newsletter Signup", emoji: "✉️", category: "Marketing", description: "An email-capture form to grow your list (saves subscribers to Shopify)." },
+  { key: "sh-guarantee", name: "Guarantee", emoji: "✅", category: "Trust", description: "A reassuring satisfaction / money-back guarantee callout." },
+  { key: "sh-stats", name: "Stats Bar", emoji: "📈", category: "Trust", description: "Big numbers that build credibility — customers, rating, years in business." },
+  { key: "sh-logos", name: "Logo Bar", emoji: "🏷️", category: "Trust", description: "An \"as seen in\" strip of brand or press logos." },
 ];
 
 // Pages a section can be added to → template file name (Online Store 2.0 JSON).
