@@ -1297,6 +1297,19 @@ export default function Index() {
     if (editMode) win.postMessage({ type: "shophero:enable" }, storefrontOrigin);
   }
 
+  // Open the storefront in a popup in edit mode. Top-level (not framed) so it
+  // bypasses the dev-store password as logged-in staff and isn't blocked by the
+  // storefront's frame rules; the embed posts clicks back to this window (opener).
+  const editPopupRef = useRef<Window | null>(null);
+  function openEditablePreview() {
+    const base = previewSrc || themePreviewUrl();
+    if (!base) return;
+    const sep = base.includes("?") ? "&" : "?";
+    const url = `${base}${sep}shophero_edit=1&shophero_origin=${encodeURIComponent(window.location.origin)}`;
+    editPopupRef.current = window.open(url, "shophero-edit", "width=1200,height=900");
+    editPopupRef.current?.focus();
+  }
+
   function submitEdit() {
     if (!selection || !editText.trim() || thinking) return;
     const s = selection;
@@ -3350,11 +3363,11 @@ export default function Index() {
                 {pageLabel} <span className="sh-pagebtn-caret">▾</span>
               </button>
               <button
-                className={`sh-editbtn${editMode ? " is-active" : ""}`}
-                title="Click-to-edit on page"
-                onClick={() => setEditMode((v) => !v)}
+                className="sh-editbtn"
+                title="Open your storefront in a window and click any element to edit it"
+                onClick={openEditablePreview}
               >
-                ✏️ {editMode ? "Editing" : "Edit on page"}
+                🖱 Click-to-edit ↗
               </button>
               <div className="sh-devices">
                 {(["desktop", "tablet", "mobile"] as const).map((d) => (

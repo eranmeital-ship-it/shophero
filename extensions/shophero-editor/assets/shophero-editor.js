@@ -7,9 +7,19 @@
  * only after an explicit enable message from the parent app).
  */
 (function () {
-  if (window.top === window.self) return; // only inside ShopHero's preview iframe
+  // Two ways ShopHero drives this:
+  //  1) inside its preview IFRAME (talks to window.parent), or
+  //  2) in a POPUP window opened with ?shophero_edit=1 (talks to window.opener) —
+  //     used when the storefront can't be framed (e.g. password-protected dev
+  //     stores, which serve a frame-blocked password page).
+  var params = (function () { try { return new URLSearchParams(location.search); } catch (e) { return null; } })();
+  var popupEdit = !!params && params.get("shophero_edit") === "1";
+  var inFrame = window.top !== window.self;
+  if (!inFrame && !popupEdit) return; // real shopper — do nothing
+  var targetWin = inFrame ? window.parent : window.opener;
+  if (!targetWin) return;
 
-  var parentOrigin = null;
+  var parentOrigin = popupEdit ? (params.get("shophero_origin") || "*") : null;
   var enabled = false;
   var box = null;
   var label = null;
@@ -111,7 +121,7 @@
       text: (el.innerText || el.textContent || "").trim().slice(0, 180),
       html: (el.outerHTML || "").slice(0, 400),
     };
-    if (parentOrigin) window.parent.postMessage(payload, parentOrigin);
+    if (parentOrigin) targetWin.postMessage(payload, parentOrigin);
   }
 
   function enable() {
@@ -134,7 +144,7 @@
     var d = e.data || {};
     if (d.type === "shophero:ping") {
       parentOrigin = e.origin;
-      window.parent.postMessage({ type: "shophero:ready" }, e.origin);
+      targetWin.postMessage({ type: "shophero:ready" }, e.origin);
     } else if (d.type === "shophero:enable") {
       parentOrigin = e.origin;
       enable();
@@ -144,5 +154,22 @@
   });
 
   // Announce readiness so the parent knows the embed is installed & active.
-  try { window.parent.postMessage({ type: "shophero:ready" }, "*"); } catch (err) {}
+  try { targetWin.postMessage({ type: "shophero:ready" }, "*"); } catch (err) {}
+
+  // Popup mode: there's no parent to send an enable message, so turn selection on
+  // ourselves and show a small banner telling the merchant to click an element.
+  if (popupEdit) {
+    var start = function () {
+      enable();
+      var bar = document.createElement("div");
+      bar.textContent = "🖱 ShopHero edit mode — click any element to change it";
+      bar.style.cssText =
+        "position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:2147483647;" +
+        "background:#0a84ff;color:#fff;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
+        "padding:9px 16px;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none;";
+      (document.body || document.documentElement).appendChild(bar);
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+    else start();
+  }
 })();
