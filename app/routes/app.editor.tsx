@@ -3369,8 +3369,8 @@ export default function Index() {
                 ))}
               </div>
             </div>
-            <a className="sh-open-link" href={previewSrc} target="_blank" rel="noreferrer">
-              Open ↗
+            <a className="sh-open-link sh-open-cta" href={previewSrc} target="_blank" rel="noreferrer">
+              Open preview ↗
             </a>
           </div>
           <div className="sh-stage">
@@ -3388,6 +3388,11 @@ export default function Index() {
                 Turn on the <strong>ShopHero Editor</strong> app embed in your theme (Customize → App embeds) to edit on the page.
               </div>
             )}
+            {/* Password-protected or frame-blocked storefronts can't render here —
+                a new tab always works (you view it as logged-in staff). */}
+            <a className="sh-stage-open" href={previewSrc} target="_blank" rel="noreferrer">
+              Blank or password-protected? Open preview in a new tab ↗
+            </a>
           </div>
         </div>
         )}
