@@ -788,6 +788,7 @@ export default function Index() {
   const [approval, setApproval] = useState<{ summary: string }[]>([]);
   const [billing, setBilling] = useState<Billing | null>(null);
   const [thinking, setThinking] = useState(false);
+  const [thinkSecs, setThinkSecs] = useState(0); // live elapsed counter while a task runs
   const [live, setLive] = useState<{ text: string; tools: string[] }>({ text: "", tools: [] });
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [previewSrc, setPreviewSrc] = useState(previews[0]?.items[0]?.url ?? "");
@@ -1270,6 +1271,14 @@ export default function Index() {
     setHistoryOpen(true);
     history.load("/api/versions");
   }
+
+  // Tick a visible elapsed counter while a task runs, so it never feels stuck.
+  useEffect(() => {
+    if (!thinking) { setThinkSecs(0); return; }
+    const started = Date.now();
+    const id = setInterval(() => setThinkSecs(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [thinking]);
 
   // ── Click-to-edit bridge (postMessage to/from the injected storefront script) ──
   // A full edit from the popup window (element + typed instruction) arrives here;
@@ -3183,6 +3192,7 @@ export default function Index() {
                   <div className="sh-loader-bar" />
                   <div className="sh-loader-text">
                     <span className="sh-dot" /> {live.tools.length || live.text ? "Working on your store…" : "Thinking…"}
+                    {thinkSecs > 0 && <span className="sh-think-secs">{thinkSecs}s</span>}
                     <button className="sh-stop-btn" onClick={stopChat} title="Stop this task">Stop</button>
                   </div>
                   {live.tools.length > 0 && (
