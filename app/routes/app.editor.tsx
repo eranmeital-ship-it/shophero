@@ -757,7 +757,7 @@ export default function Index() {
   // auto-apply) rather than opening the content task panel.
   const [autoContent, setAutoContent] = useState<{ itemId: string; type: "descriptions" | "seo" | "alt" | "articles" } | null>(null);
   // A "view what was created" link shown on a shipped step (e.g. a published article).
-  const [planResult, setPlanResult] = useState<{ itemId: string; label: string; url: string } | null>(null);
+  const [planResult, setPlanResult] = useState<{ itemId: string; label: string; url: string; publishUrl?: string } | null>(null);
   // An apply/run error surfaced ON the running playbook step (otherwise it only
   // lands in the chat, which isn't visible while you're in the roadmap).
   const [planError, setPlanError] = useState<string | null>(null);
@@ -819,6 +819,8 @@ export default function Index() {
     const byType = (t: string) => previews.find((g) => g.type === t)?.items[0]?.url;
     return (target && byType(target)) || byType("index") || previewSrc || previews[0]?.items[0]?.url || "";
   }
+  // Shopify admin Themes page — where the merchant publishes the working theme to go live.
+  const themesAdminUrl = () => `https://${shop}/admin/themes`;
   const [activeTask, setActiveTask] = useState<TaskConfig | null>(null);
   const [taskValues, setTaskValues] = useState<TaskValues>({});
   const [taskSearch, setTaskSearch] = useState("");
@@ -933,11 +935,11 @@ export default function Index() {
       setFrameKey((k) => k + 1);
       setPlanError(null);
       const preview = themePreviewUrl(sectionTarget);
-      let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}. Open the preview to see it live on your working theme.`;
+      let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your working theme${d.version ? ` (${d.version})` : ""} — a safe copy, NOT your live store yet. Preview it below. To make it live, publish this theme from Online Store → Themes.`;
       if (d.error) msg += ` ⚠️ ${d.error}`;
-      setMessages((m) => [...m, { role: "assistant", text: msg, deliverables: preview ? [{ type: "preview", title: "Your working theme", adminUrl: "", storeUrl: preview }] : undefined }]);
+      setMessages((m) => [...m, { role: "assistant", text: msg, deliverables: preview ? [{ type: "preview", title: "Working theme (not live)", adminUrl: themesAdminUrl(), storeUrl: preview }] : undefined }]);
       // On the playbook, surface the same preview link on the step that just shipped.
-      if (runningPlanItem && preview) setPlanResult({ itemId: runningPlanItem.itemId, label: "Preview it on your theme", url: preview });
+      if (runningPlanItem && preview) setPlanResult({ itemId: runningPlanItem.itemId, label: "Preview on your working theme", url: preview, publishUrl: themesAdminUrl() });
       shipRunningItem(); // a staged change was accepted → mark its plan item shipped
     } else if (d.error || d.message !== "Nothing to apply") {
       // Nothing applied — keep the change staged so the merchant can discard/retry.
@@ -1826,7 +1828,12 @@ export default function Index() {
             <div className="sh-plan-shipped">✓ Shipped {fmtPlanDate(item.shippedAt)}{item.actualUsd != null ? ` · $${item.actualUsd.toFixed(2)}` : ""}{item.shippedSummary ? ` · ${item.shippedSummary}` : ""}</div>
           )}
           {item.status === "done" && planResult?.itemId === item.id && (
-            <div className="sh-plan-result"><a href={planResult.url} target="_blank" rel="noopener noreferrer">{planResult.label} ↗</a></div>
+            <div className="sh-plan-result">
+              <a href={planResult.url} target="_blank" rel="noopener noreferrer">{planResult.label} ↗</a>
+              {planResult.publishUrl && (
+                <span className="sh-plan-result-note"> · safe copy, not live — <a href={planResult.publishUrl} target="_blank" rel="noopener noreferrer">publish to go live ↗</a></span>
+              )}
+            </div>
           )}
           {item.status !== "done" && working && (
             <div className="sh-plan-running"><span className="sh-spinner sh-spinner-sm" /> {workLabel}</div>
@@ -3085,8 +3092,8 @@ export default function Index() {
                             {d.title || d.type}
                           </span>
                           <span className="sh-deliver-links">
-                            {d.storeUrl && <a href={d.storeUrl} target="_blank" rel="noreferrer">{d.type === "preview" ? "Preview on your theme ↗" : "View on store ↗"}</a>}
-                            {d.adminUrl && <a href={d.adminUrl} target="_blank" rel="noreferrer">Open in admin ↗</a>}
+                            {d.storeUrl && <a href={d.storeUrl} target="_blank" rel="noreferrer">{d.type === "preview" ? "Preview (dev theme) ↗" : "View on store ↗"}</a>}
+                            {d.adminUrl && <a href={d.adminUrl} target="_blank" rel="noreferrer">{d.type === "preview" ? "Publish to go live ↗" : "Open in admin ↗"}</a>}
                           </span>
                         </div>
                       ))}

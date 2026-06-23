@@ -1169,6 +1169,7 @@
 .sh-plan-result { margin-top: 6px; }
 .sh-plan-result a { font-size: 12px; font-weight: 700; color: var(--sh-accent); text-decoration: none; }
 .sh-plan-result a:hover { text-decoration: underline; }
+.sh-plan-result-note { font-size: 11.5px; font-weight: 500; color: var(--sh-ink-faint); }
 .sh-plan-actions { display: flex; gap: 8px; align-items: center; margin-top: 9px; }
 .sh-plan-run {
   font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; color: #fff; background: var(--sh-accent);
