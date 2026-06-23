@@ -91,6 +91,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { dir } = await ensureReady(ctx);
 
+  // Record the command up-front so it shows in Activity even if the turn errors
+  // or the connection drops mid-stream (a late log was being skipped on failure).
+  await db.appEvent
+    .create({ data: { shop: session.shop, level: "info", type: "command", message: prompt.slice(0, 300) } })
+    .catch(() => {});
+
   // Brand kit + remembered facts (on-brand output) and the DB-backed resume id.
   const brandContext = await buildBrandContext(session.shop).catch(() => "");
   const resumeSessionId = await getAgentSession(session.shop).catch(() => undefined);
@@ -168,11 +174,6 @@ export async function action({ request }: ActionFunctionArgs) {
             .upsert({ where: { shop: session.shop }, create: { shop: session.shop, mutations: JSON.stringify(r.proposedMutations) }, update: { mutations: JSON.stringify(r.proposedMutations) } })
             .catch(() => {});
         }
-
-        // Activity log — record the command so it shows in the Activity feed.
-        await db.appEvent
-          .create({ data: { shop: session.shop, level: "info", type: "command", message: prompt.slice(0, 300) } })
-          .catch(() => {});
 
         // Meter usage + auto-bill $30 top-ups (managed plan only). Best-effort —
         // never let a billing hiccup break the chat response.

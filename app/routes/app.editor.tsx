@@ -2954,6 +2954,11 @@ export default function Index() {
         // merchant sees how this task moved their optimization scores.
         prevScoresRef.current = Object.fromEntries(liveScores.map((s) => [s.label, s.value]));
         reportFetcher.submit({}, { method: "post", action: "/api/report" });
+      } else {
+        // Stream closed with no done/error frame — connection dropped or the
+        // server restarted (e.g. mid-deploy). Don't fail silently.
+        if (runningPlanItem) setRunningPlanItem(null);
+        setMessages((m) => [...m, { role: "assistant", text: "⚠️ The run was interrupted before it finished — nothing was changed. Please try again." }]);
       }
     } catch (e) {
       const aborted = e instanceof DOMException && e.name === "AbortError";
