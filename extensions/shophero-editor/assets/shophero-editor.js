@@ -106,8 +106,10 @@
     if (raf) return;
     raf = requestAnimationFrame(function () { raf = 0; if (current) position(current); });
   }
+  var panel = null;
   function onClick(e) {
     if (!enabled) return;
+    if (panel && panel.contains(e.target)) return; // clicks inside our editor panel
     e.preventDefault();
     e.stopPropagation();
     var el = e.target;
@@ -123,7 +125,57 @@
       text: (el.innerText || el.textContent || "").trim().slice(0, 180),
       html: (el.outerHTML || "").slice(0, 400),
     };
-    if (parentOrigin) targetWin.postMessage(payload, parentOrigin);
+    // Popup mode: ask for the change right here so the merchant never leaves the
+    // storefront window. Iframe mode: hand the selection to the app's own modal.
+    if (popupEdit) showEditPanel(payload);
+    else if (parentOrigin) targetWin.postMessage(payload, parentOrigin);
+  }
+
+  function closePanel() { if (panel) { panel.remove(); panel = null; } }
+  function showEditPanel(payload) {
+    closePanel();
+    panel = document.createElement("div");
+    panel.style.cssText =
+      "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;width:min(560px,92vw);" +
+      "background:#fff;color:#111;border-radius:16px;box-shadow:0 16px 50px rgba(0,0,0,.32);padding:16px 16px 14px;" +
+      "font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;";
+    var name = document.createElement("div");
+    name.style.cssText = "font-weight:700;font-size:14px;margin-bottom:2px;";
+    name.textContent = "✏️ " + payload.name;
+    var snippet = document.createElement("div");
+    snippet.style.cssText = "font-size:12px;color:#667085;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+    snippet.textContent = payload.text ? "“" + payload.text.slice(0, 90) + "”" : "";
+    var ta = document.createElement("textarea");
+    ta.placeholder = "What do you want to change? e.g. make this headline bigger and say ‘Winter Sale’";
+    ta.style.cssText = "width:100%;box-sizing:border-box;min-height:64px;resize:vertical;border:1px solid #d0d5dd;border-radius:10px;padding:10px 12px;font:inherit;outline:none;";
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:10px;";
+    var cancel = document.createElement("button");
+    cancel.textContent = "Cancel";
+    cancel.style.cssText = "font:600 13px inherit;cursor:pointer;border:none;background:none;color:#667085;padding:8px 12px;";
+    var apply = document.createElement("button");
+    apply.textContent = "Make change →";
+    apply.style.cssText = "font:700 13px inherit;cursor:pointer;border:none;background:#16a34a;color:#fff;padding:8px 16px;border-radius:999px;";
+    function submit() {
+      var v = ta.value.trim();
+      if (!v) { ta.focus(); return; }
+      var msg = {}; for (var k in payload) msg[k] = payload[k];
+      msg.type = "shophero:edit";
+      msg.instruction = v;
+      try { targetWin.postMessage(msg, parentOrigin || "*"); } catch (err) {}
+      apply.textContent = "Sent ✓ — switch to ShopHero";
+      apply.disabled = true; apply.style.background = "#667085";
+      setTimeout(closePanel, 2200);
+    }
+    cancel.onclick = closePanel;
+    apply.onclick = submit;
+    ta.addEventListener("keydown", function (ev) { if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); submit(); } });
+    row.appendChild(cancel); row.appendChild(apply);
+    panel.appendChild(name);
+    if (payload.text) panel.appendChild(snippet);
+    panel.appendChild(ta); panel.appendChild(row);
+    (document.body || document.documentElement).appendChild(panel);
+    ta.focus();
   }
 
   function enable() {

@@ -1270,18 +1270,31 @@ export default function Index() {
   }
 
   // ── Click-to-edit bridge (postMessage to/from the injected storefront script) ──
+  // A full edit from the popup window (element + typed instruction) arrives here;
+  // routed through state so the run effect uses fresh values (no stale closure).
+  const [incomingEdit, setIncomingEdit] = useState<{ sel: Selection; change: string } | null>(null);
   useEffect(() => {
     function onMsg(e: MessageEvent) {
-      const d = (e.data ?? {}) as { type?: string } & Partial<Selection>;
+      const d = (e.data ?? {}) as { type?: string; instruction?: string } & Partial<Selection>;
       if (d.type === "shophero:ready") setEmbedReady(true);
       else if (d.type === "shophero:select") {
         setSelection(d as Selection);
         setEditText("");
+      } else if (d.type === "shophero:edit" && d.instruction?.trim()) {
+        setIncomingEdit({ sel: d as Selection, change: d.instruction });
       }
     }
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
+  useEffect(() => {
+    if (!incomingEdit) return;
+    setIncomingEdit(null);
+    setSelection(null);
+    setMode("create");
+    void runChat(buildEditPrompt(incomingEdit.sel, incomingEdit.change), false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingEdit]);
 
   // Tell the injected script to enter/leave edit mode whenever the toggle or frame changes.
   useEffect(() => {
@@ -1310,18 +1323,21 @@ export default function Index() {
     editPopupRef.current?.focus();
   }
 
-  function submitEdit() {
-    if (!selection || !editText.trim() || thinking) return;
-    const s = selection;
-    const prompt =
+  function buildEditPrompt(s: Selection, change: string): string {
+    return (
       `On-page visual edit. The merchant clicked this element in the live preview:\n` +
       `- Element: ${s.name} (<${s.tag}>)\n` +
       `- Section type: ${s.sectionType || "unknown"} (wrapper id "${s.sectionId}")\n` +
       `- CSS path: ${s.selector}\n` +
       `- Current content: "${s.text}"\n` +
       `- HTML snippet: ${s.html}\n\n` +
-      `Requested change: ${editText.trim()}\n\n` +
-      `Locate the matching section/block in the theme files and make ONLY this change.`;
+      `Requested change: ${change.trim()}\n\n` +
+      `Locate the matching section/block in the theme files and make ONLY this change.`
+    );
+  }
+  function submitEdit() {
+    if (!selection || !editText.trim() || thinking) return;
+    const prompt = buildEditPrompt(selection, editText);
     setSelection(null);
     setEditMode(false);
     setMode("create");
