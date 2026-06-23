@@ -19,7 +19,9 @@
   var targetWin = inFrame ? window.parent : window.opener;
   if (!targetWin) return;
 
-  var parentOrigin = popupEdit ? (params.get("shophero_origin") || "*") : null;
+  // In popup mode the selection payload is non-sensitive DOM info, so post to "*"
+  // — avoids silent drops when the opener origin doesn't byte-match the param.
+  var parentOrigin = popupEdit ? "*" : null;
   var enabled = false;
   var box = null;
   var label = null;
