@@ -373,6 +373,127 @@ const LOGOS = `{%- style -%}${BASE}
 ],"presets":[{"name":"Logo Bar"}] }
 {% endschema %}`;
 
+// ── Image Gallery ─────────────────────────────────────────────────────────────
+const GALLERY = `{%- style -%}${BASE}
+  .sh-gal{max-width:1100px;margin:0 auto;padding:48px 16px}
+  .sh-gal h2{text-align:center;font-size:28px;margin:0 0 24px}
+  .sh-gal__grid{display:grid;grid-template-columns:repeat({{ section.settings.columns }},1fr);gap:14px}
+  .sh-gal__grid img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px;display:block}
+  @media(max-width:749px){.sh-gal__grid{grid-template-columns:repeat(2,1fr)}}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-gal">
+  {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+  <div class="sh-gal__grid">
+    {%- for i in (1..6) -%}{%- assign img = 'image' | append: i -%}
+      {%- if section.settings[img] != blank -%}<img src="{{ section.settings[img] | image_url: width: 800 }}" alt="{{ section.settings.heading | escape }}" loading="lazy">{%- endif -%}
+    {%- endfor -%}
+  </div>
+</div>
+{% schema %}
+{ "name":"Image Gallery","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"Gallery"},
+  {"type":"range","id":"columns","label":"Columns (desktop)","min":2,"max":4,"step":1,"default":3},
+  {"type":"image_picker","id":"image1","label":"Image 1"},{"type":"image_picker","id":"image2","label":"Image 2"},{"type":"image_picker","id":"image3","label":"Image 3"},{"type":"image_picker","id":"image4","label":"Image 4"},{"type":"image_picker","id":"image5","label":"Image 5"},{"type":"image_picker","id":"image6","label":"Image 6"}
+],"presets":[{"name":"Image Gallery"}] }
+{% endschema %}`;
+
+// ── Video ─────────────────────────────────────────────────────────────────────
+const VIDEO = `{%- style -%}${BASE}
+  .sh-vid{max-width:1000px;margin:0 auto;padding:48px 16px;text-align:center}
+  .sh-vid h2{font-size:28px;margin:0 0 8px}
+  .sh-vid p{opacity:.78;margin:0 0 22px}
+  .sh-vid__frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000}
+  .sh-vid__frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-vid">
+  {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+  {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+  {%- assign v = section.settings.video_url -%}
+  {%- if v != blank -%}
+  <div class="sh-vid__frame">
+    {%- if v.type == 'youtube' -%}<iframe src="https://www.youtube.com/embed/{{ v.id }}" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe>
+    {%- elsif v.type == 'vimeo' -%}<iframe src="https://player.vimeo.com/video/{{ v.id }}" allowfullscreen loading="lazy"></iframe>{%- endif -%}
+  </div>
+  {%- endif -%}
+</div>
+{% schema %}
+{ "name":"Video","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"Watch how it works"},
+  {"type":"text","id":"text","label":"Subtext","default":"See it in action in under a minute."},
+  {"type":"video_url","id":"video_url","label":"Video link (YouTube or Vimeo)","accept":["youtube","vimeo"],"default":"https://www.youtube.com/watch?v=_9VUPq3SxOc"}
+],"presets":[{"name":"Video"}] }
+{% endschema %}`;
+
+// ── Countdown Timer ───────────────────────────────────────────────────────────
+const COUNTDOWN = `{%- style -%}${BASE}
+  .sh-cd{max-width:900px;margin:0 auto;padding:42px 16px;text-align:center}
+  .sh-cd h2{font-size:26px;margin:0 0 6px}
+  .sh-cd p{opacity:.78;margin:0 0 18px}
+  .sh-cd__row{display:inline-flex;gap:12px}
+  .sh-cd__u{min-width:66px;padding:12px 8px;border-radius:12px;background:rgb(var(--color-foreground,22 24 28)/.05)}
+  .sh-cd__n{font-size:30px;font-weight:800;line-height:1}
+  .sh-cd__l{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.6;margin-top:5px}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-cd" data-deadline="{{ section.settings.deadline }}T{{ section.settings.time }}">
+  {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+  {%- if section.settings.text != blank -%}<p>{{ section.settings.text }}</p>{%- endif -%}
+  <div class="sh-cd__row" id="sh-cd-{{ section.id }}">
+    <div class="sh-cd__u"><div class="sh-cd__n" data-d>--</div><div class="sh-cd__l">Days</div></div>
+    <div class="sh-cd__u"><div class="sh-cd__n" data-h>--</div><div class="sh-cd__l">Hrs</div></div>
+    <div class="sh-cd__u"><div class="sh-cd__n" data-m>--</div><div class="sh-cd__l">Min</div></div>
+    <div class="sh-cd__u"><div class="sh-cd__n" data-s>--</div><div class="sh-cd__l">Sec</div></div>
+  </div>
+</div>
+<script>
+(function(){
+  var el=document.getElementById("sh-cd-{{ section.id }}");if(!el)return;
+  var dl=new Date(el.closest(".sh-cd").getAttribute("data-deadline")).getTime();
+  function p(n){return (n<10?"0":"")+n;}
+  function tick(){
+    if(isNaN(dl))return;var t=dl-Date.now();if(t<0)t=0;
+    el.querySelector("[data-d]").textContent=Math.floor(t/86400000);
+    el.querySelector("[data-h]").textContent=p(Math.floor(t/3600000)%24);
+    el.querySelector("[data-m]").textContent=p(Math.floor(t/60000)%60);
+    el.querySelector("[data-s]").textContent=p(Math.floor(t/1000)%60);
+  }
+  tick();setInterval(tick,1000);
+})();
+</script>
+{% schema %}
+{ "name":"Countdown","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"Sale ends soon"},
+  {"type":"text","id":"text","label":"Subtext","default":"Don't miss out — the offer ends at the deadline below."},
+  {"type":"text","id":"deadline","label":"End date (YYYY-MM-DD)","default":"2026-12-31"},
+  {"type":"text","id":"time","label":"End time (HH:MM, 24h)","default":"23:59"}
+],"presets":[{"name":"Countdown"}] }
+{% endschema %}`;
+
+// ── Rich Text + CTA ───────────────────────────────────────────────────────────
+const RICHTEXT = `{%- style -%}${BASE}
+  .sh-rt{max-width:760px;margin:0 auto;padding:52px 16px;text-align:center}
+  .sh-rt h2{font-size:30px;margin:0 0 12px}
+  .sh-rt__body{line-height:1.7;opacity:.82;font-size:16px}
+  .sh-rt__body p{margin:0 0 12px}
+  .sh-rt .sh-btn{margin-top:22px}
+{%- endstyle -%}
+<div class="color-{{ section.settings.color_scheme }} sh-sec sh-rt">
+  {%- if section.settings.heading != blank -%}<h2>{{ section.settings.heading }}</h2>{%- endif -%}
+  <div class="sh-rt__body">{{ section.settings.body }}</div>
+  {%- if section.settings.btn_label != blank -%}<a class="sh-btn" href="{{ section.settings.btn_link | default: '#' }}">{{ section.settings.btn_label }}</a>{%- endif -%}
+</div>
+{% schema %}
+{ "name":"Rich Text","tag":"section","settings":[
+  ${SCHEME},
+  {"type":"text","id":"heading","label":"Heading","default":"Tell your story"},
+  {"type":"richtext","id":"body","label":"Text","default":"<p>Share what makes your brand different — your mission, your promise, and why customers love you.</p>"},
+  {"type":"text","id":"btn_label","label":"Button label","default":"Learn more"},
+  {"type":"url","id":"btn_link","label":"Button link"}
+],"presets":[{"name":"Rich Text"}] }
+{% endschema %}`;
+
 const baseTrust = { color_scheme: "scheme-1", icon1: "🚚", title1: "Free shipping", text1: "On orders over $50", icon2: "🔒", title2: "Secure checkout", text2: "Encrypted & protected", icon3: "↩️", title3: "Easy returns", text3: "30-day money back", icon4: "⭐", title4: "Loved by customers", text4: "Rated & reviewed" };
 const baseFaq = { color_scheme: "scheme-1", heading: "Frequently asked questions", q1: "How long does shipping take?", a1: "Most orders arrive within 3–7 business days.", q2: "What is your return policy?", a2: "Returns are accepted within 30 days, no questions asked.", q3: "Is checkout secure?", a3: "Yes — payments are encrypted and processed securely by Shopify.", q4: "Do you offer support?", a4: "Absolutely — reach out any time and we'll help.", q5: "", a5: "" };
 const baseFeat = { color_scheme: "scheme-1", heading: "Why choose us", icon1: "🏆", title1: "Premium quality", text1: "Built to last with materials we'd use ourselves.", icon2: "⚡", title2: "Fast delivery", text2: "Quick dispatch and reliable shipping to your door.", icon3: "💬", title3: "Real support", text3: "Friendly help whenever you need it." };
@@ -385,6 +506,10 @@ const baseNl = { color_scheme: "scheme-1", heading: "Get 10% off your first orde
 const baseGuar = { color_scheme: "scheme-1", icon: "🛡️", heading: "100% satisfaction guarantee", text: "Love it or your money back within 30 days — no questions asked. We stand behind everything we make." };
 const baseStats = { color_scheme: "scheme-1", num1: "10k+", label1: "Orders shipped", num2: "4.8★", label2: "Average rating", num3: "30-day", label3: "Money-back guarantee", num4: "24/7", label4: "Customer support" };
 const baseLogos = { color_scheme: "scheme-1", heading: "As seen in" };
+const baseGallery = { color_scheme: "scheme-1", heading: "Gallery", columns: 3 };
+const baseVideo = { color_scheme: "scheme-1", heading: "Watch how it works", text: "See it in action in under a minute." };
+const baseCountdown = { color_scheme: "scheme-1", heading: "Sale ends soon", text: "Don't miss out — the offer ends at the deadline below.", deadline: "2026-12-31", time: "23:59" };
+const baseRichtext = { color_scheme: "scheme-1", heading: "Tell your story", body: "<p>Share what makes your brand different — your mission, your promise, and why customers love you.</p>", btn_label: "Learn more", btn_link: "/pages/about" };
 
 const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-trust-bar": { liquid: TRUST_BAR, settings: { ...baseTrust, variant: "inline" } },
@@ -399,6 +524,10 @@ const SECTION_DEFS: Record<string, SectionDef> = {
   "sh-guarantee": { liquid: GUARANTEE, settings: baseGuar },
   "sh-stats": { liquid: STATS, settings: baseStats },
   "sh-logos": { liquid: LOGOS, settings: baseLogos },
+  "sh-gallery": { liquid: GALLERY, settings: baseGallery },
+  "sh-video": { liquid: VIDEO, settings: baseVideo },
+  "sh-countdown": { liquid: COUNTDOWN, settings: baseCountdown },
+  "sh-richtext": { liquid: RICHTEXT, settings: baseRichtext },
 };
 
 /**

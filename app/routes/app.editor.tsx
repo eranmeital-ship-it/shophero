@@ -1599,6 +1599,10 @@ export default function Index() {
     [/guarantee/i, "sh-guarantee"],
     [/stat|numbers/i, "sh-stats"],
     [/logo|as seen/i, "sh-logos"],
+    [/galler|photo|image grid|lookbook/i, "sh-gallery"],
+    [/video|youtube|vimeo/i, "sh-video"],
+    [/countdown|timer|urgency|ends? (in|soon)/i, "sh-countdown"],
+    [/rich ?text|announcement|free ?text/i, "sh-richtext"],
     [/image ?\+ ?text|image and text/i, "sh-image-text"],
   ];
   function sectionFor(item: PlanItem): string {
