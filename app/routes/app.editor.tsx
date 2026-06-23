@@ -812,6 +812,13 @@ export default function Index() {
   const [editText, setEditText] = useState("");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const storefrontOrigin = (() => { try { return new URL(previewSrc).origin; } catch { return ""; } })();
+  // Best dev-theme preview URL for a change — the page it most likely touched,
+  // falling back to the currently-loaded preview / homepage. (All preview URLs
+  // already carry ?preview_theme_id, so they show the working theme, not live.)
+  function themePreviewUrl(target?: string): string {
+    const byType = (t: string) => previews.find((g) => g.type === t)?.items[0]?.url;
+    return (target && byType(target)) || byType("index") || previewSrc || previews[0]?.items[0]?.url || "";
+  }
   const [activeTask, setActiveTask] = useState<TaskConfig | null>(null);
   const [taskValues, setTaskValues] = useState<TaskValues>({});
   const [taskSearch, setTaskSearch] = useState("");
@@ -925,9 +932,12 @@ export default function Index() {
       setPending(d.pending ?? []);
       setFrameKey((k) => k + 1);
       setPlanError(null);
-      let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}.`;
+      const preview = themePreviewUrl(sectionTarget);
+      let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your theme${d.version ? ` (${d.version})` : ""}. Open the preview to see it live on your working theme.`;
       if (d.error) msg += ` ⚠️ ${d.error}`;
-      setMessages((m) => [...m, { role: "assistant", text: msg }]);
+      setMessages((m) => [...m, { role: "assistant", text: msg, deliverables: preview ? [{ type: "preview", title: "Your working theme", adminUrl: "", storeUrl: preview }] : undefined }]);
+      // On the playbook, surface the same preview link on the step that just shipped.
+      if (runningPlanItem && preview) setPlanResult({ itemId: runningPlanItem.itemId, label: "Preview it on your theme", url: preview });
       shipRunningItem(); // a staged change was accepted → mark its plan item shipped
     } else if (d.error || d.message !== "Nothing to apply") {
       // Nothing applied — keep the change staged so the merchant can discard/retry.
@@ -3071,12 +3081,12 @@ export default function Index() {
                       {m.deliverables.map((d, di) => (
                         <div key={di} className="sh-deliver">
                           <span className="sh-deliver-name">
-                            {d.type === "article" ? "📝" : d.type === "page" ? "📄" : d.type === "product" ? "🛍️" : d.type === "collection" ? "🗂️" : "✦"}{" "}
+                            {d.type === "preview" ? "👁" : d.type === "article" ? "📝" : d.type === "page" ? "📄" : d.type === "product" ? "🛍️" : d.type === "collection" ? "🗂️" : "✦"}{" "}
                             {d.title || d.type}
                           </span>
                           <span className="sh-deliver-links">
-                            {d.storeUrl && <a href={d.storeUrl} target="_blank" rel="noreferrer">View on store ↗</a>}
-                            <a href={d.adminUrl} target="_blank" rel="noreferrer">Open in admin ↗</a>
+                            {d.storeUrl && <a href={d.storeUrl} target="_blank" rel="noreferrer">{d.type === "preview" ? "Preview on your theme ↗" : "View on store ↗"}</a>}
+                            {d.adminUrl && <a href={d.adminUrl} target="_blank" rel="noreferrer">Open in admin ↗</a>}
                           </span>
                         </div>
                       ))}
