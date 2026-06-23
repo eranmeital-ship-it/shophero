@@ -1333,15 +1333,16 @@ export default function Index() {
   }
 
   function buildEditPrompt(s: Selection, change: string): string {
+    // Kept short + directive on purpose: a long prompt trips the model router into
+    // the pricey "smart" tier, and an open-ended prompt makes the agent search the
+    // whole theme. Naming the exact file keeps a small visual tweak cheap & fast.
+    const file = s.sectionType ? `sections/${s.sectionType}.liquid` : "the matching section file";
     return (
-      `On-page visual edit. The merchant clicked this element in the live preview:\n` +
-      `- Element: ${s.name} (<${s.tag}>)\n` +
-      `- Section type: ${s.sectionType || "unknown"} (wrapper id "${s.sectionId}")\n` +
-      `- CSS path: ${s.selector}\n` +
-      `- Current content: "${s.text}"\n` +
-      `- HTML snippet: ${s.html}\n\n` +
-      `Requested change: ${change.trim()}\n\n` +
-      `Locate the matching section/block in the theme files and make ONLY this change.`
+      `Quick on-page visual edit — keep it SMALL, FAST and CHEAP.\n` +
+      `Clicked element: ${s.name} (<${s.tag}>) in section "${s.sectionType || "unknown"}".\n` +
+      `Current text: "${(s.text || "").slice(0, 70)}".\n` +
+      `Change requested: ${change.trim()}\n\n` +
+      `Edit ${file} directly (touch its template instance only if strictly needed). Do NOT search the theme or read unrelated files. Make the SMALLEST change that achieves it — prefer a simple inline style/markup tweak over adding new section settings. Don't narrate steps; reply with ONE short sentence on what changed.`
     );
   }
   function submitEdit() {
