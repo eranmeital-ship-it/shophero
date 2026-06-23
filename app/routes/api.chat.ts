@@ -64,6 +64,9 @@ export async function action({ request }: ActionFunctionArgs) {
   }
   // Set by the "Approve store changes" button — lets the agent run live mutations.
   const allowMutations = form.get("allowMutations") === "1";
+  // Set by click-to-edit: bound the run (single cheap model, short timeout) so a
+  // small visual tweak can't escalate into a multi-minute, dollar-scale grind.
+  const quick = form.get("quick") === "1";
 
   // Slow-release scope guard: a big bulk ask ("rewrite all 3,000 descriptions")
   // is scheduled to roll out over days instead of running all at once.
@@ -129,6 +132,7 @@ export async function action({ request }: ActionFunctionArgs) {
           // Chat ALWAYS proposes — never executes — live mutations. Execution
           // happens server-side via /api/approve, replaying the exact stored ops.
           allowMutations: false,
+          quick, // click-to-edit: single cheap model + short timeout (no $-scale grind)
           brandContext, // brand kit + remembered facts
           resumeSessionId,
           onSessionId: (id) => void setAgentSession(session.shop, id),

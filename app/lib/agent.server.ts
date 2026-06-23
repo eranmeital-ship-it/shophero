@@ -27,6 +27,10 @@ import { buildBrainMcp, BRAIN_TOOL_NAMES, BRAIN_LABELS, REMEMBER_TOOL_NAME } fro
 const MAX_TURNS = Number(process.env.DRIFT_MAX_TURNS ?? 16);
 // Hard wall-clock cap per request — aborts a single runaway turn.
 const REQUEST_TIMEOUT_MS = Number(process.env.DRIFT_REQUEST_TIMEOUT_MS ?? 240_000) || 240_000;
+// "Quick" mode for small click-to-edit tweaks: bounded so a tweak can't grind to
+// the 240s wall or escalate to a pricey re-run — it lands fast or fails fast.
+const QUICK_MAX_TURNS = Number(process.env.DRIFT_QUICK_MAX_TURNS ?? 10);
+const QUICK_TIMEOUT_MS = Number(process.env.DRIFT_QUICK_TIMEOUT_MS ?? 90_000) || 90_000;
 
 // Cap concurrent agent turns per instance — each turn spawns a subprocess, so
 // unbounded concurrency can exhaust RAM/CPU. Excess turns queue for a slot.
@@ -140,6 +144,9 @@ export interface AgentTurnOpts {
   onResumeInvalid?: () => void;
   /** Streamed progress: fired per assistant text chunk + tool call as they happen. */
   onEvent?: (ev: { type: "tool" | "text"; value: string }) => void;
+  /** Bounded mode for small visual edits — single cheap model, fewer turns, short
+   *  timeout. Lands fast or fails fast instead of escalating to a 240s grind. */
+  quick?: boolean;
 }
 
 /** Pull the mutation's field name (e.g. "collectionCreate") for a short label. */
@@ -276,7 +283,9 @@ async function runTurnAcrossRoutes(opts: AgentTurnOpts, acc: CostAcc): Promise<A
 
 /** One turn on a route: Anthropic escalates cheap→strong; cloud routes use their fixed model. */
 async function runTurnOnRoute(opts: AgentTurnOpts, route: AgentRoute, allowResume: boolean, acc: CostAcc): Promise<AgentTurnResult> {
-  const chain = route.provider === "anthropic" ? modelChain(opts.prompt) : [route.modelId as string];
+  const fullChain = route.provider === "anthropic" ? modelChain(opts.prompt) : [route.modelId as string];
+  // Quick edits never escalate — one cheap model, then fail fast.
+  const chain = opts.quick ? fullChain.slice(0, 1) : fullChain;
   let lastErr: unknown;
 
   for (let i = 0; i < chain.length; i++) {
@@ -348,8 +357,9 @@ async function runQuery(
   const systemAppend = SYSTEM + (opts.brandContext ? `\n\n${opts.brandContext}` : "");
 
   // Hard wall-clock cap — abort a runaway turn so one request can't run forever.
+  // Quick visual edits get a much shorter leash.
   const abortController = new AbortController();
-  const timer = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => abortController.abort(), opts.quick ? QUICK_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
 
   try {
   for await (const message of query({
@@ -357,7 +367,7 @@ async function runQuery(
     options: {
       cwd,
       model,
-      maxTurns: MAX_TURNS,
+      maxTurns: opts.quick ? QUICK_MAX_TURNS : MAX_TURNS,
       permissionMode: "acceptEdits",
       abortController,
       ...(resume ? { resume } : {}),

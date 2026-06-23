@@ -1302,17 +1302,56 @@ export default function Index() {
     if (!incomingEdit) return;
     const edit = incomingEdit;
     setIncomingEdit(null);
-    // Surface the task: drop any panel/preview and show the chat running, so the
-    // merchant sees it work (not silently in the background).
+    // Surface the task: drop any panel/preview and show the chat running.
     setSelection(null);
     setActiveTask(null);
     setPlanReview(false);
     setFlow(null);
     setMode("create");
-    const label = `✏️ Edit ${edit.sel.name}: ${edit.change}`;
-    void runChat(buildEditPrompt(edit.sel, edit.change), false, label);
+    void runVisualEdit(edit.sel, edit.change);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingEdit]);
+
+  // Design edits take SECONDS and cost CENTS: one cheap call → a scoped CSS rule,
+  // staged for approval. Only text/structure changes CSS can't do fall back to the
+  // (bounded) agent.
+  async function runVisualEdit(sel: Selection, change: string) {
+    const label = `✏️ Edit ${sel.name}: ${change}`;
+    setMessages((m) => [...m, { role: "user", text: label }]);
+    setCanUndo(false);
+    setThinking(true);
+    const startedAt = Date.now();
+    try {
+      const fd = new FormData();
+      fd.set("selector", sel.selector);
+      fd.set("tag", sel.tag);
+      fd.set("text", sel.text ?? "");
+      fd.set("sectionType", sel.sectionType ?? "");
+      fd.set("instruction", change);
+      const res = await fetch("/api/quick-edit", { method: "post", body: fd });
+      const d = (await res.json().catch(() => null)) as { ok?: boolean; unsupported?: boolean; summary?: string; files?: string[]; costUsd?: number; model?: string; error?: string } | null;
+      if (!res.ok) throw new Error(d?.error || `Request failed (${res.status})`);
+      if (d?.unsupported) {
+        // CSS can't express this (text change / move) → bounded agent.
+        setThinking(false);
+        setMessages((m) => [...m, { role: "assistant", text: "This one needs a deeper edit — handing it to the builder…" }]);
+        void runChat(buildEditPrompt(sel, change), false, label, true);
+        return;
+      }
+      setPending((p) => [...new Set([...p, ...(d?.files ?? [])])]);
+      setMessages((m) => [...m, {
+        role: "assistant",
+        text: `✓ ${d?.summary || "Style updated"} — staged on your working theme. Accept to apply, then Preview.`,
+        cost: d?.costUsd,
+        model: d?.model,
+        runtimeMs: Date.now() - startedAt,
+      }]);
+    } catch (e) {
+      setMessages((m) => [...m, { role: "assistant", text: `⚠️ ${e instanceof Error ? e.message : "Couldn't make that change — try rephrasing."}` }]);
+    } finally {
+      setThinking(false);
+    }
+  }
 
   // Tell the injected script to enter/leave edit mode whenever the toggle or frame changes.
   useEffect(() => {
@@ -2905,7 +2944,7 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restoreFetcher.state, restoreFetcher.data]);
 
-  async function runChat(prompt: string, approve: boolean, displayText?: string) {
+  async function runChat(prompt: string, approve: boolean, displayText?: string, quick?: boolean) {
     setMessages((m) => [
       ...m,
       { role: "user", text: approve ? "✓ Approved — apply the store changes." : (displayText ?? prompt) },
@@ -2918,6 +2957,7 @@ export default function Index() {
 
     const fd = new FormData();
     fd.set("prompt", prompt);
+    if (quick) fd.set("quick", "1"); // bounded run (cheap model, short timeout)
 
     const controller = new AbortController();
     chatAbortRef.current = controller;
