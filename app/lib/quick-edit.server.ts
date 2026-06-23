@@ -24,13 +24,19 @@ Respond with ONLY JSON, no prose, no code fences:
 
 Rules:
 - Target the provided CSS selector verbatim. Add !important to every declaration so it beats the theme's own styles.
-- Translate natural language sensibly:
+- Translate specific tweaks sensibly:
   bigger→larger font-size (e.g. 1.4em or a rem bump); smaller→smaller; a color name→a tasteful hex;
   center→text-align:center (add margin-left/right:auto for a block); bold→font-weight:700;
   "more space"/padding→padding or margin; rounded→border-radius; hide→display:none;
-  "N per row"/"2 rows"→set the element to display:grid;grid-template-columns:repeat(N,1fr);gap:16px (pick N from the request, default 3 → 2 rows for ~6 items).
-- Keep it to the few properties the request implies. Never restyle unrelated things.
-- If the request changes TEXT CONTENT, MOVES the element to a different section/part of the page, or otherwise can't be done with CSS alone, return {"css":"","summary":"","unsupported":true}.`;
+  "N per row"/"2 rows"→set the element to display:grid;grid-template-columns:repeat(N,1fr);gap:16px (pick N from the request, default 3).
+- Holistic restyle ("make it nicer / cleaner / modern / premium / more professional / fresh look"):
+  emit a SMALL cohesive makeover scoped to the selector — refined padding, comfortable line-height (~1.6),
+  balanced font sizes/weights, a subtle border-radius (10-16px) and soft box-shadow if it reads as a card,
+  generous but not huge spacing, and inherit/tasteful colors. Keep it to ~5-9 declarations; do NOT change
+  layout structure, hide content, or pick loud colors. It should look like a designer tightened it, not a redesign.
+- Keep it minimal and scoped. Never restyle unrelated elements.
+- If the request changes TEXT CONTENT, ADDS new content/sections (e.g. "add trust logos"), MOVES the element to a
+  different section, or otherwise can't be done with CSS alone, return {"css":"","summary":"","unsupported":true}.`;
 
 export interface QuickEditInput {
   selector: string;
