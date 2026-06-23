@@ -192,7 +192,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 interface Deliverable { type: string; title?: string; adminUrl: string; storeUrl?: string }
 interface ContentDraft { id: string; title: string; before: string; after: string; seoTitle?: string; metaDescription?: string; beforeTitle?: string; beforeMeta?: string; mediaIds?: string[] }
-interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string; deliverables?: Deliverable[] }
+interface Msg { role: "user" | "assistant"; text: string; tools?: string[]; cost?: number; model?: string; runtimeMs?: number; deliverables?: Deliverable[] }
 interface Billing { consumed: number; included: number; balanceUsed: number; cap: number; covered: number; needsCapRaise: boolean }
 interface Version { sha: string; date: string; label: string; files: number }
 interface Selection { name: string; sectionType: string; sectionId: string; selector: string; tag: string; text: string; html: string }
@@ -740,6 +740,7 @@ export default function Index() {
   const raise = useFetcher();
   const history = useFetcher<{ versions: Version[] }>();
   const restoreFetcher = useFetcher<{ restored?: number; error?: string }>();
+  const [canUndo, setCanUndo] = useState(false); // an applied change can be rolled back
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"edit" | "design" | "optimize" | "create">("create");
@@ -934,6 +935,7 @@ export default function Index() {
       setPending(d.pending ?? []);
       setFrameKey((k) => k + 1);
       setPlanError(null);
+      setCanUndo(true); // a change just went onto the working theme — offer a one-click rollback
       const preview = themePreviewUrl(sectionTarget);
       let msg = `✓ Applied ${d.applied}${d.total && d.total !== d.applied ? ` of ${d.total}` : ""} change(s) to your working theme${d.version ? ` (${d.version})` : ""} — a safe copy, NOT your live store yet. Preview it below. To make it live, publish this theme from Online Store → Themes.`;
       if (d.error) msg += ` ⚠️ ${d.error}`;
@@ -1289,10 +1291,17 @@ export default function Index() {
   }, []);
   useEffect(() => {
     if (!incomingEdit) return;
+    const edit = incomingEdit;
     setIncomingEdit(null);
+    // Surface the task: drop any panel/preview and show the chat running, so the
+    // merchant sees it work (not silently in the background).
     setSelection(null);
+    setActiveTask(null);
+    setPlanReview(false);
+    setFlow(null);
     setMode("create");
-    void runChat(buildEditPrompt(incomingEdit.sel, incomingEdit.change), false);
+    const label = `✏️ Edit ${edit.sel.name}: ${edit.change}`;
+    void runChat(buildEditPrompt(edit.sel, edit.change), false, label);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingEdit]);
 
@@ -2858,6 +2867,20 @@ export default function Index() {
     setRestoringSha(sha);
     restoreFetcher.submit({ sha }, { method: "post", action: "/api/restore" });
   }
+  // One-click undo: roll the dev theme back to the snapshot before the last change.
+  async function undoLast() {
+    try {
+      const r = await fetch("/api/versions");
+      const d = (await r.json()) as { versions?: { sha: string }[] };
+      const vs = d.versions ?? [];
+      if (vs.length < 2) { setMessages((m) => [...m, { role: "assistant", text: "Nothing earlier to undo to." }]); return; }
+      setCanUndo(false);
+      setMessages((m) => [...m, { role: "assistant", text: "↩︎ Undoing the last change on your working theme…" }]);
+      restore(vs[1].sha); // restore the snapshot from before the latest change
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", text: "⚠️ Couldn't undo automatically — open History (↺) to roll back." }]);
+    }
+  }
 
   // After a restore: refresh the preview, clear staged state, reload the list.
   useEffect(() => {
@@ -2872,14 +2895,16 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restoreFetcher.state, restoreFetcher.data]);
 
-  async function runChat(prompt: string, approve: boolean) {
+  async function runChat(prompt: string, approve: boolean, displayText?: string) {
     setMessages((m) => [
       ...m,
-      { role: "user", text: approve ? "✓ Approved — apply the store changes." : prompt },
+      { role: "user", text: approve ? "✓ Approved — apply the store changes." : (displayText ?? prompt) },
     ]);
     setApproval([]);
+    setCanUndo(false);
     setThinking(true);
     setLive({ text: "", tools: [] });
+    const startedAt = Date.now();
 
     const fd = new FormData();
     fd.set("prompt", prompt);
@@ -2940,6 +2965,7 @@ export default function Index() {
             tools: done!.toolEvents ?? tools,
             cost: done!.costUsd,
             model: done!.model,
+            runtimeMs: Date.now() - startedAt,
             deliverables: done!.deliverables,
           },
         ]);
@@ -3117,6 +3143,13 @@ export default function Index() {
                       <span className="sh-tools">{m.tools.map(friendlyStep).join("  ·  ")}</span>
                     </div>
                   )}
+                  {m.role === "assistant" && (m.cost != null || m.runtimeMs != null) && (
+                    <div className="sh-msg-stats">
+                      {m.cost != null && <span>💲 ${(m.cost * MARKUP).toFixed(3)}</span>}
+                      {m.runtimeMs != null && <span>⏱ {m.runtimeMs < 1000 ? "<1s" : `${Math.round(m.runtimeMs / 1000)}s`}</span>}
+                      {m.model && <span>{m.model.replace("claude-", "").replace(/-\d+$/, "")}</span>}
+                    </div>
+                  )}
                   {m.deliverables && m.deliverables.length > 0 && (
                     <div className="sh-deliver-list">
                       {m.deliverables.map((d, di) => (
@@ -3135,6 +3168,14 @@ export default function Index() {
                   )}
                 </div>
               ))}
+
+              {canUndo && !thinking && pending.length === 0 && (
+                <div className="sh-undo-row">
+                  <button className="sh-undo-btn" disabled={!!restoringSha} onClick={undoLast}>
+                    {restoringSha ? "Undoing…" : "↩︎ Undo last change"}
+                  </button>
+                </div>
+              )}
 
               {thinking && (
                 <div className="sh-loader">
