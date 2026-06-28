@@ -42,103 +42,78 @@ const BADGES = [
 
 const SCENARIOS = [
   {
-    prompt: "Make my homepage hero mobile-friendly",
-    thinking: ["Scanning your homepage layout…", "Checking mobile breakpoints…", "Measuring hero image weight…"],
-    steps: ["Compressed the hero image (1.8 MB → 240 KB)", "Added responsive sizing for mobile", "Lazy-loaded below-the-fold sections", "Preloaded the hero for a faster LCP"],
-    metric: "Est. mobile load: 4.2s → 1.9s",
+    prompt: "Make my store readable by AI agents",
+    thinking: ["Scanning your catalog & policies…", "Checking schema coverage…", "Building your retrieval feed…"],
+    steps: ["Generated a hosted llms.txt for your shop", "Built an AI-retrieval product feed", "Added Product/Offer schema to 128 PDPs", "Rewrote descriptions in Q&A form for agents"],
+    metric: "AI-Readiness: 41 → 92",
   },
   {
-    prompt: "Make my product page more converting",
-    thinking: ["Reading your product template…", "Comparing to high-converting PDPs…", "Spotting trust & CTA gaps…"],
-    steps: ["Moved the buy box & CTA above the fold", "Added benefit-led bullets + social proof", "Added a sticky add-to-cart on mobile", "Inserted a guarantee & shipping reassurance"],
-    metric: "Projected add-to-cart: +18%",
+    prompt: "Why don't AI agents recommend me?",
+    thinking: ["Testing how AI sees your store…", "Looking for llms.txt & a feed…", "Auditing structured data…"],
+    steps: ["No llms.txt — agents can't read your shop", "Schema missing on 41 product pages", "Descriptions read as ads, not facts", "Ranked every gap by impact"],
+    metric: "7 gaps blocking AI recommendations",
   },
   {
-    prompt: "Write 5 product descriptions",
-    thinking: ["Learning your brand voice…", "Pulling key specs & benefits…", "Matching buyer search intent…"],
-    steps: ["Drafted 5 unique, on-brand descriptions", "Led with benefits, backed by specs", "Wove in keywords buyers actually search", "Staged all 5 for your review"],
-    metric: "5 descriptions ready to publish",
+    prompt: "Add structured data to every product",
+    thinking: ["Reading your product templates…", "Mapping price, stock & reviews…"],
+    steps: ["Added Product, Offer & Review schema", "Added Breadcrumb & FAQ schema", "Validated against rich-result rules", "Kept it live as prices change"],
+    metric: "128 PDPs now rich-result eligible",
+  },
+  {
+    prompt: "Write 4 AI-answer buying guides",
+    thinking: ["Studying your niche & top products…", "Shaping answers AI engines cite…"],
+    steps: ["Drafted 4 answer-shaped guides", "Linked each to the right products", "Emitted Article & FAQ schema", "Staged them for your approval"],
+    metric: "4 guides AI engines can cite",
+  },
+  {
+    prompt: "Track which AI bots read my store",
+    thinking: ["Enabling crawler logging…", "Watching for AI user-agents…"],
+    steps: ["Detected GPTBot fetching your feed", "Detected ClaudeBot & PerplexityBot", "Logged Google-Extended crawls", "Charted reads over time"],
+    metric: "312 AI-crawler fetches this month",
   },
   {
     prompt: "Speed up my store",
-    thinking: ["Running a Core Web Vitals audit…", "Finding render-blocking scripts…", "Hunting unused app code…"],
-    steps: ["Deferred 3 non-critical scripts", "Compressed 24 oversized images", "Removed leftover code from 2 old apps", "Lazy-loaded offscreen media"],
+    thinking: ["Running a Core Web Vitals audit…", "Finding heavy images & app bloat…"],
+    steps: ["Compressed 24 oversized images", "Lazy-loaded offscreen media", "Deferred non-critical scripts", "Tuned for a faster LCP"],
     metric: "Est. LCP: 3.6s → 1.8s",
-  },
-  {
-    prompt: "Add trust badges near checkout",
-    thinking: ["Reviewing your cart & checkout…", "Checking trust-signal placement…"],
-    steps: ["Added secure-checkout & guarantee badges", "Surfaced reviews near the buy button", "Added clear returns & shipping info"],
-    metric: "Checkout friction reduced",
-  },
-  {
-    prompt: "Find what's hurting my conversions",
-    thinking: ["Mapping your funnel…", "Comparing against CRO benchmarks…", "Ranking issues by revenue impact…"],
-    steps: ["Flagged a slow mobile hero (high impact)", "Found weak PDP copy on 12 pages", "Spotted a missing cart-recovery flow"],
-    metric: "Top 3 leaks ≈ $910/mo recoverable",
-  },
-  {
-    prompt: "Optimize my titles for SEO",
-    thinking: ["Pulling current titles & metas…", "Researching buyer-intent keywords…"],
-    steps: ["Rewrote 18 title tags with target keywords", "Tightened metas under 155 chars + CTA", "Fixed duplicate & thin titles"],
-    metric: "18 pages SEO-optimized",
-  },
-  {
-    prompt: "Plan a week of blog posts",
-    thinking: ["Studying your niche & top products…", "Checking real search demand…"],
-    steps: ["Built a 7-day editorial calendar", "Each post targets a buyer-intent keyword", "Linked every post to a money page"],
-    metric: "7 posts planned & ready to draft",
-  },
-  {
-    prompt: "Rewrite my About page",
-    thinking: ["Reading your current About page…", "Learning your brand story & voice…"],
-    steps: ["Rewrote it around a clear brand story", "Added trust, mission & social proof", "Ended with a conversion-focused CTA"],
-    metric: "About page rebuilt for trust",
   },
 ];
 
 const STEPS = [
   {
-    icon: "💰",
-    title: "Ranked by real money",
-    desc: "Every issue is scored by the revenue it's draining - not a vague “health score” you can't act on.",
+    icon: "📊",
+    title: "A real score, not a vibe",
+    desc: "One AI-Readiness Score (0–100) for how well ChatGPT, Claude & Perplexity can read and recommend your store — with the exact gaps listed.",
   },
   {
-    icon: "🎯",
-    title: "Your next best move",
-    desc: "You always know the single highest-impact fix to make right now, and the lift to expect from it.",
+    icon: "🤖",
+    title: "Fixed where it counts",
+    desc: "Schema, a retrieval feed and an llms.txt — served from ShopHero so agents always get a fresh, machine-readable view of your catalog.",
   },
   {
     icon: "🔁",
-    title: "Always up to date",
-    desc: "It re-scans as your catalog, traffic and theme change - so your plan is never stale and never guessed.",
+    title: "Stays AI-ready",
+    desc: "New products, price changes and reviews are re-optimized automatically - so your store never decays back to invisible.",
   },
 ];
 
 const LEAK_MAP = [
-  { issue: "Slow product images", detail: "LCP ~2.1s on mobile", sev: "High", impact: "~$420/mo" },
-  { issue: "Weak product descriptions", detail: "12 pages, manufacturer copy", sev: "High", impact: "~$310/mo" },
-  { issue: "No abandoned-cart flow", detail: "recoverable revenue leaking", sev: "Medium", impact: "~$180/mo" },
-  { issue: "Missing trust signals", detail: "no reviews above the fold", sev: "Medium", impact: "~$140/mo" },
-  { issue: "Thin meta titles", detail: "8 pages under-optimized", sev: "Low", impact: "~$60/mo" },
+  { issue: "No llms.txt", detail: "AI crawlers have no map of your shop", sev: "High", impact: "−22 pts" },
+  { issue: "Missing product schema", detail: "41 PDPs with no structured data", sev: "High", impact: "−18 pts" },
+  { issue: "No retrieval feed", detail: "agents can't answer product questions", sev: "High", impact: "−15 pts" },
+  { issue: "Marketing-only descriptions", detail: "no Q&A facts agents can quote", sev: "Medium", impact: "−9 pts" },
+  { issue: "Slow mobile LCP", detail: "2.1s - demoted by Google & AI", sev: "Low", impact: "−4 pts" },
 ];
 
 const COMPARE_ROWS: [string, string][] = [
-  ["Hire a Shopify developer", "Build features, sections & theme changes with a prompt"],
-  ["Pay for SEO experts", "One-click SEO optimization across your entire store"],
-  ["Hire a CRO consultant", "Instant conversion audits & optimization recommendations"],
-  ["Hire a content writer", "Generate product descriptions, blogs, landing pages & FAQs"],
-  ["Pay an email marketer", "Create campaigns, abandoned-cart flows & newsletters"],
-  ["Hire a UX designer", "Improve layouts, navigation & customer experience instantly"],
-  ["Pay for speed optimization", "One-click store speed improvements & diagnostics"],
-  ["Hire a merchandising expert", "Discover winning products, bundles & upsell opportunities"],
-  ["Pay for store audits", "Full AI-powered store health checks, anytime"],
-  ["Learn Shopify Liquid code", "Describe what you want and let ShopHero build it"],
-  ["Wait days or weeks for changes", "Get results in minutes"],
-  ["Pay agency retainers", "Your AI growth team, available 24/7"],
-  ["Juggle 10 different apps", "One platform that does it all"],
-  ["Guess what's hurting sales", "Know exactly what to fix and why"],
-  ["Manage developers & consultants", "Manage everything from one dashboard"],
+  ["Pump out blog posts and hope AI notices", "Make your store directly machine-readable for AI"],
+  ["No idea if AI can even see your products", "See exactly which AI bots fetch your store"],
+  ["Schema hand-coded in your theme (or missing)", "Auto schema on every PDP, kept live"],
+  ["A static feed that goes stale in a week", "A retrieval feed that updates as your catalog changes"],
+  ["Generic descriptions agents can't quote", "Q&A descriptions written for how agents read"],
+  ["A one-time audit you can't act on", "A live AI-Readiness Score with one-tap fixes"],
+  ["Optimized once, invisible again in a month", "Re-optimizes automatically as you change"],
+  ["Guess whether any of it is working", "Watch AI-crawler reads climb in your dashboard"],
 ];
 
 const BRAINS = [
@@ -166,12 +141,16 @@ const FAQ = [
     a: "Not at all. You describe what you want in plain English - “make my homepage faster,” “rewrite my product descriptions” - and ShopHero does the technical work.",
   },
   {
-    q: "What does it actually cost?",
-    a: "$49/month includes $15 of AI usage. Beyond that, you pay per AI request: each Anthropic API call runs about $0.01-$0.50 depending on how much it has to read and write. Usage is billed pay-as-you-go in capped top-ups, so you're only charged for what you use - and never surprised.",
+    q: "Will this actually get me recommended by ChatGPT and Perplexity?",
+    a: "We make your store genuinely readable by AI agents - structured data, a retrieval feed, an llms.txt and answer-shaped content - which is exactly what those engines look for, and we show you real logs of which AI bots fetch your store. No tool can guarantee a specific AI will name you, and anyone who promises that is selling hype. What we do is stop you being invisible to them - and prove it with crawler data.",
+  },
+  {
+    q: "What does it cost?",
+    a: "Your AI-Readiness Score is free - no card. Pro is $99/month and includes your hosted llms.txt + AI-retrieval feed, auto schema on every product, monthly AI-answer content, AI-crawler analytics, speed fixes, and live re-optimization. 14-day free trial, cancel anytime from Shopify.",
   },
   {
     q: "Which AI powers it?",
-    a: "ShopHero runs on Claude, Anthropic's frontier AI, with specialist “brains” trained on high-performing ecommerce patterns. We match the model to the task: Claude Opus 4.8 for the heaviest reasoning and agentic theme work, Claude Sonnet 4.6 for everyday optimization, and Claude Haiku 4.5 for fast, simple jobs - so you always get top-tier quality without overpaying on every request.",
+    a: "ShopHero runs on Claude, Anthropic's frontier AI. We match the model to the task - fast models for routine work, stronger ones only when a job truly needs it - so you get top-tier quality without overpaying.",
   },
   {
     q: "Is my data safe?",
@@ -507,16 +486,16 @@ export default function LandingV2() {
       {/* PRODUCT DEMO */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="demo">
         <h2 className={styles.h2}>See it <span className={styles.grad}>work.</span></h2>
-        <p className={styles.lead}>Type what you want in plain English. Watch ShopHero reason it out, then ship it - with your approval.</p>
+        <p className={styles.lead}>Ask in plain English. Watch ShopHero make your store readable by AI - structured, fed, and tracked - with your approval on every change.</p>
         <Demo />
       </section>
 
       {/* HOW IT WORKS (merged, Leak Map centerpiece) */}
       <section className={styles.section} id="how">
-        <h2 className={styles.h2}>Always know <span className={styles.grad}>what to fix next.</span></h2>
+        <h2 className={styles.h2}>Always know <span className={styles.grad}>how AI-ready you are.</span></h2>
         <p className={styles.lead}>
-          ShopHero turns your store into a live Revenue Leak Map - every issue ranked by the
-          money it's costing you.
+          ShopHero turns your store into a live AI-Readiness Map - every gap that's stopping
+          agents from reading and recommending you, ranked by impact.
         </p>
         <div className={styles.steps}>
           {STEPS.map((s) => (
@@ -531,14 +510,15 @@ export default function LandingV2() {
         <div className={styles.mapShowcase}>
           <div className={styles.mapText}>
             <span className={styles.kicker}>📊 The breakthrough</span>
-            <h3 className={styles.mapHeading}>Where most apps only diagnose, ShopHero fixes.</h3>
+            <h3 className={styles.mapHeading}>Where other tools only diagnose, ShopHero fixes.</h3>
             <p>
-              Other apps hand you a “score.” ShopHero hands you a <strong>Revenue Leak Map</strong>:
-              the exact issues, ranked by the money they're draining - each one a tap away from fixed.
+              AutoSEO-style tools throw blog posts at the wall. ShopHero hands you an
+              <strong> AI-Readiness Map</strong>: the exact gaps stopping agents from recommending you -
+              each one a tap away from fixed, and kept fixed as your store changes.
             </p>
           </div>
           <div className={styles.mapCard}>
-            <div className={styles.mapHead}><span>Revenue Leak Map</span><span className={styles.mapTag}>Example</span></div>
+            <div className={styles.mapHead}><span>AI-Readiness Map</span><span className={styles.mapTag}>Example</span></div>
             {LEAK_MAP.map((l) => (
               <div className={styles.mapRow} key={l.issue}>
                 <span className={`${styles.sevDot} ${l.sev === "High" ? styles.sevHigh : l.sev === "Medium" ? styles.sevMed : styles.sevLow}`} />
@@ -546,15 +526,15 @@ export default function LandingV2() {
                 <span className={styles.mapImpact}>{l.impact}</span>
               </div>
             ))}
-            <div className={styles.mapFoot}><span>Est. recoverable</span><strong>~$1,110/mo</strong></div>
+            <div className={styles.mapFoot}><span>Your AI-Readiness Score</span><strong>41 / 100</strong></div>
           </div>
         </div>
       </section>
 
       {/* COMPARISON */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="compare">
-        <h2 className={styles.h2}>One app replaces your <span className={styles.grad}>entire payroll.</span></h2>
-        <p className={styles.lead}>Every line below used to be a hire, a retainer, or another app. Now it's a prompt.</p>
+        <h2 className={styles.h2}>Blog posts vs. <span className={styles.grad}>actually being readable by AI.</span></h2>
+        <p className={styles.lead}>The 2010 SEO playbook in an AI coat of paint - vs. making your store something agents can truly read, trust, and recommend.</p>
         <div className={styles.compareTable}>
           <div className={styles.compareHead}>
             <div className={styles.headCell}><span className={styles.tagOld}>✕ Without ShopHero</span></div>
@@ -572,10 +552,10 @@ export default function LandingV2() {
 
       {/* AI GROWTH PLAN */}
       <section className={styles.section} id="brains">
-        <h2 className={styles.h2}>Your <span className={styles.grad}>AI Growth Plan</span></h2>
+        <h2 className={styles.h2}>Your <span className={styles.grad}>Agent-Ready stack</span></h2>
         <p className={styles.lead}>
-          Every part of your store gets a specialist-level AI, trained on the patterns behind
-          high-performing brands - each delivering the smartest move for its job.
+          Everything that makes AI shopping agents read, trust, and recommend your store -
+          built, hosted, and kept live for you.
         </p>
         <div className={styles.brainGrid}>
           {BRAINS.map((b) => (
@@ -620,31 +600,32 @@ export default function LandingV2() {
 
       {/* PRICING */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
-        <h2 className={styles.h2}>One subscription. <span className={styles.grad}>Your entire growth team.</span></h2>
-        <p className={styles.lead}>One plan. No surprises. Cancel the second it stops paying for itself (spoiler: it won't).</p>
+        <h2 className={styles.h2}>One subscription. <span className={styles.grad}>Always-on AI discoverability.</span></h2>
+        <p className={styles.lead}>Start free with your AI-Readiness Score. Upgrade when you want ShopHero keeping you agent-ready every day.</p>
         <div className={styles.priceCard}>
           <div className={styles.priceHead}>
-            <span className={styles.priceName}>Managed AI</span>
-            <div className={styles.price}><span className={styles.priceAmt}>$49</span><span className={styles.pricePer}>/month*</span></div>
+            <span className={styles.priceName}>Pro</span>
+            <div className={styles.price}><span className={styles.priceAmt}>$99</span><span className={styles.pricePer}>/month</span></div>
           </div>
           <ul className={styles.priceList}>
-            <li>All 7 AI brains &amp; every one-click tool</li>
-            <li>AI Store Manager - audit, plan &amp; execute</li>
-            <li>Version history &amp; one-click rollback</li>
-            <li>Brand Kit, long-term memory &amp; daily content plan</li>
-            <li><strong>$15 of AI usage included</strong> every month</li>
-            <li className={styles.priceNote}>* Beyond the included $15, AI usage is billed pay-as-you-go in capped top-ups - you're only charged for what you use.</li>
+            <li>Hosted <strong>llms.txt + AI-retrieval product feed</strong></li>
+            <li>Auto <strong>schema on every PDP</strong> (Product, Offer, Review, FAQ, Breadcrumb)</li>
+            <li><strong>AI-answer content</strong> — guides &amp; product Q&amp;A every month</li>
+            <li><strong>AI-crawler analytics</strong> — see GPTBot, ClaudeBot &amp; Perplexity read you</li>
+            <li>Live re-optimization as your catalog changes</li>
+            <li>Speed audit + safe fixes · approval-first · one-click rollback</li>
+            <li className={styles.priceNote}>Free AI-Readiness Score to start - no card. 14-day trial on Pro.</li>
           </ul>
-          <a href="#start" className={styles.btnPrimary}>Claim my unfair advantage →</a>
-          <p className={styles.micro}>No gimmicks. Cancel anytime, right from Shopify.</p>
+          <a href="#start" className={styles.btnPrimary}>Get my free AI-Readiness Score →</a>
+          <p className={styles.micro}>Start free. Cancel anytime, right from Shopify.</p>
         </div>
       </section>
 
       {/* FINAL CTA */}
       <section className={styles.finalCta}>
-        <span className={styles.kicker}>The operating system for Shopify growth</span>
-        <h2 className={styles.h2}>Install this before your <span className={styles.grad}>competitors</span> do.</h2>
-        <p className={styles.lead}>They're reading the same page. The only question is who clicks first.</p>
+        <span className={styles.kicker}>Get discoverable in the AI era</span>
+        <h2 className={styles.h2}>Be the store AI recommends - before your <span className={styles.grad}>competitor</span> is.</h2>
+        <p className={styles.lead}>When a shopper asks an AI what to buy, one store gets named. Make it yours.</p>
         <div className={styles.startBlock}><StartForm /></div>
       </section>
 
