@@ -1,0 +1,17 @@
+{% comment %}
+  ShopHero Agent-Ready: advertises the hosted llms.txt + AI product feed to AI
+  crawlers via <head> link tags. The files are served from ShopHero over the App
+  Proxy, so they stay fresh as the catalog changes and disappear on uninstall.
+  Zero effect on shoppers — these are discovery hints for machines.
+{% endcomment %}
+<link rel="alternate" type="text/plain" title="llms.txt" href="{{ shop.url }}/apps/shophero/llms.txt">
+<link rel="alternate" type="application/json" title="ShopHero AI product feed" href="{{ shop.url }}/apps/shophero/feed.json">
+<meta name="shophero:agent-ready" content="1">
+
+{% schema %}
+{
+  "name": "ShopHero Agent-Ready",
+  "target": "head",
+  "settings": []
+}
+{% endschema %}

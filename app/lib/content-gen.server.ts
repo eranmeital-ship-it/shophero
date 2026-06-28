@@ -292,9 +292,9 @@ export async function suggestTopics(admin: AdminApiContext): Promise<{ topics: s
     types.length ? `The store sells: ${types.join(", ")}.` : "A Shopify store.",
     titles.length ? `Already published (suggest NEW, non-overlapping topics): ${titles.slice(0, 40).join("; ")}.` : "No articles published yet.",
     "",
-    "Suggest the 5 MOST useful blog article topics for THIS store — buyer-intent first, ones that drive qualified traffic and sales and fill real gaps.",
+    "Suggest the 5 MOST useful blog article topics for THIS store — answer-engine first: real questions shoppers ask an AI before buying (how to choose, X vs Y, best for <use-case>, is X worth it, care/sizing/compatibility). Buyer-intent, fill real gaps.",
   ].join("\n");
-  const SYS = `You suggest blog article topics for a Shopify store. Respond with ONLY a JSON array of exactly 5 short topic strings (concise article-title ideas) — no prose, no code fences.`;
+  const SYS = `You suggest AI-answer blog topics for a Shopify store — the kind ChatGPT/Perplexity quote when a shopper asks what to buy. Favor question/buying-guide/comparison titles over generic listicles. Respond with ONLY a JSON array of exactly 5 short topic strings — no prose, no code fences.`;
   try {
     const res = await complete({ system: SYS, user, maxTokens: 300, tier: "cheap" });
     let t = cleanHtml(res.text);
@@ -351,8 +351,9 @@ Respond with ONLY JSON, no prose, no code fences: {"emails":[{"subject":"…","p
   }
 }
 
-const ARTICLE_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent. Use <h2>/<h3>/<ul>/<p> and end with a soft CTA; suggest internal links to relevant products/collections inline.
-The store renders the article TITLE automatically above the body, so do NOT repeat the title as a heading in the body — start the body with the opening paragraph.
+const ARTICLE_SYSTEM = `You write one AI-answer blog article for a Shopify store — content an AI assistant (ChatGPT, Claude, Perplexity) would quote when a shopper asks what to buy. Grounded in the content strategy below and the Brand Kit. Genuinely helpful, on-brand, buyer-intent.
+Write it answer-first: open by directly answering the core question in 1–2 sentences, then back it up. Use question-style <h2> headings, <h3>/<ul>/<p>, short skimmable paragraphs, and link to the store's REAL products/collections inline (use the actual handles/URLs you're given — never invent links). End the body with a short FAQ: 3–4 <h3> questions each followed by a one-paragraph answer (this feeds FAQ rich results), then a soft CTA.
+The store renders the article TITLE automatically above the body, so do NOT repeat the title as a heading in the body — start the body with the direct answer.
 Respond in EXACTLY this format and nothing else (no JSON, no code fences):
 TITLE: <the article title, one line>
 META: <meta description, ≤155 chars, one line>
