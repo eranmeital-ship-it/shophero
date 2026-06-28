@@ -24,6 +24,7 @@ export default function App() {
           dead-ended on the login screen. */}
       <NavMenu>
         <Link to="/app" rel="home">Home</Link>
+        <Link to="/app/readiness">AI-Readiness</Link>
         <Link to="/app/editor">Editor</Link>
         <Link to="/app/activity">Activity</Link>
         <Link to="/app/usage">Usage</Link>

@@ -466,6 +466,25 @@
 }
 @keyframes sh-spin { to { transform: rotate(360deg); } }
 .sh-spinner-sm { width: 15px; height: 15px; border-width: 2px; }
+
+/* AI-Readiness dashboard */
+.sh-rd { max-width: 880px; margin: 0 auto; padding: 22px 18px 60px; }
+.sh-rd-head { text-align: center; margin-bottom: 20px; }
+.sh-rd-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--sh-ink); }
+.sh-rd-sub { color: var(--sh-ink-soft); margin-top: 4px; font-size: 13.5px; line-height: 1.5; }
+.sh-rd-hero { display: flex; gap: 22px; align-items: center; background: linear-gradient(180deg, #fff, #f7f9fc); border: 1px solid var(--sh-line); border-radius: 20px; padding: 24px; box-shadow: var(--sh-shadow-sm); }
+.sh-rd-grade { font-size: 18px; font-weight: 750; color: var(--sh-ink); }
+.sh-rd-dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.sh-rd-dim { background: #fff; border: 1px solid var(--sh-line); border-radius: 14px; padding: 14px; box-shadow: var(--sh-shadow-sm); }
+.sh-rd-meter { height: 8px; border-radius: 999px; background: rgba(0,0,0,0.08); margin-top: 8px; overflow: hidden; }
+.sh-rd-meter span { display: block; height: 100%; background: var(--sh-accent); border-radius: 999px; }
+.sh-rd-card { background: #fff; border: 1px solid var(--sh-line); border-radius: 16px; padding: 18px; margin-top: 14px; box-shadow: var(--sh-shadow-sm); }
+.sh-rd-gap { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--sh-line); }
+.sh-rd-gap:last-child { border-bottom: none; }
+.sh-rd-fix { flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--sh-accent); text-decoration: none; }
+.sh-rd-bots { display: flex; flex-wrap: wrap; gap: 8px; }
+.sh-rd-bot { background: rgba(10,132,255,0.08); border: 1px solid rgba(10,132,255,0.2); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 650; color: var(--sh-accent); text-decoration: none; }
+@media (max-width: 600px) { .sh-rd-dims { grid-template-columns: 1fr; } .sh-rd-hero { flex-direction: column; text-align: center; } }
 .sh-spinner-sm.sh-plan-numspin { border-color: rgba(255,255,255,0.4); border-top-color: #fff; }
 
 /* ---------- Device toggles + staged preview ---------- */
