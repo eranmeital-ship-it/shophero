@@ -7,17 +7,17 @@ import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
 
 export const meta: MetaFunction = () => [
-  { title: "ShopHero - Unleash Claude AI inside your Shopify store" },
+  { title: "ShopHero — Be the Shopify store AI agents recommend" },
   {
     name: "description",
     content:
-      "ShopHero diagnoses your Shopify store like a business, shows you a Revenue Leak Map, and fixes what's costing you sales - with your approval on every change. Agency-level growth, without the agency.",
+      "Shoppers are starting to ask ChatGPT, Claude & Perplexity what to buy. ShopHero makes your Shopify store fast, structured, and readable by AI shopping agents — so you're the one they recommend, not your competitor. Get your free AI-Readiness Score.",
   },
-  { property: "og:title", content: "ShopHero - Unleash Claude AI inside your Shopify store" },
+  { property: "og:title", content: "ShopHero — Be the Shopify store AI agents recommend" },
   {
     property: "og:description",
     content:
-      "Diagnosed like a business. A Revenue Leak Map of what's costing you sales - fixed with one click, fully reversible.",
+      "Make your Shopify store machine-readable for AI: structured data, a retrieval feed, and an llms.txt AI crawlers actually use. Free AI-Readiness Score in 30 seconds.",
   },
   { property: "og:type", content: "website" },
 ];
@@ -31,11 +31,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 const BADGES = [
-  { lines: ["Powered by", "Claude AI"], sub: "ANTHROPIC ENGINE", c1: "#5fb024", c2: "#34e0a1" },
-  { lines: ["Agentic-AI", "Ready"], sub: "OPTIMIZED FOR AI SEARCH", c1: "#7b6cf6", c2: "#9d7bff" },
-  { lines: ["Replaces", "5–10 Apps"], sub: "ALL-IN-ONE VALUE", c1: "#1ca7c4", c2: "#34e0a1" },
-  { lines: ["7 Specialist", "AI Brains"], sub: "CRO · SEO · CONTENT", c1: "#e8941a", c2: "#ffce54" },
-  { lines: ["One-Click", "Rollback"], sub: "100% REVERSIBLE", c1: "#e0457f", c2: "#f472b6" },
+  { lines: ["AI-Readiness", "Score"], sub: "KNOW WHERE YOU STAND", c1: "#5fb024", c2: "#34e0a1" },
+  { lines: ["llms.txt +", "Product Feed"], sub: "BUILT FOR AI CRAWLERS", c1: "#7b6cf6", c2: "#9d7bff" },
+  { lines: ["Auto", "Schema"], sub: "RICH RESULTS ON EVERY PDP", c1: "#1ca7c4", c2: "#34e0a1" },
+  { lines: ["AI-Crawler", "Analytics"], sub: "SEE WHO'S READING YOU", c1: "#e8941a", c2: "#ffce54" },
+  { lines: ["Stays", "Live"], sub: "RE-OPTIMIZES AS YOU CHANGE", c1: "#e0457f", c2: "#f472b6" },
   { lines: ["Approval", "First"], sub: "YOU APPROVE EVERYTHING", c1: "#2f74e0", c2: "#60a5fa" },
   { lines: ["30-Second", "Setup"], sub: "INSTALL & GO", c1: "#cf6242", c2: "#f0a07c" },
 ];
@@ -142,13 +142,11 @@ const COMPARE_ROWS: [string, string][] = [
 ];
 
 const BRAINS = [
-  { icon: "🎯", name: "Conversion (CRO)", desc: "Studies how shoppers really move through your store, then rebuilds layout, offers, trust and checkout to erase hesitation and lift every conversion." },
-  { icon: "🛍️", name: "Product Pages", desc: "Engineers each page around proven buying psychology - hero, benefits, proof, objection-busting, CTA - so far more visitors hit add-to-cart." },
-  { icon: "✍️", name: "Content", desc: "Plans and writes search-winning articles that pull in ready-to-buy traffic and route it straight to the products that make you money." },
-  { icon: "🔍", name: "SEO", desc: "Maps the exact terms your buyers search, then fixes on-page and technical SEO so you rank where the purchases actually happen." },
-  { icon: "✉️", name: "Email", desc: "Builds the flows top brands live on - welcome, abandoned cart, win-back - to recover lost sales and turn one-time buyers into regulars." },
-  { icon: "🤖", name: "AI Visibility (AEO)", desc: "Structures your store so ChatGPT, Claude, Gemini and Perplexity understand it - and recommend you when shoppers ask them what to buy." },
-  { icon: "⚡", name: "Speed", desc: "Hunts down every drag - heavy images, app bloat, render-blocking code - and tunes Core Web Vitals so pages load fast and sell." },
+  { icon: "🤖", name: "Agent-Ready (the hero)", desc: "A hosted llms.txt, a retrieval-tuned product feed, and conversation-friendly Q&A descriptions — the exact things ChatGPT, Claude, Gemini & Perplexity read before they recommend a store. Served from ShopHero and kept live as your catalog changes." },
+  { icon: "📐", name: "Structured Data", desc: "Auto-adds and maintains Product, Offer, Review, FAQ & Breadcrumb schema on every page — so AI and Google can actually parse what you sell, and you win rich results." },
+  { icon: "✍️", name: "AI-Answer Content", desc: "An ongoing drip of answer-shaped buying guides and product Q&A — schema'd and linked to your products — the depth AI engines pull from when shoppers ask what to buy." },
+  { icon: "📈", name: "AI-Crawler Analytics", desc: "See exactly which AI bots (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) are fetching your store — real logs, not vanity metrics — and watch your readiness score climb." },
+  { icon: "⚡", name: "Speed & Foundations", desc: "Core Web Vitals audit, image and lazy-load fixes, and a clean technical base — because slow, broken stores get demoted by both Google and AI." },
 ];
 
 const SAFETY = [
@@ -419,7 +417,7 @@ export default function LandingV2() {
       {/* HERO */}
       <section className={styles.hero} id="top">
         <div className={styles.heroInner}>
-          <span className={styles.badge}>✦ A new dawn for Shopify store owners</span>
+          <span className={styles.badge}>✦ Built for the AI shopping era</span>
           <div className={styles.lockup}>
             <span className={styles.logoChip}><ShopifyMark /><span>Shopify</span></span>
             <span className={styles.plus}>+</span>
@@ -432,42 +430,40 @@ export default function LandingV2() {
             </span>
           </div>
           <h1 className={styles.h1}>
-            <span className={styles.nowrap}>Unleash the power of Claude AI</span>
-            <br />
-            <span className={styles.grad}>inside your Shopify store.</span>
+            <span className={styles.nowrap}>Be the store</span>{" "}
+            <span className={styles.grad}>AI agents recommend.</span>
           </h1>
           <p className={styles.sub}>
-            Turn <em>“I don't know what's broken”</em> into{" "}
-            <strong>fixed, optimized, and selling more</strong> - in minutes.{" "}
-            <strong>No more devs. No more guessing.</strong> Just describe what you want, and
-            ShopHero builds it.
+            Shoppers are starting to ask <strong>ChatGPT, Claude &amp; Perplexity</strong> what to buy.
+            ShopHero makes your store <strong>fast, structured, and readable by AI</strong> — so when an
+            agent answers, <strong>it picks you</strong>, not your competitor.
           </p>
           <div className={styles.brainsLine}>
-            <span className={styles.brainsCount}>🧠 7 expert brains</span>
-            <span>trained on multi-million-figure shops</span>
+            <span className={styles.brainsCount}>🤖 Agent-ready in minutes</span>
+            <span>see your free AI-Readiness Score first</span>
           </div>
           <div id="start" className={styles.startBlock}>
             <StartForm />
-            <p className={styles.micro}>Installs in 30 seconds · You approve every change · One-click rollback</p>
+            <p className={styles.micro}>Free AI-Readiness Score · Installs in 30 seconds · You approve every change</p>
           </div>
           <div className={styles.heroStats}>
             <div className={styles.stat}>
-              <span className={styles.statIcon}>⚡</span>
-              <strong className={styles.statBig}>30 sec</strong>
-              <span className={styles.statLabel}>to ship any change</span>
-              <span className={styles.statVs}>vs <s>3 weeks with a dev</s></span>
+              <span className={styles.statIcon}>📊</span>
+              <strong className={styles.statBig}>0–100</strong>
+              <span className={styles.statLabel}>your AI-Readiness Score</span>
+              <span className={styles.statVs}>free, in 30 seconds</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statIcon}>💸</span>
-              <strong className={styles.statBig}>Cents</strong>
-              <span className={styles.statLabel}>per task</span>
-              <span className={styles.statVs}>vs <s>$30/hr freelancers</s></span>
+              <span className={styles.statIcon}>🤖</span>
+              <strong className={styles.statBig}>Auto</strong>
+              <span className={styles.statLabel}>schema · retrieval feed · llms.txt</span>
+              <span className={styles.statVs}>vs <s>invisible to AI</s></span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statIcon}>🧠</span>
-              <strong className={styles.statBig}>24/7</strong>
-              <span className={styles.statLabel}>7 expert brains, zero salaries</span>
-              <span className={styles.statVs}>vs <s>$10k/mo agency</s></span>
+              <span className={styles.statIcon}>📈</span>
+              <strong className={styles.statBig}>Live</strong>
+              <span className={styles.statLabel}>AI-crawler tracking</span>
+              <span className={styles.statVs}>see who reads your store</span>
             </div>
           </div>
         </div>
@@ -476,14 +472,14 @@ export default function LandingV2() {
       {/* CREDIBILITY */}
       <section className={styles.strip}>
         <p className={styles.stripLead}>
-          Agency-level growth, <span className={styles.grad}>without the agency.</span>
+          The new search box is <span className={styles.grad}>AI.</span>
         </p>
         <p className={styles.stripSub}>
-          ShopHero replicates the output of a <strong>$10K/month growth team</strong> and replaces
-          the fragmented stack of <strong>5-10 apps and freelancers</strong> you're juggling today -
-          in a fraction of the time, at a fraction of the cost. And every task draws on the design,
-          optimization and analytics playbooks of <strong>multi-million-dollar stores</strong> -
-          executed by models trained on what the <strong>industry's top shops</strong> actually do.
+          More shoppers start with <strong>ChatGPT, Claude, Perplexity and Google's AI</strong> instead of a search bar —
+          and those agents only recommend stores they can <strong>read and trust</strong>. Most Shopify stores are
+          invisible to them. ShopHero fixes that: <strong>structured data, a retrieval-tuned product feed, and an
+          llms.txt</strong> AI crawlers actually use — kept live as your catalog changes, and tracked so you can see
+          which AI bots are reading your store.
         </p>
       </section>
 
