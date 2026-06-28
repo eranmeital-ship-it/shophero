@@ -27,6 +27,14 @@ scopes = "write_products,write_themes,write_content"
 [auth]
 redirect_urls = [ "https://app.shophero.io/auth/callback" ]
 
+# Hosted agent-ready layer: {shop}/apps/shophero/llms.txt and /feed.json proxy to
+# the app's /proxy/* routes (Shopify signs each request). Served from us, so they
+# stay fresh as the catalog changes and disappear on uninstall.
+[app_proxy]
+url = "https://app.shophero.io/proxy"
+subpath = "shophero"
+prefix = "apps"
+
 [product.metafields.app.demo_info]
 type = "single_line_text_field"
 name = "Demo Source Info"

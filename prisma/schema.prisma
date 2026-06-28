@@ -203,3 +203,17 @@ model AppEvent {
   @@index([createdAt])
   @@index([level])
 }
+
+// Real AI-crawler fetches of the hosted agent-ready files (llms.txt / feed),
+// captured at the App Proxy. Powers the honest "who's reading your store"
+// scorecard — server logs, not vanity metrics.
+model CrawlerHit {
+  id        String   @id @default(cuid())
+  shop      String
+  bot       String   // "GPTBot" | "ClaudeBot" | "PerplexityBot" | "Google-Extended" | ...
+  path      String   // "llms.txt" | "feed.json"
+  createdAt DateTime @default(now())
+
+  @@index([shop, createdAt])
+  @@index([shop, bot])
+}
