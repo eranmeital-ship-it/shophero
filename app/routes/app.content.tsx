@@ -48,6 +48,19 @@ export default function ContentCalendar() {
   const acting = act.state !== "idle";
   const c = d.content;
 
+  // Project the queue onto real calendar dates at the tier's cadence.
+  const cadenceDays = d.dailyContent ? 1 : 7;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dk = (dt: Date) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+  type Slot = { title: string; intent: string; ready?: boolean };
+  const byDay = new Map<string, Slot[]>();
+  const addSlot = (dt: Date, s: Slot) => { const k = dk(dt); const a = byDay.get(k) ?? []; a.push(s); byDay.set(k, a); };
+  if (c?.draftTitle && !c.autoPublish) addSlot(today, { title: c.draftTitle, intent: "review", ready: true });
+  (c?.queue ?? []).forEach((p, i) => addSlot(new Date(today.getTime() + (i + 1) * cadenceDays * 86400000), { title: p.title, intent: p.intent }));
+  const gridStart = new Date(today); gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const gridDays = Array.from({ length: 35 }, (_, i) => new Date(gridStart.getTime() + i * 86400000));
+  const intentColor: Record<string, string> = { buying: C.brand, research: C.accent, support: C.violet, brand: "#e8941a", review: C.brand2 };
+
   return (
     <div style={{
       color: C.text, minHeight: "100vh", margin: "-16px", padding: "22px 22px 48px",
@@ -100,24 +113,39 @@ export default function ContentCalendar() {
                 </div>
               )}
 
-              {c.queue.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
-                  {c.queue.map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 10, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
-                      <span style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(255,255,255,0.05)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, color: C.faint, flexShrink: 0, fontFamily: mono }}>{i + 1}</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: C.violet, background: `${C.violet}1e`, padding: "3px 7px", borderRadius: 999, flexShrink: 0 }}>{p.intent}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 650, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
-                        <div style={{ fontSize: 11.5, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.angle}</div>
+              {/* The calendar grid */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ fontWeight: 750, fontSize: 14 }}>{today.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
+                  <div style={{ fontSize: 11.5, color: C.faint }}>Upcoming articles on their {c.autoPublish ? "publish" : "draft"} dates</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
+                    <div key={w} style={{ textAlign: "center", fontSize: 10, fontWeight: 800, letterSpacing: "0.05em", color: C.faint, textTransform: "uppercase", paddingBottom: 2 }}>{w}</div>
+                  ))}
+                  {gridDays.map((dt, idx) => {
+                    const slots = byDay.get(dk(dt)) ?? [];
+                    const isToday = dk(dt) === dk(today);
+                    const inMonth = dt.getMonth() === today.getMonth();
+                    return (
+                      <div key={idx} style={{ minHeight: 80, borderRadius: 9, padding: 7, background: isToday ? `${C.brand}12` : C.panel2, border: `1px solid ${isToday ? C.brand + "55" : C.lineSoft}`, opacity: inMonth ? 1 : 0.45, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: isToday ? C.brand2 : C.faint, fontFamily: mono }}>{dt.getDate()}</div>
+                        {slots.slice(0, 2).map((s, i) => (
+                          <div key={i} title={s.title} style={{ fontSize: 9.5, fontWeight: 700, lineHeight: 1.25, color: "#0a1206", background: intentColor[s.intent] ?? C.brand, borderRadius: 5, padding: "3px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {s.ready ? "● " : ""}{s.title}
+                          </div>
+                        ))}
+                        {slots.length > 2 && <div style={{ fontSize: 9, color: C.faint }}>+{slots.length - 2} more</div>}
                       </div>
-                      <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: mono, color: C.faint }}>
-                        {c.autoPublish ? "live " : "draft "}
-                        {new Date(Date.now() + (i + 1) * (d.dailyContent ? 1 : 7) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10, fontSize: 10.5, color: C.muted }}>
+                  {Object.entries(intentColor).filter(([k]) => k !== "review").map(([k, col]) => (
+                    <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: col }} />{k}</span>
                   ))}
                 </div>
-              )}
+              </div>
 
               {!d.dailyContent && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 14px", borderRadius: 12, background: `${C.violet}12`, border: `1px solid ${C.violet}3a`, marginBottom: 14 }}>

@@ -249,7 +249,7 @@ export default function Readiness() {
               <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: C.faint }}>AI-Readiness Score™</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: scoreColor(d.score), margin: "2px 0 6px" }}>{d.grade}</div>
               <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>{verdict}</div>
-              <Link to="/app/editor" className="rdx-btn">Fix my gaps →</Link>
+              <a href="#rdx-issues" className="rdx-btn">Fix my gaps →</a>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -291,7 +291,7 @@ export default function Readiness() {
         {/* ── Two-column: issues + radar ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 14 }}>
           {/* Open issues */}
-          <div className="rdx-card" style={card}>
+          <div className="rdx-card" id="rdx-issues" style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <Label mb={0}>Open issues · blocking AI</Label>
               <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 800, color: d.gaps.length ? C.amber : C.brand }}>{d.gaps.length} active</span>
@@ -317,7 +317,7 @@ export default function Readiness() {
                         <div style={{ display: "flex", gap: 9, alignItems: "flex-start", marginTop: 9, paddingTop: 9, borderTop: `1px solid ${C.lineSoft}` }}>
                           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: C.faint, flexShrink: 0, marginTop: 1 }}>Fix</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{g.how ?? "ShopHero stages this automatically from the Editor — review and publish."}</div>
+                            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{g.how ?? "ShopHero fixes this automatically — re-evaluate after the next run."}</div>
                             <div style={{ marginTop: 8 }}>
                               {g.fix?.action === "install" ? (
                                 installed ? (
@@ -331,7 +331,7 @@ export default function Readiness() {
                               ) : g.fix?.href ? (
                                 <a href={g.fix.href} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 800, color: C.brand2, textDecoration: "none", border: `1px solid ${C.line}`, padding: "7px 13px", borderRadius: 9, display: "inline-block" }}>{g.fix.label} ↗</a>
                               ) : byUs ? (
-                                <Link to="/app/editor" style={{ fontSize: 12, fontWeight: 800, color: C.brand2, textDecoration: "none", border: `1px solid ${C.line}`, padding: "7px 13px", borderRadius: 9, display: "inline-block" }}>Fix in Editor →</Link>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: C.brand2 }}>✓ ShopHero fixes this automatically</span>
                               ) : null}
                             </div>
                           </div>

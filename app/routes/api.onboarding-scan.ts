@@ -91,7 +91,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<ScanResul
     { tag: "Fix", icon: "🤖", title: "Go live with your AI feed + llms.txt", desc: "Hosted by ShopHero and kept fresh — the map AI crawlers read to understand your catalog.", act: "link", to: "/app/readiness", cta: "View live →" },
   ];
   if (contentPct < 60)
-    plan.push({ tag: "Fix", icon: "✍️", title: "Turn thin descriptions into AI-answer content", desc: "Rewrite product copy into the Q&A facts AI quotes when recommending.", act: "link", to: "/app/editor", cta: "Open editor →" });
+    plan.push({ tag: "Fix", icon: "✍️", title: "Turn thin descriptions into AI-answer content", desc: "Rewrite product copy into the Q&A facts AI quotes when recommending.", act: "link", to: "/app/content", cta: "Open content →" });
   plan.push({ tag: "Grow", icon: "📚", title: "Become the source AI quotes", desc: "Publish answer-shaped buying guides built from your best sellers.", act: "link", to: "/app/readiness", cta: "Build plan →" });
   plan.push({ tag: "Grow", icon: "📈", title: "Watch AI discover your store", desc: "See GPTBot, ClaudeBot & Perplexity read your store — real proof it's working.", act: "link", to: "/app/readiness", cta: "See analytics →" });
 
