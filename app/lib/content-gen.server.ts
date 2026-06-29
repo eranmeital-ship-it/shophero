@@ -58,7 +58,7 @@ async function adminGql<T>(admin: AdminApiContext, query: string, variables?: Re
   }
 }
 
-type ProductRow = { id: string; title: string; descriptionHtml?: string; seo?: { title?: string; description?: string } };
+type ProductRow = { id: string; title: string; descriptionHtml?: string; seo?: { title?: string; description?: string }; media?: { nodes?: ({ id: string; alt?: string | null } | null)[] } };
 
 async function fetchProducts(admin: AdminApiContext, which: string, productId: string | undefined, task: "descriptions" | "seo"): Promise<ProductRow[]> {
   const FIELDS = `id title descriptionHtml seo { title description }`;
@@ -455,18 +455,53 @@ export async function publishArticles(
  * applies fixes ONLY for items that still need work (cheap engine), and reports
  * the next cursor so the daily runner picks up exactly where it left off.
  */
+export type BulkTask = "descriptions" | "seo" | "product_pages" | "mobile";
+
+// Per-product helpers — each writes ONE facet of a product and returns how many
+// items it changed + the AI cost. Reused by the single-purpose tasks and the
+// combined "product_pages" pass.
+async function fixDescription(admin: AdminApiContext, brand: string, p: ProductRow): Promise<{ applied: number; costUsd: number }> {
+  if (stripHtml(p.descriptionHtml).length >= 60) return { applied: 0, costUsd: 0 }; // already substantial
+  const before = stripHtml(p.descriptionHtml);
+  const user = `Product title: ${p.title}\nCurrent description: ${before || "(none)"}\n\nWrite the new description now.`;
+  const res = await complete({ system: DESC_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 700, tier: "cheap" });
+  const r = await applyDescriptions(admin, [{ id: p.id, after: cleanHtml(res.text) }]);
+  return { applied: r.applied, costUsd: res.costUsd };
+}
+async function fixSeo(admin: AdminApiContext, brand: string, p: ProductRow): Promise<{ applied: number; costUsd: number }> {
+  if (p.seo?.title?.trim() && p.seo?.description?.trim()) return { applied: 0, costUsd: 0 }; // already set
+  const user = `Product: ${p.title}\nCurrent SEO title: ${p.seo?.title || "(none)"}\nCurrent meta description: ${p.seo?.description || "(none)"}\nProduct description: ${stripHtml(p.descriptionHtml).slice(0, 500) || "(none)"}\n\nWrite the SEO title and meta description now.`;
+  const res = await complete({ system: SEO_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 300, tier: "cheap" });
+  const parsed = parseSeo(res.text);
+  if (!parsed) return { applied: 0, costUsd: res.costUsd };
+  const r = await applySeo(admin, [{ id: p.id, seoTitle: parsed.title, metaDescription: parsed.description }]);
+  return { applied: r.applied, costUsd: res.costUsd };
+}
+async function fixAlt(admin: AdminApiContext, brand: string, p: ProductRow): Promise<{ applied: number; costUsd: number }> {
+  const targetIds = (p.media?.nodes ?? []).filter((m): m is { id: string; alt?: string | null } => !!m?.id && !m.alt?.trim()).map((m) => m.id);
+  if (!targetIds.length) return { applied: 0, costUsd: 0 };
+  const user = [`Product: ${p.title}`, `Description: ${stripHtml(p.descriptionHtml).slice(0, 300) || "(none)"}`, "", "Write the alt text now."].join("\n");
+  const res = await complete({ system: ALT_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 120, tier: "cheap" });
+  const alt = cleanHtml(res.text).replace(/^["']|["']$/g, "").slice(0, 120);
+  if (!alt) return { applied: 0, costUsd: res.costUsd };
+  const r = await applyAlt(admin, [{ mediaIds: targetIds, after: alt }]);
+  return { applied: r.applied, costUsd: res.costUsd };
+}
+
 export async function runBulkContentBatch(
   admin: AdminApiContext,
   shop: string,
-  task: "descriptions" | "seo",
+  task: BulkTask,
   limit: number,
   cursor?: string | null,
 ): Promise<{ ok: boolean; examined: number; applied: number; costUsd: number; nextCursor: string | null; hasNext: boolean }> {
   const brand = await buildBrandContext(shop).catch(() => "");
   const n = Math.max(1, Math.min(100, limit));
+  // "mobile" (image alt text) needs media; the others don't — keep the query lean.
+  const mediaField = task === "mobile" || task === "product_pages" ? ` media(first:20){ nodes { ... on MediaImage { id alt } } }` : "";
   const d = await adminGql<{ products?: { nodes?: ProductRow[]; pageInfo?: { hasNextPage?: boolean; endCursor?: string } } }>(
     admin,
-    `query($n:Int!,$after:String){ products(first:$n, after:$after, sortKey: ID){ nodes { id title descriptionHtml seo { title description } } pageInfo { hasNextPage endCursor } } }`,
+    `query($n:Int!,$after:String){ products(first:$n, after:$after, sortKey: ID){ nodes { id title descriptionHtml seo { title description }${mediaField} } pageInfo { hasNextPage endCursor } } }`,
     { n, after: cursor ?? null },
   );
   // Null `products` means the page fetch itself failed (throttle/transient) — do
@@ -480,22 +515,22 @@ export async function runBulkContentBatch(
   for (const p of nodes) {
     try {
       if (task === "descriptions") {
-        if (stripHtml(p.descriptionHtml).length >= 60) continue; // already substantial
-        const before = stripHtml(p.descriptionHtml);
-        const user = `Product title: ${p.title}\nCurrent description: ${before || "(none)"}\n\nWrite the new description now.`;
-        const res = await complete({ system: DESC_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 700, tier: "cheap" });
-        costUsd += res.costUsd;
-        const r = await applyDescriptions(admin, [{ id: p.id, after: cleanHtml(res.text) }]);
-        applied += r.applied;
+        const r = await fixDescription(admin, brand, p);
+        applied += r.applied; costUsd += r.costUsd;
+      } else if (task === "seo") {
+        const r = await fixSeo(admin, brand, p);
+        applied += r.applied; costUsd += r.costUsd;
+      } else if (task === "mobile") {
+        // Per-product mobile/image win we can write via the Admin API: alt text on
+        // images that lack it (improves mobile image SEO + how AI reads images).
+        const r = await fixAlt(admin, brand, p);
+        applied += r.applied; costUsd += r.costUsd;
       } else {
-        if (p.seo?.title?.trim() && p.seo?.description?.trim()) continue; // already set
-        const user = `Product: ${p.title}\nCurrent SEO title: ${p.seo?.title || "(none)"}\nCurrent meta description: ${p.seo?.description || "(none)"}\nProduct description: ${stripHtml(p.descriptionHtml).slice(0, 500) || "(none)"}\n\nWrite the SEO title and meta description now.`;
-        const res = await complete({ system: SEO_SYSTEM, cachePrefix: brand || undefined, user, maxTokens: 300, tier: "cheap" });
-        costUsd += res.costUsd;
-        const parsed = parseSeo(res.text);
-        if (parsed) {
-          const r = await applySeo(admin, [{ id: p.id, seoTitle: parsed.title, metaDescription: parsed.description }]);
-          applied += r.applied;
+        // product_pages — a full PDP AEO pass: substantive description + SEO meta +
+        // image alt, each only where it's missing.
+        for (const fix of [fixDescription, fixSeo, fixAlt]) {
+          const r = await fix(admin, brand, p);
+          applied += r.applied; costUsd += r.costUsd;
         }
       }
     } catch {

@@ -18,11 +18,13 @@ import { todayKey, type JobType } from "./jobs.server";
  * DRIFT_JOBS_AUTORUN=false.
  */
 const AUTORUN = process.env.DRIFT_JOBS_AUTORUN !== "false"; // on by default
-const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo"];
+const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo", "bulk_product_pages", "bulk_mobile"];
 
-function taskFor(type: JobType): "descriptions" | "seo" | null {
+function taskFor(type: JobType): "descriptions" | "seo" | "product_pages" | "mobile" | null {
   if (type === "bulk_descriptions") return "descriptions";
   if (type === "bulk_seo") return "seo";
+  if (type === "bulk_product_pages") return "product_pages";
+  if (type === "bulk_mobile") return "mobile";
   return null;
 }
 

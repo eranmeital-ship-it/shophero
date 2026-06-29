@@ -15,7 +15,7 @@ import type { JobType } from "../lib/jobs-types";
  * advances one daily batch. Caps how many shops it processes per invocation so a
  * single run stays bounded; the next tick continues.
  */
-const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo"];
+const AUTO_TYPES: JobType[] = ["bulk_descriptions", "bulk_seo", "bulk_product_pages", "bulk_mobile"];
 const MAX_JOBS_PER_RUN = Number(process.env.DRIFT_CRON_MAX_SHOPS ?? 50) || 50;
 
 function safeEqual(a: string, b: string): boolean {
