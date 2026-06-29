@@ -499,7 +499,7 @@ function FourSteps() {
     { n: 4, icon: "📈", title: "See AI discover your store", desc: "Watch GPTBot, ClaudeBot and Perplexity read your store in real time — living proof it's working, not a black box you have to trust.", tech: "Real crawler analytics: GPTBot, ClaudeBot, PerplexityBot & Google-Extended hits, live in your dashboard." },
   ];
   return (
-    <section style={{ ...SECT, maxWidth: 1140 }}>
+    <section style={{ ...SECT, maxWidth: 1140 }} id="how">
       <Kicker>How ShopHero works</Kicker>
       <h2 className={styles.h2}>From invisible to <span className={styles.grad}>recommended.</span></h2>
       <p className={styles.lead}>Four steps. You approve; ShopHero does the work and keeps it live.</p>
@@ -1087,7 +1087,6 @@ export default function LandingV2() {
           <a href="#demo">See it work</a>
           <a href="#how">How it works</a>
           <a href="#compare">vs the old way</a>
-          <a href="/ai-check">Free AI check</a>
           <a href="#faq">FAQ</a>
           <a href="#pricing">Pricing</a>
         </nav>
@@ -1288,7 +1287,6 @@ export default function LandingV2() {
         </div>
         <nav className={styles.footLinks}>
           <a href="#demo">See it work</a>
-          <a href="/ai-check">Free AI check</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
           <a href="/privacy">Privacy</a>
