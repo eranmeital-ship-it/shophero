@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { timingSafeEqual } from "node:crypto";
 import { unauthenticated } from "../shopify.server";
 import db from "../db.server";
-import { getActivePlan, tierAllows } from "../lib/billing.server";
+import { getActivePlan, getActiveTier, tierAllows } from "../lib/billing.server";
 import { generateDraft, publishDraft } from "../lib/content-plan.server";
 
 /**
@@ -43,11 +43,17 @@ async function run(request: Request): Promise<Response> {
   // keeps us from spending an offline-auth on shops with nothing to do).
   const due = active.filter((p) => !isToday(p.draftDate) && !p.draftTitle).slice(0, MAX_PER_RUN);
 
+  const within7Days = (dt?: Date | null) => !!dt && Date.now() - dt.getTime() < 7 * 86400000;
+
   const results: { shop: string; drafted: boolean; published: boolean }[] = [];
   for (const row of due) {
     try {
       const { admin } = await unauthenticated.admin(row.shop);
-      if (!(await tierAllows(admin, "contentDrip").catch(() => false))) continue; // downgraded → skip
+      const tier = await getActiveTier(admin).catch(() => null);
+      if (!tier) continue; // no active plan → skip
+      // Cadence by tier: Starter publishes weekly, Pro+ daily.
+      const daily = await tierAllows(admin, "dailyContent").catch(() => false);
+      if (!daily && within7Days(row.draftDate)) continue; // weekly tier, already drafted this week
       const plan = await getActivePlan(admin).catch(() => null);
       await generateDraft(admin, row.shop, plan);
       let published = false;

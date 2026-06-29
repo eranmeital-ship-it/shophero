@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { getActivePlan, tierAllows } from "../lib/billing.server";
+import { getActivePlan, getActiveTier } from "../lib/billing.server";
 import { enforceSpend } from "../lib/spend-guard.server";
 import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
@@ -16,11 +16,11 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
 
-  // The AI-answer content drip is a Pro+ capability. Building/generating content
-  // requires it; pause/resume/publish of an existing plan stay available.
+  // The content engine is available on every tier (Starter = 1 article/week,
+  // Pro+ = daily) — but it requires an active subscription.
   const GATED = new Set(["analyze", "start", "generate", "regenerate", "autopublish"]);
-  if (GATED.has(intent) && !(await tierAllows(admin, "contentDrip"))) {
-    return { plan: await getPlan(shop), error: "The AI-answer content drip is a Pro feature. Upgrade to Pro to build your content plan.", upgrade: true };
+  if (GATED.has(intent) && !(await getActiveTier(admin).catch(() => null))) {
+    return { plan: await getPlan(shop), error: "Start a ShopHero plan to build your content engine.", upgrade: true };
   }
 
   if (intent === "analyze") {

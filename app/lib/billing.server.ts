@@ -64,8 +64,8 @@ export async function getActiveTier(admin: AdminApiContext): Promise<TierName | 
   return active ? tierFromName(active.name) : null;
 }
 
-/** Does the shop's tier unlock a capability? ("contentDrip" | "authority") */
-export async function tierAllows(admin: AdminApiContext, cap: "contentDrip" | "authority"): Promise<boolean> {
+/** Does the shop's tier unlock a capability? */
+export async function tierAllows(admin: AdminApiContext, cap: "dailyContent" | "productDescriptions" | "authority"): Promise<boolean> {
   const tier = await getActiveTier(admin).catch(() => null);
   if (!tier) return false;
   return !!TIERS[tier][cap];

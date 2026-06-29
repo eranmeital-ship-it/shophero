@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useFetcher, useRevalidator, Link } from "react-router";
 import { authenticate } from "../shopify.server";
+import { getActiveTier } from "../lib/billing.server";
+import { TIERS } from "../lib/plans";
 import { ensureReady } from "../lib/bootstrap.server";
 import { auditSchema } from "../lib/schema-audit.server";
 import { gql } from "../lib/onboarding.server";
@@ -72,10 +74,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   } catch { /* ignore */ }
 
+  const tier = await getActiveTier(admin).catch(() => null);
+  const tierLabel = tier ? TIERS[tier].label.replace("ShopHero ", "") : null;
+  const dailyContent = tier ? TIERS[tier].dailyContent : false;
+  const canDescribe = tier ? TIERS[tier].productDescriptions : false;
+
   const score = Math.round(structured * 0.5 + feedScore * 0.2 + contentPct * 0.3);
   const base = `https://${shop}`;
   return {
     content,
+    tier, tierLabel, dailyContent, canDescribe,
     score, grade, productCount, liveNote, crawlers, crawlerTotal,
     dims: [
       { key: "structured", label: "Structured data", score: structured, note: installed ? "JSON-LD installed" : "Not installed yet" },
@@ -91,7 +99,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const C = {
   bg: "#0a0e09", panel: "#121a10", panel2: "#0e140c", line: "#26331f", lineSoft: "#1c2618",
   text: "#f2f6f0", muted: "#9fb098", faint: "#6f7d68",
-  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6",
+  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6", violet2: "#a78bfa",
   coral: "#d97757", amber: "#e8941a", blue: "#3b82f6",
 };
 const scoreColor = (s: number) => (s >= 80 ? C.brand : s >= 50 ? C.amber : C.coral);
@@ -230,6 +238,9 @@ export default function Readiness() {
               <span style={{ display: "inline-block", animation: reevaluating ? "rdxSpin .8s linear infinite" : "none" }}>↻</span>
               {reevaluating ? "Re-evaluating…" : "Re-evaluate"}
             </button>
+            <Link to="/app/pricing" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, textDecoration: "none", color: d.tier === "authority" ? C.violet2 : C.brand2, background: d.tier === "authority" ? `${C.violet}1a` : `${C.brand}14`, border: `1px solid ${d.tier === "authority" ? C.violet + "44" : C.brand + "3a"}`, padding: "7px 13px", borderRadius: 999 }}>
+              {d.tierLabel ? `${d.tierLabel} plan` : "No plan"} {d.tier !== "authority" && <span style={{ opacity: 0.85 }}>· Upgrade →</span>}
+            </Link>
           </div>
         </div>
 
@@ -275,8 +286,8 @@ export default function Readiness() {
         {/* ── Systems status ── */}
         <Label>Systems</Label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 22 }}>
-          <SystemCard icon="📐" title="Structured data" on={structuredOn} detail={structuredOn ? "JSON-LD installed & rendering" : "Not installed yet — fix to switch on"} />
-          <SystemCard icon="🤖" title="AI feed & llms.txt" on detail={d.liveNote ? d.liveNote : "Hosted & live for AI crawlers"} />
+          <SystemCard icon="📐" title="Structured data" on={structuredOn} detail={structuredOn ? "✓ Installed & activated · live on every product page" : "Not installed yet — fix to switch on"} />
+          <SystemCard icon="🤖" title="AI feed & llms.txt" on detail={`✓ Installed & activated · hosted live${d.liveNote ? ` · ${d.liveNote}` : ""}`} />
           <SystemCard icon="✍️" title="Content engine" on={!!d.content?.summary} detail={d.content?.summary ? (d.content.autoPublish ? "Auto-publishing daily" : `${d.content.total} articles in the calendar`) : "Not started — build a plan below"} />
           <SystemCard icon="📡" title="Crawler radar" on={d.crawlerTotal > 0} detail={d.crawlerTotal > 0 ? `${d.crawlerTotal} reads in the last 30 days` : "Listening for AI bots…"} />
         </div>
@@ -396,12 +407,21 @@ export default function Readiness() {
             <>
               <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.55, marginBottom: 8 }}>{d.content.summary}</div>
               <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12, fontFamily: mono }}>
-                <strong style={{ color: C.brand2 }}>{d.content.published}</strong> published · <strong style={{ color: C.text }}>{d.content.total}</strong> in calendar{d.content.autoPublish ? " · auto daily" : " · approval-first"}
+                <strong style={{ color: C.brand2 }}>{d.content.published}</strong> published · <strong style={{ color: C.text }}>{d.content.total}</strong> in calendar · <strong style={{ color: C.text }}>{d.dailyContent ? "daily" : "1 / week"}</strong> cadence
               </div>
+
+              {!d.dailyContent && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 14px", borderRadius: 12, background: `${C.violet}12`, border: `1px solid ${C.violet}3a`, marginBottom: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
+                    <strong style={{ color: C.text }}>You're on Starter — 1 article/week.</strong> Upgrade to Pro for a <strong style={{ color: C.text }}>daily</strong> article and <strong style={{ color: C.text }}>product-description rewrites</strong> across your catalog.
+                  </div>
+                  <Link to="/app/pricing" style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 800, color: "#fff", textDecoration: "none", background: `linear-gradient(120deg,#a78bfa,${C.violet})`, padding: "9px 15px", borderRadius: 10 }}>Upgrade to Pro →</Link>
+                </div>
+              )}
 
               {/* Approval process stepper */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14, padding: "11px 13px", borderRadius: 12, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
-                {["🗓️ Drafted daily", d.content.autoPublish ? "⚡ Auto-approved" : "✅ You approve", "🚀 Published live"].map((s, i, arr) => (
+                {[`🗓️ Drafted ${d.dailyContent ? "daily" : "weekly"}`, d.content.autoPublish ? "⚡ Auto-approved" : "✅ You approve", "🚀 Published live"].map((s, i, arr) => (
                   <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: i === 1 && !d.content!.autoPublish ? C.brand2 : C.text, background: i === 1 && !d.content!.autoPublish ? `${C.brand}18` : "rgba(255,255,255,0.04)", border: `1px solid ${i === 1 && !d.content!.autoPublish ? C.brand + "44" : C.lineSoft}`, padding: "5px 11px", borderRadius: 999 }}>{s}</span>
                     {i < arr.length - 1 && <span style={{ color: C.faint, fontSize: 13 }}>→</span>}
@@ -434,7 +454,7 @@ export default function Readiness() {
                       </div>
                       <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: mono, color: C.faint, textAlign: "right" }}>
                         {d.content!.autoPublish ? "live " : "draft "}
-                        {new Date(Date.now() + (i + 1) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {new Date(Date.now() + (i + 1) * (d.dailyContent ? 1 : 7) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
                   ))}

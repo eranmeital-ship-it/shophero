@@ -494,6 +494,7 @@ export async function runBulkContentBatch(
   task: BulkTask,
   limit: number,
   cursor?: string | null,
+  opts?: { skipDescriptions?: boolean },
 ): Promise<{ ok: boolean; examined: number; applied: number; costUsd: number; nextCursor: string | null; hasNext: boolean }> {
   const brand = await buildBrandContext(shop).catch(() => "");
   const n = Math.max(1, Math.min(100, limit));
@@ -527,8 +528,10 @@ export async function runBulkContentBatch(
         applied += r.applied; costUsd += r.costUsd;
       } else {
         // product_pages — a full PDP AEO pass: substantive description + SEO meta +
-        // image alt, each only where it's missing.
-        for (const fix of [fixDescription, fixSeo, fixAlt]) {
+        // image alt, each only where it's missing. Description is skipped on tiers
+        // without the product-description capability.
+        const fixes = opts?.skipDescriptions ? [fixSeo, fixAlt] : [fixDescription, fixSeo, fixAlt];
+        for (const fix of fixes) {
           const r = await fix(admin, brand, p);
           applied += r.applied; costUsd += r.costUsd;
         }

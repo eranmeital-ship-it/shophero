@@ -1,7 +1,7 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import type { Job } from "@prisma/client";
 import db from "../db.server";
-import { getActivePlan } from "./billing.server";
+import { getActivePlan, tierAllows } from "./billing.server";
 import { checkSpend } from "./spend-guard.server";
 import { runBulkContentBatch } from "./content-gen.server";
 import { todayKey, type JobType } from "./jobs.server";
@@ -46,8 +46,16 @@ export async function runJobBatch(shop: string, job: Job, admin: AdminApiContext
     return null;
   }
 
+  // Product-description rewrites are a Pro+ capability. On lower tiers, pause a
+  // descriptions job and skip the description facet of a full product-page pass.
+  const canDescribe = await tierAllows(admin, "productDescriptions").catch(() => false);
+  if (task === "descriptions" && !canDescribe) {
+    await db.job.update({ where: { id: job.id }, data: { status: "paused", error: "Product description rewrites are a Pro feature — upgrade to resume." } }).catch(() => {});
+    return null;
+  }
+
   try {
-    const r = await runBulkContentBatch(admin, shop, task, job.perDay, params.cursor ?? null);
+    const r = await runBulkContentBatch(admin, shop, task, job.perDay, params.cursor ?? null, { skipDescriptions: task === "product_pages" && !canDescribe });
     // Transient page-fetch failure — back off to the next day, don't mark done.
     if (!r.ok) {
       await db.job.update({ where: { id: job.id }, data: { status: "scheduled", lastRunOn: today, error: "Couldn't reach the catalog this run; will retry next batch." } }).catch(() => {});
