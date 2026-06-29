@@ -8,7 +8,7 @@ import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
 
 export const meta: MetaFunction = () => [
-  { title: "ShopHero — Be the Shopify store AI agents recommend" },
+  { title: "ShopHero — Get your Shopify store recommended by ChatGPT" },
   {
     name: "description",
     content:
@@ -118,11 +118,11 @@ const COMPARE_ROWS: [string, string][] = [
 ];
 
 const BRAINS = [
-  { icon: "🤖", name: "Agent-Ready (the hero)", desc: "A hosted llms.txt, a retrieval-tuned product feed, and conversation-friendly Q&A descriptions — the exact things ChatGPT, Claude, Gemini & Perplexity read before they recommend a store. Served from ShopHero and kept live as your catalog changes." },
-  { icon: "📐", name: "Structured Data", desc: "Auto-adds and maintains Product, Offer, Review, FAQ & Breadcrumb schema on every page — so AI and Google can actually parse what you sell, and you win rich results." },
-  { icon: "✍️", name: "AI-Answer Content", desc: "An ongoing drip of answer-shaped buying guides and product Q&A — schema'd and linked to your products — the depth AI engines pull from when shoppers ask what to buy." },
-  { icon: "📈", name: "AI-Crawler Analytics", desc: "See exactly which AI bots (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) are fetching your store — real logs, not vanity metrics — and watch your readiness score climb." },
-  { icon: "⚡", name: "Speed & Foundations", desc: "Core Web Vitals audit, image and lazy-load fixes, and a clean technical base — because slow, broken stores get demoted by both Google and AI." },
+  { icon: "🤖", name: "Get recommended by AI", desc: "We give ChatGPT, Claude, Gemini & Perplexity everything they need to understand, trust, and recommend your store — and keep it updated automatically as your catalog changes. (Under the hood: a hosted llms.txt + retrieval feed.)" },
+  { icon: "📐", name: "Make your products understandable to AI", desc: "AI can finally tell what each product is, what it costs, and whether it's in stock — so it answers shopper questions with your products, and you win rich results on Google too." },
+  { icon: "✍️", name: "Give AI better answers about your products", desc: "A steady stream of buying guides and product Q&A, tied to your real best sellers, that AI quotes when shoppers ask what to buy." },
+  { icon: "📈", name: "Proof AI is actually reading you", desc: "See exactly which AI assistants are fetching your store — real logs, not vanity metrics — so you know it's working and watch your score climb." },
+  { icon: "⚡", name: "A fast, clean foundation", desc: "Speed and technical fixes, because slow, broken stores get ignored by both Google and AI." },
 ];
 
 const SAFETY = [
@@ -414,8 +414,8 @@ function AIComparison() {
   return (
     <section style={SECT}>
       <Kicker>The AI shopping shift · not 2016 SEO</Kicker>
-      <h2 className={styles.h2}>Right now, AI is recommending your <span className={styles.grad}>competitors.</span></h2>
-      <p className={styles.lead}>Ask ChatGPT or Perplexity what to buy and it names a few stores. Today it isn't yours — because AI literally can't read your store. ShopHero changes the answer.</p>
+      <h2 className={styles.h2}>Right now, AI is sending customers to your <span className={styles.grad}>competitors.</span></h2>
+      <p className={styles.lead}>You probably don't even know it's happening. Ask ChatGPT what to buy and it names a few stores — today, not yours, because AI literally can't read your store. ShopHero changes the answer.</p>
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 26, textAlign: "left", alignItems: "stretch" }}>
         <ChatCard tone="bad" q="What's the best trail-running shoe for wide feet?" answers={a} verdict="Your store isn't mentioned. The shopper clicks a competitor — and you never knew it happened." />
         <ChatCard tone="good" q="What's the best trail-running shoe for wide feet?" answers={b} verdict="Your store is the top pick — and you can see exactly which AI bots read you." />
@@ -605,6 +605,51 @@ function ChoiceClosing() {
   );
 }
 
+function Benchmarks() {
+  const rows = [
+    { label: "Average Shopify store", score: 31, color: C.coral, you: false },
+    { label: "With ShopHero", score: 82, color: C.brand, you: true },
+    { label: "Top 1% of stores", score: 95, color: C.accent, you: false },
+  ];
+  return (
+    <section style={SECT}>
+      <Kicker>AI-Readiness Score · the new benchmark</Kicker>
+      <h2 className={styles.h2}>Where does your store <span className={styles.grad}>stand?</span></h2>
+      <p className={styles.lead}>Every store gets one number for how readable it is to AI. Most are nowhere near ready — which is exactly the opening.</p>
+      <div style={{ maxWidth: 640, margin: "26px auto 0", display: "flex", flexDirection: "column", gap: 13 }}>
+        {rows.map((r) => (
+          <div key={r.label} style={{ ...glass, padding: "16px 18px", textAlign: "left", ...(r.you ? { border: "1px solid rgba(110,197,49,0.45)", boxShadow: "0 0 40px rgba(110,197,49,0.10)" } : {}) }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ color: C.text, fontWeight: r.you ? 800 : 650, fontSize: 14 }}>{r.label}{r.you && " ⭐"}</span>
+              <span style={{ color: r.color, fontWeight: 800, fontSize: 15 }}>{r.score}/100</span>
+            </div>
+            <div style={{ height: 9, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+              <span style={{ display: "block", height: "100%", width: `${r.score}%`, borderRadius: 999, background: r.you ? `linear-gradient(90deg,${C.brand2},${C.accent})` : r.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 12, color: "#6f7d68", fontSize: 11.5 }}>Illustrative AI-Readiness Scores · get yours free in 30 seconds</div>
+    </section>
+  );
+}
+
+function EarlyMover() {
+  return (
+    <section style={{ ...SECT, maxWidth: 900 }}>
+      <GlowCard accent={C.violet}>
+        <div style={{ padding: "34px 28px" }}>
+          <Kicker>The window is open — right now</Kicker>
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "4px 0 10px" }}>Be early. <span className={styles.grad}>That's the whole opportunity.</span></h2>
+          <p style={{ color: C.muted, maxWidth: 620, margin: "0 auto", lineHeight: 1.65 }}>AI shopping is where SEO was 15 years ago. Today, AI names only a handful of stores per question — and most merchants haven't realized it yet. The stores that become readable and trusted by AI <em>now</em> build citations, authority and data <strong style={{ color: C.text }}>before the seats fill up.</strong></p>
+          <p style={{ color: C.text, fontWeight: 800, margin: "16px 0 18px", fontSize: 17 }}>Start now. Thank yourself later.</p>
+          <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 24px", borderRadius: 999, textDecoration: "none" }}>Claim your seat — free score →</a>
+        </div>
+      </GlowCard>
+    </section>
+  );
+}
+
 export default function LandingV2() {
   const { showForm } = useLoaderData<typeof loader>();
 
@@ -639,7 +684,7 @@ export default function LandingV2() {
       {/* HERO */}
       <section className={styles.hero} id="top">
         <div className={styles.heroInner}>
-          <span className={styles.badge}>✦ Built for the AI shopping era</span>
+          <span className={styles.badge}>✦ The AI SEO app for Shopify</span>
           <div className={styles.lockup}>
             <span className={styles.logoChip}><ShopifyMark /><span>Shopify</span></span>
             <span className={styles.plus}>+</span>
@@ -652,22 +697,25 @@ export default function LandingV2() {
             </span>
           </div>
           <h1 className={styles.h1}>
-            <span className={styles.nowrap}>Be the store</span>{" "}
-            <span className={styles.grad}>AI agents recommend.</span>
+            <span className={styles.nowrap}>Get recommended</span>{" "}
+            <span className={styles.grad}>by ChatGPT.</span>
           </h1>
           <p className={styles.sub}>
-            Shoppers are starting to ask <strong>ChatGPT, Claude &amp; Perplexity</strong> what to buy.
-            ShopHero makes your store <strong>fast, structured, and readable by AI</strong> — so when an
-            agent answers, <strong>it picks you</strong>, not your competitor.
+            Millions of shoppers now ask <strong>ChatGPT, Claude &amp; Perplexity</strong> what to buy — and AI
+            recommends just a few stores. The good news? <strong>It's still early.</strong> Become one of the stores
+            AI learns to trust and recommend, before your category gets crowded.
           </p>
           <div className={styles.brainsLine}>
-            <span className={styles.brainsCount}>🤖 Agent-ready in minutes</span>
-            <span>see your free AI-Readiness Score first</span>
+            <span className={styles.brainsCount}>🟢 Early-mover advantage</span>
+            <span>AI shopping is still in its first innings</span>
           </div>
           <div id="start" className={styles.startBlock}>
             <StartForm />
-            <p className={styles.micro}>Free AI-Readiness Score · Installs in 30 seconds · You approve every change</p>
+            <p className={styles.micro}>Get your free AI-Readiness Score · no card · installs in 30 seconds</p>
           </div>
+          <p style={{ maxWidth: 560, margin: "16px auto 0", color: "#9fb098", fontSize: 14, lineHeight: 1.55 }}>
+            You don't need to understand AI optimization — just whether AI can recommend your store. <strong style={{ color: "#f2f6f0" }}>ShopHero handles the rest.</strong>
+          </p>
           <div className={styles.heroStats}>
             <div className={styles.stat}>
               <span className={styles.statIcon}>📊</span>
@@ -677,15 +725,15 @@ export default function LandingV2() {
             </div>
             <div className={styles.stat}>
               <span className={styles.statIcon}>🤖</span>
-              <strong className={styles.statBig}>Auto</strong>
-              <span className={styles.statLabel}>schema · retrieval feed · llms.txt</span>
+              <strong className={styles.statBig}>Yes</strong>
+              <span className={styles.statLabel}>AI can finally read your store</span>
               <span className={styles.statVs}>vs <s>invisible to AI</s></span>
             </div>
             <div className={styles.stat}>
               <span className={styles.statIcon}>📈</span>
-              <strong className={styles.statBig}>Live</strong>
-              <span className={styles.statLabel}>AI-crawler tracking</span>
-              <span className={styles.statVs}>see who reads your store</span>
+              <strong className={styles.statBig}>Proof</strong>
+              <span className={styles.statLabel}>see AI actually reading you</span>
+              <span className={styles.statVs}>real crawler logs</span>
             </div>
           </div>
         </div>
@@ -694,20 +742,20 @@ export default function LandingV2() {
       {/* CREDIBILITY */}
       <section className={styles.strip}>
         <p className={styles.stripLead}>
-          The new search box is <span className={styles.grad}>AI.</span>
+          Shopping has <span className={styles.grad}>changed.</span>
         </p>
         <p className={styles.stripSub}>
-          More shoppers start with <strong>ChatGPT, Claude, Perplexity and Google's AI</strong> instead of a search bar —
-          and those agents only recommend stores they can <strong>read and trust</strong>. Most Shopify stores are
-          invisible to them. ShopHero fixes that: <strong>structured data, a retrieval-tuned product feed, and an
-          llms.txt</strong> AI crawlers actually use — kept live as your catalog changes, and tracked so you can see
-          which AI bots are reading your store.
+          Millions of shoppers now ask <strong>ChatGPT what to buy</strong> instead of searching Google.
+          And AI usually recommends <strong>just a few stores</strong>. <strong>Is yours one of them?</strong>{" "}
+          Most Shopify stores are invisible to AI — ShopHero gives AI everything it needs to understand,
+          trust, and recommend yours, and shows you proof it's working.
         </p>
       </section>
 
       {/* AI RECOMMENDATION — before/after */}
       <AIComparison />
       <StatsBand />
+      <Benchmarks />
       <FourSteps />
 
       {/* AUTHORITY BADGES */}
@@ -800,10 +848,10 @@ export default function LandingV2() {
 
       {/* AI GROWTH PLAN */}
       <section className={styles.section} id="brains">
-        <h2 className={styles.h2}>Your <span className={styles.grad}>Agent-Ready stack</span></h2>
+        <h2 className={styles.h2}>What ShopHero <span className={styles.grad}>does for you</span></h2>
         <p className={styles.lead}>
-          Everything that makes AI shopping agents read, trust, and recommend your store -
-          built, hosted, and kept live for you.
+          You don't need to know how any of it works. You just get a store AI can recommend —
+          built, kept live, and proven with real data.
         </p>
         <div className={styles.brainGrid}>
           {BRAINS.map((b) => (
@@ -851,6 +899,7 @@ export default function LandingV2() {
 
       {/* COST COMPARISON + OBJECTIONS + FOUNDING STORES */}
       <CostCompare />
+      <EarlyMover />
       <Objections />
       <FoundingStores />
 
@@ -892,9 +941,9 @@ export default function LandingV2() {
 
       {/* FINAL CTA */}
       <section className={styles.finalCta}>
-        <span className={styles.kicker}>Get discoverable in the AI era</span>
-        <h2 className={styles.h2}>Be the store AI recommends - before your <span className={styles.grad}>competitor</span> is.</h2>
-        <p className={styles.lead}>When a shopper asks an AI what to buy, one store gets named. Make it yours.</p>
+        <span className={styles.kicker}>🚀 Get positioned before your category gets crowded</span>
+        <h2 className={styles.h2}>Get recommended by AI - before your <span className={styles.grad}>competitor</span> is.</h2>
+        <p className={styles.lead}>The best time to become AI-ready was yesterday. The second-best is today. When a shopper asks AI what to buy, one store gets named — make it yours.</p>
         <div className={styles.startBlock}><StartForm /></div>
       </section>
 
