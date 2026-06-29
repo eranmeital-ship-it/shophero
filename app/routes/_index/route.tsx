@@ -760,7 +760,6 @@ function EarlyMover() {
           <Kicker>The window is open — right now</Kicker>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "4px 0 10px" }}>Be early. <span className={styles.grad}>That's the whole opportunity.</span></h2>
           <p style={{ color: C.muted, maxWidth: 620, margin: "0 auto", lineHeight: 1.65 }}>AI shopping is where SEO was 15 years ago. Today, AI names only a handful of stores per question — and most merchants haven't realized it yet. The stores that become readable and trusted by AI <em>now</em> build citations, authority and data <strong style={{ color: C.text }}>before the seats fill up.</strong></p>
-          <p style={{ color: C.muted, maxWidth: 620, margin: "12px auto 0", lineHeight: 1.65 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. <strong style={{ color: C.text }}>We'd rather show you your own crawler data than a wall of testimonials.</strong></p>
           <p style={{ color: C.text, fontWeight: 800, margin: "16px 0 18px", fontSize: 17 }}>Start now. Thank yourself later.</p>
           <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 24px", borderRadius: 999, textDecoration: "none" }}>Claim your seat — free score →</a>
         </div>
