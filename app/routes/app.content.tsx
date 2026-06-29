@@ -67,7 +67,7 @@ export default function ContentCalendar() {
       fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       background: `radial-gradient(900px 520px at 8% -8%, ${C.brand}12, transparent 58%), ${C.bg}`,
     }}>
-      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto" }}>
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 19, fontWeight: 800, display: "flex", alignItems: "center", gap: 9 }}><span style={{ fontSize: 20 }}>🗓️</span> Content calendar</div>
           <div style={{ color: C.muted, fontSize: 13, marginTop: 3 }}>Your AI-answer article drip — the queue, the cadence, and the approval flow.</div>
@@ -114,36 +114,62 @@ export default function ContentCalendar() {
               )}
 
               {/* The calendar grid */}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
-                  <div style={{ fontWeight: 750, fontSize: 14 }}>{today.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{today.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
                   <div style={{ fontSize: 11.5, color: C.faint }}>Upcoming articles on their {c.autoPublish ? "publish" : "draft"} dates</div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
-                    <div key={w} style={{ textAlign: "center", fontSize: 10, fontWeight: 800, letterSpacing: "0.05em", color: C.faint, textTransform: "uppercase", paddingBottom: 2 }}>{w}</div>
-                  ))}
-                  {gridDays.map((dt, idx) => {
-                    const slots = byDay.get(dk(dt)) ?? [];
-                    const isToday = dk(dt) === dk(today);
-                    const inMonth = dt.getMonth() === today.getMonth();
-                    return (
-                      <div key={idx} style={{ minHeight: 80, borderRadius: 9, padding: 7, background: isToday ? `${C.brand}12` : C.panel2, border: `1px solid ${isToday ? C.brand + "55" : C.lineSoft}`, opacity: inMonth ? 1 : 0.45, display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: isToday ? C.brand2 : C.faint, fontFamily: mono }}>{dt.getDate()}</div>
-                        {slots.slice(0, 2).map((s, i) => (
-                          <div key={i} title={s.title} style={{ fontSize: 9.5, fontWeight: 700, lineHeight: 1.25, color: "#0a1206", background: intentColor[s.intent] ?? C.brand, borderRadius: 5, padding: "3px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {s.ready ? "● " : ""}{s.title}
+
+                <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${C.line}`, background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))" }}>
+                  {/* weekday header — gray/white gradient strip */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03))", borderBottom: `1px solid ${C.line}` }}>
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
+                      <div key={w} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", color: C.muted, textTransform: "uppercase", padding: "10px 0" }}>{w}</div>
+                    ))}
+                  </div>
+                  {/* day cells */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
+                    {gridDays.map((dt, idx) => {
+                      const slots = byDay.get(dk(dt)) ?? [];
+                      const isToday = dk(dt) === dk(today);
+                      const inMonth = dt.getMonth() === today.getMonth();
+                      const col = idx % 7, row = Math.floor(idx / 7);
+                      return (
+                        <div key={idx} style={{
+                          minHeight: 118, padding: 9, minWidth: 0, display: "flex", flexDirection: "column", gap: 5,
+                          borderRight: col < 6 ? `1px solid ${C.lineSoft}` : "none",
+                          borderTop: row > 0 ? `1px solid ${C.lineSoft}` : "none",
+                          background: isToday
+                            ? `linear-gradient(180deg, ${C.brand}22, ${C.brand}07)`
+                            : inMonth
+                              ? "linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01))"
+                              : "linear-gradient(180deg, rgba(255,255,255,0.015), rgba(0,0,0,0.06))",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: isToday ? C.brand2 : inMonth ? C.muted : C.faint, fontFamily: mono }}>{dt.getDate()}</span>
+                            {isToday && <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.06em", color: "#06120c", background: C.brand2, padding: "2px 6px", borderRadius: 999 }}>TODAY</span>}
                           </div>
-                        ))}
-                        {slots.length > 2 && <div style={{ fontSize: 9, color: C.faint }}>+{slots.length - 2} more</div>}
-                      </div>
-                    );
-                  })}
+                          {slots.slice(0, 3).map((s, i) => (
+                            <div key={i} title={s.title} style={{
+                              fontSize: 10.5, fontWeight: 700, lineHeight: 1.25, color: "#0a1206",
+                              background: `linear-gradient(180deg, ${intentColor[s.intent] ?? C.brand}, ${intentColor[s.intent] ?? C.brand}cc)`,
+                              borderRadius: 6, padding: "4px 6px", overflow: "hidden",
+                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                              boxShadow: s.ready ? `0 0 0 1.5px ${C.brand2}` : "none",
+                            }}>{s.ready ? "● " : ""}{s.title}</div>
+                          ))}
+                          {slots.length > 3 && <div style={{ fontSize: 9.5, color: C.faint, fontWeight: 700 }}>+{slots.length - 3} more</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10, fontSize: 10.5, color: C.muted }}>
+
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 12, fontSize: 11, color: C.muted }}>
                   {Object.entries(intentColor).filter(([k]) => k !== "review").map(([k, col]) => (
-                    <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: col }} />{k}</span>
+                    <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: col }} />{k}</span>
                   ))}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: C.brand, boxShadow: `0 0 0 1.5px ${C.brand2}` }} />ready to review</span>
                 </div>
               </div>
 
