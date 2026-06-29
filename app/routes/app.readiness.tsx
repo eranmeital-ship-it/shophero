@@ -7,6 +7,7 @@ import { gql } from "../lib/onboarding.server";
 import { getPlan } from "../lib/content-plan.server";
 import type { ContentPiece } from "../lib/content-strategy.server";
 import db from "../db.server";
+import "../styles/shophero.css";
 
 /**
  * AI-Readiness — the centerpiece. One 0–100 score for how well AI shopping agents
