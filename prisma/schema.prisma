@@ -105,6 +105,7 @@ model ContentPlan {
   days           Int       @default(30)
   publishedCount Int       @default(0)
   status         String    @default("active") // active | paused | done
+  autoPublish    Boolean   @default(false)    // true = the daily draft auto-publishes (no manual approval)
   // the current generated-but-unpublished draft (today's article)
   draftTitle     String?
   draftBody      String?   // HTML

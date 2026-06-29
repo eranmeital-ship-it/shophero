@@ -50,6 +50,11 @@ export async function setStatus(shop: string, status: "active" | "paused"): Prom
   await db.contentPlan.update({ where: { shop }, data: { status } }).catch(() => {});
 }
 
+/** Toggle auto-publish: when on, the daily draft publishes without manual approval. */
+export async function setAutoPublish(shop: string, on: boolean): Promise<void> {
+  await db.contentPlan.update({ where: { shop }, data: { autoPublish: on } }).catch(() => {});
+}
+
 /** Seed/refresh the plan from a deep content-strategy analysis (the drip queue). */
 export async function setStrategy(
   shop: string,

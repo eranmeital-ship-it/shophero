@@ -5,7 +5,7 @@ import { enforceSpend } from "../lib/spend-guard.server";
 import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { analyzeContentStrategy } from "../lib/content-strategy.server";
-import { generateDraft, getPlan, publishDraft, setStatus, setStrategy, startPlan } from "../lib/content-plan.server";
+import { generateDraft, getPlan, publishDraft, setAutoPublish, setStatus, setStrategy, startPlan } from "../lib/content-plan.server";
 import db from "../db.server";
 
 /** Content Plan control: analyze / start / generate / publish / regenerate / pause / resume. */
@@ -18,7 +18,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // The AI-answer content drip is a Pro+ capability. Building/generating content
   // requires it; pause/resume/publish of an existing plan stay available.
-  const GATED = new Set(["analyze", "start", "generate", "regenerate"]);
+  const GATED = new Set(["analyze", "start", "generate", "regenerate", "autopublish"]);
   if (GATED.has(intent) && !(await tierAllows(admin, "contentDrip"))) {
     return { plan: await getPlan(shop), error: "The AI-answer content drip is a Pro feature. Upgrade to Pro to build your content plan.", upgrade: true };
   }
@@ -57,6 +57,16 @@ export async function action({ request }: ActionFunctionArgs) {
   } else if (intent === "resume") {
     await setStatus(shop, "active");
     await generateDraft(admin, shop, plan);
+  } else if (intent === "autopublish") {
+    // "Approve all / auto-publish": future daily drafts go live without manual
+    // approval. Turning it on also publishes any draft already waiting.
+    const on = String(form.get("value") ?? "") === "on";
+    await setAutoPublish(shop, on);
+    if (on) {
+      await generateDraft(admin, shop, plan); // make sure today's draft exists
+      await publishDraft(admin, shop).catch(() => ({ ok: false }));
+      await generateDraft(admin, shop, plan); // queue the next
+    }
   }
 
   return { plan: await getPlan(shop) };

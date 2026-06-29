@@ -60,13 +60,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const crawlerTotal = crawlers.reduce((s, c) => s + c.count, 0);
 
   // Content plan (the constant AI-answer SEO drip) — strategy summary + queue.
-  let content: { summary: string | null; status: string; published: number; queue: ContentPiece[]; total: number; draftTitle: string | null } | null = null;
+  let content: { summary: string | null; status: string; published: number; queue: ContentPiece[]; total: number; draftTitle: string | null; autoPublish: boolean } | null = null;
   try {
     const cp = await getPlan(shop);
     if (cp) {
       let queue: ContentPiece[] = [];
       try { queue = JSON.parse(cp.queue || "[]"); } catch { /* ignore */ }
-      content = { summary: cp.strategySummary, status: cp.status, published: cp.publishedCount, queue: queue.slice(0, 8), total: queue.length, draftTitle: cp.draftTitle };
+      content = { summary: cp.strategySummary, status: cp.status, published: cp.publishedCount, queue: queue.slice(0, 8), total: queue.length, draftTitle: cp.draftTitle, autoPublish: cp.autoPublish };
     }
   } catch { /* ignore */ }
 
@@ -102,7 +102,9 @@ function ScoreRing({ score }: { score: number }) {
 export default function Readiness() {
   const d = useLoaderData<typeof loader>();
   const analyze = useFetcher();
+  const act = useFetcher(); // publish / auto-publish toggle
   const analyzing = analyze.state !== "idle";
+  const acting = act.state !== "idle";
   return (
     <div className="sh-rd">
       <div className="sh-rd-head">
@@ -164,19 +166,49 @@ export default function Readiness() {
       )}
 
       <div className="sh-rd-card">
-        <div style={{ fontWeight: 750, marginBottom: 4 }}>✍️ Content plan <span className="sh-rd-sub" style={{ fontWeight: 500 }}>· constant AI-answer SEO drip</span></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 750 }}>✍️ Content plan <span className="sh-rd-sub" style={{ fontWeight: 500 }}>· constant AI-answer SEO drip</span></div>
+          {d.content?.summary && (
+            <act.Form method="post" action="/api/content-plan">
+              <input type="hidden" name="intent" value="autopublish" />
+              <input type="hidden" name="value" value={d.content.autoPublish ? "off" : "on"} />
+              <button type="submit" disabled={acting} title="Auto-publish each daily article without manual approval"
+                style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 999, cursor: "pointer", border: d.content.autoPublish ? "none" : "1px solid var(--sh-line, #e1e3e5)", background: d.content.autoPublish ? "#16a34a" : "#fff", color: d.content.autoPublish ? "#fff" : "#42474c" }}>
+                {d.content.autoPublish ? "✓ Auto-publishing on" : "Approve all · auto-publish"}
+              </button>
+            </act.Form>
+          )}
+        </div>
+
         {d.content?.summary ? (
           <>
-            <div className="sh-rd-sub" style={{ marginBottom: 8 }}>{d.content.summary}</div>
-            <div className="sh-rd-sub" style={{ fontSize: 12, marginBottom: 8 }}>
-              <strong>{d.content.published}</strong> published · <strong>{d.content.total}</strong> planned in the queue{d.content.draftTitle ? ` · next draft: "${d.content.draftTitle}"` : ""}
+            <div className="sh-rd-sub" style={{ margin: "8px 0" }}>{d.content.summary}</div>
+            <div className="sh-rd-sub" style={{ fontSize: 12, marginBottom: 10 }}>
+              <strong>{d.content.published}</strong> published · <strong>{d.content.total}</strong> in your calendar{d.content.autoPublish ? " · auto-publishing daily" : " · drafted daily for your approval"}
             </div>
+
+            {/* Pending draft → approve & publish (per-item approval) */}
+            {d.content.draftTitle && !d.content.autoPublish && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.06)", marginBottom: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#15795e" }}>Ready to review</div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{d.content.draftTitle}</div>
+                </div>
+                <act.Form method="post" action="/api/content-plan">
+                  <input type="hidden" name="intent" value="publish" />
+                  <button className="sh-btn sh-btn-primary" type="submit" disabled={acting}>{acting ? "Publishing…" : "Approve & publish →"}</button>
+                </act.Form>
+              </div>
+            )}
+
+            {/* The calendar — upcoming pieces in priority order */}
             {d.content.queue.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                 {d.content.queue.map((p, i) => (
-                  <div key={i} className="sh-rd-gap" style={{ padding: "7px 0" }}>
+                  <div key={i} className="sh-rd-gap" style={{ padding: "7px 0", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--sh-bg-alt, #f3f4f6)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, color: "#6b7280", flexShrink: 0 }}>{i + 1}</span>
                     <span className="sh-rd-bot" style={{ fontSize: 10.5 }}>{p.intent}</span>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{p.title}</div>
                       <div className="sh-rd-sub" style={{ fontSize: 11.5 }}>{p.angle}</div>
                     </div>
@@ -184,9 +216,14 @@ export default function Readiness() {
                 ))}
               </div>
             )}
+            <div className="sh-rd-sub" style={{ fontSize: 11.5, marginBottom: 10 }}>
+              {d.content.autoPublish
+                ? "Auto-publish is on — one article goes live each day, no approval needed. Turn it off to review each one first."
+                : "Each day's article is drafted automatically and waits here for your approval. Use “Approve all” to let them publish on their own."}
+            </div>
           </>
         ) : (
-          <div className="sh-rd-sub" style={{ marginBottom: 10 }}>Analyze your store — best sellers, categories, content gaps — to build a prioritized plan of AI-answer articles that keep earning SEO/AI traffic, drafted on a cadence for your approval.</div>
+          <div className="sh-rd-sub" style={{ margin: "8px 0 10px" }}>Analyze your store — best sellers, categories, content gaps — to build a prioritized plan of AI-answer articles that keep earning SEO/AI traffic, drafted on a cadence for your approval.</div>
         )}
         <analyze.Form method="post" action="/api/content-plan">
           <input type="hidden" name="intent" value="analyze" />
@@ -194,6 +231,9 @@ export default function Readiness() {
             {analyzing ? "Analyzing your store…" : d.content?.summary ? "Rebuild content plan" : "Analyze my store & build a content plan →"}
           </button>
         </analyze.Form>
+        {act.data && typeof act.data === "object" && "error" in act.data && (act.data as { error?: string }).error && (
+          <div className="sh-rd-sub" style={{ fontSize: 12, color: "#e0457f", marginTop: 8 }}>{(act.data as { error: string }).error}</div>
+        )}
       </div>
 
       <div className="sh-rd-card">
