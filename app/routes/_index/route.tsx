@@ -1084,21 +1084,24 @@ export default function LandingV2() {
             <div style={{ padding: 24, textAlign: "left", height: "100%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Authority</span>
-                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#fff", background: C.violet, padding: "3px 9px", borderRadius: 999 }}>DOMINATE AI</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#fff", backgroundImage: "linear-gradient(90deg,#a78bfa,#7b6cf6,#5b4bd6)", padding: "3px 9px", borderRadius: 999 }}>DOMINATE AI</span>
               </div>
-              <div style={{ marginTop: 6 }}><span style={{ fontSize: 40, fontWeight: 800, color: C.violet }}>$399</span><span style={{ color: C.muted }}>/month</span></div>
-              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Become the store AI cites everywhere.</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, padding: "9px 12px", borderRadius: 10, background: "rgba(123,108,246,0.12)", border: `1px solid ${C.violet}` }}>
+              <div style={{ marginTop: 6 }}><span style={{ fontSize: 40, fontWeight: 800, backgroundImage: "linear-gradient(90deg,#c4b5fd,#7b6cf6,#4f3fd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>$399</span><span style={{ color: C.muted }}>/month</span></div>
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>The complete AI-ranking picture — content <em>and</em> authority.</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, padding: "9px 12px", borderRadius: 10, backgroundImage: "linear-gradient(135deg,rgba(196,181,253,0.16),rgba(123,108,246,0.12))", border: `1px solid ${C.violet}` }}>
                 <span style={{ fontSize: 18 }}>📣</span>
                 <div style={{ fontSize: 12, lineHeight: 1.4, color: C.text }}>
                   <strong>$800 of press-release value</strong> every month — <span style={{ color: "#b3a6ff", fontWeight: 700 }}>powered by MediaFuse</span>
                 </div>
               </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: C.muted, marginTop: 14 }}>
+                AI ranks you on <strong style={{ color: C.text }}>two things</strong>: what your store says about itself, and what the rest of the web says about you. Pro nails the first with monthly content. <strong style={{ color: "#b3a6ff" }}>Authority adds the second</strong> — high-authority backlinks — so both halves compound into AI-ranking domination.
+              </div>
               <div style={{ fontSize: 12.5, color: "#b3a6ff", marginTop: 16, fontWeight: 800 }}>Everything in Pro, plus:</div>
               <div style={{ marginTop: 6 }}>
-                <ColList tone="good" items={["A monthly press release distributed to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more (an $800/mo value via MediaFuse)", "High-authority backlinks from the top-domain-authority sites AI already trusts", "Brand mentions on the exact sources AI reads when deciding who to recommend", "Compounding domain authority — more citations every month", "Dedicated authority manager"]} />
+                <ColList tone="good" items={["Monthly AI-answer content + authority backlinks working together — the full ranking signal AI looks for", "A monthly press release distributed to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more (an $800/mo value via MediaFuse)", "High-authority backlinks from the top-domain-authority sites AI already trusts", "Brand mentions on the exact sources AI reads when deciding who to recommend", "Compounding domain authority — more citations every month", "Dedicated authority manager"]} />
               </div>
-              <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18, background: `linear-gradient(180deg,${C.violet},#5b4bd6)`, color: "#fff" }}>Dominate AI search →</a>
+              <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18, backgroundImage: "linear-gradient(120deg,#a78bfa,#7b6cf6,#5b4bd6)", color: "#fff" }}>Dominate AI search →</a>
             </div>
           </GlowCard>
         </div>
