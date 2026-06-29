@@ -167,8 +167,8 @@
   white-space: nowrap;
 }
 .h1 {
-  font-size: clamp(28px, 5.6vw, 60px);
-  line-height: 1.08;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0 0 20px;
@@ -358,7 +358,7 @@
 }
 .stripLead {
   margin: 0 0 14px;
-  font-size: clamp(24px, 3.6vw, 36px);
+  font-size: clamp(26px, 3.8vw, 38px);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -366,7 +366,7 @@
 .stripSub {
   margin: 0 auto;
   max-width: 760px;
-  font-size: 16px;
+  font-size: clamp(15px, 1.6vw, 16.5px);
   color: var(--muted);
   line-height: 1.6;
 }
@@ -448,17 +448,17 @@
 .h2 {
   display: block;
   width: 100%;
-  font-size: clamp(34px, 5.2vw, 52px);
+  font-size: clamp(27px, 4vw, 40px);
   font-weight: 800;
   letter-spacing: -0.02em;
   text-align: center;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 0 auto 16px;
 }
 .lead {
   text-align: center;
   color: var(--muted);
-  font-size: 18px;
+  font-size: clamp(15px, 1.6vw, 18px);
   max-width: 660px;
   margin: 0 auto 48px;
 }
@@ -1278,13 +1278,13 @@
     white-space: normal;
   }
   .h1 {
-    font-size: clamp(35px, 10.5vw, 54px);
+    font-size: clamp(30px, 8vw, 40px);
   }
   .h2 {
-    font-size: clamp(34px, 9.8vw, 52px);
+    font-size: clamp(25px, 7vw, 34px);
   }
   .lead {
-    font-size: 16px;
+    font-size: 15.5px;
     margin-bottom: 36px;
   }
   .sub {
@@ -1346,7 +1346,7 @@
     padding: 9px 14px;
   }
   .stripLead {
-    font-size: clamp(29px, 8.8vw, 40px);
+    font-size: clamp(25px, 7.5vw, 34px);
   }
 
   /* comparison table: keep 2 columns but make it fit cleanly */

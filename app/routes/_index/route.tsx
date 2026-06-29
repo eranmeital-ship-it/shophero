@@ -538,7 +538,6 @@ function CostCompare() {
       <p className={styles.lead}>Most agencies are still running the 2016 playbook — backlinks and blog posts — with no idea how next-gen AI agent search actually picks stores. ShopHero does the new thing, at a fraction of the cost.</p>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 26, alignItems: "stretch" }}>
         <Tier name="SEO / AEO agency" price="$3,000–8,000" per="/mo" items={["3-month minimums, black-box reports", "Still optimizing for 2016 Google, not AI agents", "A few articles — no technical AI readiness"]} />
-        <Tier name="Blog-only AI-SEO tools" price="~$400" per="/mo" items={["A firehose of generic articles", "No schema, feed or llms.txt on your store", "Vanity metrics, not real crawler data"]} />
         <GlowCard style={{ flex: "1 1 260px" }}>
           <div style={{ padding: 22, textAlign: "left", height: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -635,9 +634,9 @@ function HeroChatDemo() {
     run();
     return () => clearTimeout(id);
   }, []);
-  const T = { ink: "#1f2430", muted: "#6b7280", line: "#eceef1", green: "#15795e", studio: "#efe9df" };
+  const T = { ink: "#1f2430", muted: "#6b7280", line: "#eceef1", green: "#3f7d17", studio: "#efe9df" };
   const Btn = ({ children, solid, muted }: { children: ReactNode; solid?: boolean; muted?: boolean }) => (
-    <div style={{ marginTop: 9, textAlign: "center", fontSize: 12.5, fontWeight: 700, padding: "9px 0", borderRadius: 9, background: muted ? "#eceef1" : solid ? T.green : "#f3f4f6", color: muted ? T.muted : solid ? "#fff" : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{children}</div>
+    <div style={{ marginTop: 9, textAlign: "center", fontSize: 12.5, fontWeight: 800, padding: "9px 0", borderRadius: 9, background: muted ? "#eceef1" : solid ? "linear-gradient(180deg,#a8e85f,#6ec531)" : "#f3f4f6", color: muted ? T.muted : solid ? "#0a1606" : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{children}</div>
   );
   return (
     <section style={{ maxWidth: 600, margin: "0 auto", padding: "12px 18px 6px", position: "relative" }}>
@@ -654,7 +653,7 @@ function HeroChatDemo() {
       `}</style>
       {/* soft glow behind the floating panel */}
       <div aria-hidden="true" style={{ position: "absolute", inset: "8% 12%", background: "radial-gradient(closest-side, rgba(52,224,161,0.18), transparent)", filter: "blur(30px)", zIndex: 0 }} />
-      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", height: 470, overflow: "hidden" }}>
+      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, border: "1px solid rgba(110,197,49,0.45)", boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(110,197,49,0.18), 0 0 55px rgba(110,197,49,0.14)", height: 470, overflow: "hidden" }}>
        <div ref={scrollRef} className="sh-cd-scroll" style={{ height: "100%", overflowY: "auto", padding: "20px 18px", scrollbarWidth: "none" }}>
         {/* shopper + avatar */}
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 10 }}>
@@ -707,11 +706,11 @@ function HeroChatDemo() {
 
         {/* order confirmed — Shopify-style celebratory receipt */}
         {phase >= 5 && (
-          <div className="sh-cd-pop" style={{ marginTop: 14, borderRadius: 16, overflow: "hidden", boxShadow: "0 12px 30px rgba(13,138,95,0.22)", border: "1px solid #cfe9df" }}>
-            <div style={{ background: "linear-gradient(135deg,#11a06b,#0a6e4c)", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 9 }}>
+          <div className="sh-cd-pop" style={{ marginTop: 14, borderRadius: 16, overflow: "hidden", boxShadow: "0 12px 30px rgba(110,197,49,0.22)", border: "1px solid rgba(110,197,49,0.4)" }}>
+            <div style={{ background: "linear-gradient(135deg,#6ec531,#34e0a1)", color: "#06281b", padding: "12px 16px", display: "flex", alignItems: "center", gap: 9 }}>
               <span style={{ fontSize: 18 }}>🎉</span>
               <div style={{ fontWeight: 800, fontSize: 14, flex: 1 }}>Order confirmed!</div>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 10px 4px 7px", fontSize: 11, fontWeight: 800 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.32)", borderRadius: 999, padding: "4px 10px 4px 7px", fontSize: 11, fontWeight: 800 }}>
                 <span style={{ display: "inline-flex", transform: "scale(0.78)", transformOrigin: "center" }}><ShopifyMark /></span> Shopify
               </span>
             </div>
@@ -797,7 +796,7 @@ function EarlyMover() {
       <GlowCard accent={C.violet}>
         <div style={{ padding: "52px 36px" }}>
           <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", color: "#b3a6ff", textTransform: "uppercase" }}>🚀 The biggest opportunity is that it's still early</div>
-          <h2 style={{ fontSize: 34, fontWeight: 800, color: C.text, margin: "12px auto 16px", maxWidth: 720, lineHeight: 1.2 }}>AI shopping is where SEO was <span className={styles.grad}>years ago.</span></h2>
+          <h2 style={{ fontSize: "clamp(27px, 4vw, 40px)", fontWeight: 800, color: C.text, margin: "12px auto 16px", maxWidth: 720, lineHeight: 1.2 }}>AI shopping is where SEO was <span className={styles.grad}>years ago.</span></h2>
           <p style={{ color: C.muted, maxWidth: 640, margin: "0 auto", lineHeight: 1.7, fontSize: 16 }}>
             Today, only a handful of stores are optimized for AI recommendations. <strong style={{ color: C.text }}>Tomorrow, every store will be competing for the same few spots.</strong> The stores that start now build the citations, authority and data that compound — before the seats fill up.
           </p>
@@ -1165,7 +1164,7 @@ export default function LandingV2() {
 
       {/* FRICTION REMOVER */}
       <section style={{ ...SECT, maxWidth: 760 }}>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, lineHeight: 1.25 }}>You don't need to understand <span className={styles.grad}>AI optimization.</span></h2>
+        <h2 style={{ fontSize: "clamp(24px, 3.4vw, 32px)", fontWeight: 800, color: C.text, lineHeight: 1.25 }}>You don't need to understand <span className={styles.grad}>AI optimization.</span></h2>
         <p style={{ color: C.muted, fontSize: 17, lineHeight: 1.65, maxWidth: 600, margin: "16px auto 0" }}>
           You just need to know one thing: <strong style={{ color: C.text }}>when someone asks AI what to buy, can it recommend your store?</strong>
         </p>
