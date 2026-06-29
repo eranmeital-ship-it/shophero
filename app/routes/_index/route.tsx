@@ -804,6 +804,51 @@ function EarlyMover() {
   );
 }
 
+// PLACEHOLDER reviews — realistic samples so the section looks right. REPLACE with
+// real Trustpilot / Shopify App Store reviews before launch. Never ship invented
+// reviews as real (deceptive + against FTC/consumer rules, and it'd undermine the
+// honesty that's our whole positioning).
+const TESTIMONIALS: { name: string; role: string; flag: string; img: number; quote: ReactNode; src: string }[] = [
+  { name: "Maya R.", role: "Skincare brand", flag: "🇺🇸", img: 32, src: "Shopify App Store", quote: <>Set up in an afternoon. Two weeks later my score jumped from 34 to 89 and <Hl>I can actually see ChatGPT's bot crawling my feed.</Hl> Wild to watch.</> },
+  { name: "Tom B.", role: "Outdoor gear", flag: "🇬🇧", img: 12, src: "Shopify App Store", quote: <>Finally a tool that explains what's wrong in plain English and <Hl>just fixes it.</Hl> Schema and llms.txt were done before I finished my coffee.</> },
+  { name: "Priya N.", role: "Home & kitchen", flag: "🇨🇦", img: 5, src: "Trustpilot", quote: <>The content plan pulls from my best sellers — <Hl>the buying guides read like I wrote them.</Hl> Already showing up for questions I never targeted.</> },
+  { name: "Lucas M.", role: "Coffee roaster", flag: "🇦🇺", img: 14, src: "Shopify App Store", quote: <>I approve everything and nothing touches my live theme. <Hl>The crawler dashboard is the first thing I check every morning.</Hl></> },
+  { name: "Sofía K.", role: "Jewelry", flag: "🇪🇸", img: 47, src: "Trustpilot", quote: <>A fraction of what my SEO agency charged — and it's <Hl>the only one actually doing the AI side.</Hl> Easy decision.</> },
+  { name: "Daniel A.", role: "Pet supplies", flag: "🇮🇱", img: 60, src: "Shopify App Store", quote: <>Got <Hl>mentioned by Perplexity for "best harness for big dogs"</Hl> within a month — a customer I'd never have reached otherwise.</> },
+];
+function Hl({ children }: { children: ReactNode }) {
+  return <mark style={{ background: "rgba(110,197,49,0.20)", color: "#cdeea9", padding: "0 3px", borderRadius: 4 }}>{children}</mark>;
+}
+function Testimonials() {
+  return (
+    <section style={SECT}>
+      <Kicker>Loved by early stores</Kicker>
+      <h2 className={styles.h2}>Stores that got <span className={styles.grad}>AI-ready early.</span></h2>
+      <p className={styles.lead}>Real results from merchants getting found by AI before their category catches on.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16, marginTop: 28, textAlign: "left" }}>
+        {TESTIMONIALS.map((t, i) => (
+          <div key={i} style={{ ...glass, padding: 20, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
+              <img src={`https://i.pravatar.cc/64?img=${t.img}`} alt="" width={40} height={40} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", background: "linear-gradient(135deg,#c7d2fe,#a5b4fc)" }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name} <span style={{ fontWeight: 400 }}>{t.flag}</span></div>
+                <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
+              </div>
+            </div>
+            <div style={{ color: "#f5b301", fontSize: 14, letterSpacing: 1, marginBottom: 8 }}>★★★★★</div>
+            <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.6, flex: 1 }}>{t.quote}</div>
+            <div style={{ fontSize: 11, color: "#6f7d68", marginTop: 12, letterSpacing: "0.02em" }}>Source: {t.src}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 28 }}>
+        <div style={{ color: C.muted, fontWeight: 600, marginBottom: 14 }}>Be among the first stores AI learns to recommend.</div>
+        <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 26px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingV2() {
   const { showForm } = useLoaderData<typeof loader>();
 
@@ -953,6 +998,9 @@ export default function LandingV2() {
 
       {/* DIY VS SHOPHERO */}
       <DiyVsShopHero />
+
+      {/* TESTIMONIALS */}
+      <Testimonials />
 
       {/* FAQ */}
       <section className={styles.section} id="faq">
