@@ -28,7 +28,7 @@ Cover a healthy mix:
 - care / sizing / compatibility / FAQ support content
 - a few general brand/SEO pieces (about, materials, sustainability — only if it fits)
 
-Rules: ground every piece in the REAL products/collections given (use their handles for "target"); do NOT repeat topics already covered by the existing titles; buying intent first; titles should read like questions or guides a shopper would search/ask.
+Rules: ground every piece in the REAL products/collections given (use their handles for "target"); do NOT repeat topics already covered by the existing titles; buying intent first; titles should read like questions or guides a shopper would search/ask. Prefer evergreen titles WITHOUT a year; if a year genuinely helps, use ONLY the current year given below — never a past year.
 
 Respond with ONLY JSON, no prose, no code fences:
 {"summary":"2-sentence strategy for this store","pieces":[{"title":"…","angle":"…","target":"<handle or 'general'>","intent":"buying|research|support|brand","priority":1}]}
@@ -61,6 +61,7 @@ export async function analyzeContentStrategy(
   const sellers = (ctx?.bestSellers?.nodes ?? []).filter((p) => p.title);
   const colls = (ctx?.collections?.nodes ?? []).filter((c) => c.title);
   const user = [
+    `Current year: ${new Date().getFullYear()} (use this year if any, never a past one).`,
     `Store: ${ctx?.shop?.name ?? shop}`,
     ctx?.shop?.description ? `About: ${ctx.shop.description.replace(/<[^>]+>/g, " ").slice(0, 300)}` : "",
     sellers.length ? `Best sellers (most to least): ${sellers.map((p) => `${p.title} [${p.handle}]${p.productType ? ` (${p.productType})` : ""}`).join("; ")}` : "",

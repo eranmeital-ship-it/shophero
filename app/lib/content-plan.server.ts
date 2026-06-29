@@ -129,6 +129,7 @@ export async function generateDraft(admin: AdminApiContext, shop: string, plan: 
 
   const [{ titles, types }, brand] = await Promise.all([gatherContentContext(admin), buildBrandContext(shop)]);
   const userMsg = [
+    `Current year is ${new Date().getFullYear()} — never reference a past year as current; prefer evergreen phrasing.`,
     types.length ? `The store sells: ${types.join(", ")}.` : "",
     row.strategySummary ? `Content strategy: ${row.strategySummary}` : row.strategy ? `Content focus: ${row.strategy}.` : "",
     assigned

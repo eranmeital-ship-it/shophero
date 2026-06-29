@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useFetcher, Link } from "react-router";
+import { useLoaderData, useFetcher, useRevalidator, Link } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { auditSchema } from "../lib/schema-audit.server";
@@ -21,7 +21,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const shop = session.shop;
 
   let structured = 0, installed = false, grade = "Needs work";
-  let gaps: { label: string; detail: string; who: string }[] = [];
+  let gaps: { label: string; detail: string; who: string; how?: string; fix?: { label: string; href?: string; action?: string } }[] = [];
   let liveNote: string | null = null;
   try {
     const { dir } = await ensureReady({ shop, accessToken: session.accessToken! });
@@ -32,7 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     gaps = audit.checks
       .filter((c) => c.status === "fail" || c.status === "partial")
       .slice(0, 8)
-      .map((c) => ({ label: c.label, detail: c.detail, who: c.who }));
+      .map((c) => ({ label: c.label, detail: c.detail, who: c.who, how: c.how, fix: c.fix }));
     liveNote = audit.live?.verified ? `Verified live${audit.live.detectedTypes?.length ? ` · ${audit.live.detectedTypes.join(", ")}` : ""}` : audit.live?.note ?? null;
   } catch { /* audit best-effort */ }
 
@@ -62,13 +62,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const crawlerTotal = crawlers.reduce((s, c) => s + c.count, 0);
 
   // Content plan (the constant AI-answer SEO drip) — strategy summary + queue.
-  let content: { summary: string | null; status: string; published: number; queue: ContentPiece[]; total: number; draftTitle: string | null; autoPublish: boolean } | null = null;
+  let content: { summary: string | null; status: string; published: number; queue: ContentPiece[]; total: number; draftTitle: string | null; autoPublish: boolean; perDay: number } | null = null;
   try {
     const cp = await getPlan(shop);
     if (cp) {
       let queue: ContentPiece[] = [];
       try { queue = JSON.parse(cp.queue || "[]"); } catch { /* ignore */ }
-      content = { summary: cp.strategySummary, status: cp.status, published: cp.publishedCount, queue: queue.slice(0, 8), total: queue.length, draftTitle: cp.draftTitle, autoPublish: cp.autoPublish };
+      content = { summary: cp.strategySummary, status: cp.status, published: cp.publishedCount, queue: queue.slice(0, 8), total: queue.length, draftTitle: cp.draftTitle, autoPublish: cp.autoPublish, perDay: cp.perDay };
     }
   } catch { /* ignore */ }
 
@@ -156,8 +156,13 @@ export default function Readiness() {
   const d = useLoaderData<typeof loader>();
   const analyze = useFetcher();
   const act = useFetcher(); // publish / auto-publish toggle
+  const installFix = useFetcher<{ ok?: boolean; error?: string }>(); // one-tap schema install
+  const revalidator = useRevalidator();
   const analyzing = analyze.state !== "idle";
   const acting = act.state !== "idle";
+  const installing = installFix.state !== "idle";
+  const installed = !!installFix.data?.ok;
+  const reevaluating = revalidator.state === "loading";
 
   // Animated count-up for the headline score (the "needle settling" moment).
   const [shown, setShown] = useState(0);
@@ -199,6 +204,7 @@ export default function Readiness() {
         .rdx-dot-on { box-shadow: 0 0 0 0 ${C.brand}88; animation: rdxPulse 1.8s infinite; }
         @keyframes rdxPulse { 0% { box-shadow: 0 0 0 0 ${C.brand}77; } 70% { box-shadow: 0 0 0 7px ${C.brand}00; } 100% { box-shadow: 0 0 0 0 ${C.brand}00; } }
         @keyframes rdxBar { from { width: 0; } }
+        @keyframes rdxSpin { to { transform: rotate(360deg); } }
         .rdx-bar > span { animation: rdxBar 1s cubic-bezier(.2,.7,.2,1) both; }
         .rdx-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:800; font-size:13.5px; padding:11px 18px; border-radius:11px; border:none; cursor:pointer; background:linear-gradient(180deg,${C.brand2},${C.brand}); color:#06120c; text-decoration:none; transition: transform .15s ease, box-shadow .15s ease; }
         .rdx-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px ${C.brand}44; }
@@ -215,9 +221,16 @@ export default function Readiness() {
             </div>
             <div style={{ color: C.muted, fontSize: 13, marginTop: 3 }}>Live operations for how ChatGPT, Claude, Perplexity &amp; Google AI read and recommend your store.</div>
           </div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 800, letterSpacing: "0.06em", color: C.brand2, background: `${C.brand}14`, border: `1px solid ${C.brand}3a`, padding: "7px 13px", borderRadius: 999 }}>
-            <span className="rdx-dot rdx-dot-on" style={{ background: C.brand }} /> SYSTEMS LIVE · MONITORING
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 800, letterSpacing: "0.06em", color: C.brand2, background: `${C.brand}14`, border: `1px solid ${C.brand}3a`, padding: "7px 13px", borderRadius: 999 }}>
+              <span className="rdx-dot rdx-dot-on" style={{ background: C.brand }} /> SYSTEMS LIVE · MONITORING
+            </span>
+            <button type="button" onClick={() => revalidator.revalidate()} disabled={reevaluating}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: C.text, background: C.panel, border: `1px solid ${C.line}`, padding: "7px 13px", borderRadius: 999, cursor: reevaluating ? "default" : "pointer" }}>
+              <span style={{ display: "inline-block", animation: reevaluating ? "rdxSpin .8s linear infinite" : "none" }}>↻</span>
+              {reevaluating ? "Re-evaluating…" : "Re-evaluate"}
+            </button>
+          </div>
         </div>
 
         {/* ── Hero: gauge + telemetry tiles ── */}
@@ -278,16 +291,50 @@ export default function Readiness() {
             </div>
             {d.gaps.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {d.gaps.map((g, i) => (
-                  <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "11px 12px", borderRadius: 11, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: g.who === "ai" ? C.amber : C.blue, marginTop: 6, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{g.label}</div>
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2, lineHeight: 1.45 }}>{g.detail}</div>
+                {d.gaps.map((g, i) => {
+                  const byUs = g.who === "ai";
+                  return (
+                    <div key={i} style={{ padding: "12px 13px", borderRadius: 12, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: byUs ? C.amber : C.blue, marginTop: 6, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{g.label}</span>
+                            <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: byUs ? C.brand2 : C.blue, background: byUs ? `${C.brand}1a` : `${C.blue}22`, padding: "2px 7px", borderRadius: 999 }}>{byUs ? "ShopHero fixes" : "You fix"}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: C.muted, marginTop: 3, lineHeight: 1.45 }}>{g.detail}</div>
+                        </div>
+                      </div>
+                      {/* How to fix */}
+                      {(g.how || byUs) && (
+                        <div style={{ display: "flex", gap: 9, alignItems: "flex-start", marginTop: 9, paddingTop: 9, borderTop: `1px solid ${C.lineSoft}` }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: C.faint, flexShrink: 0, marginTop: 1 }}>Fix</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{g.how ?? "ShopHero stages this automatically from the Editor — review and publish."}</div>
+                            <div style={{ marginTop: 8 }}>
+                              {g.fix?.action === "install" ? (
+                                installed ? (
+                                  <span style={{ fontSize: 12, fontWeight: 800, color: C.brand2 }}>✓ Staged — publish to go live</span>
+                                ) : (
+                                  <button type="button" onClick={() => installFix.submit({}, { method: "post", action: "/api/structured-data" })} disabled={installing}
+                                    style={{ fontSize: 12, fontWeight: 800, padding: "7px 13px", borderRadius: 9, border: "none", cursor: installing ? "default" : "pointer", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c" }}>
+                                    {installing ? "Installing…" : g.fix.label}
+                                  </button>
+                                )
+                              ) : g.fix?.href ? (
+                                <a href={g.fix.href} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 800, color: C.brand2, textDecoration: "none", border: `1px solid ${C.line}`, padding: "7px 13px", borderRadius: 9, display: "inline-block" }}>{g.fix.label} ↗</a>
+                              ) : byUs ? (
+                                <Link to="/app/editor" style={{ fontSize: 12, fontWeight: 800, color: C.brand2, textDecoration: "none", border: `1px solid ${C.line}`, padding: "7px 13px", borderRadius: 9, display: "inline-block" }}>Fix in Editor →</Link>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {g.who === "ai" && <Link to="/app/editor" style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: C.brand2, textDecoration: "none" }}>Fix →</Link>}
-                  </div>
-                ))}
+                  );
+                })}
+                {installFix.data?.error && <div style={{ fontSize: 12, color: C.coral }}>{installFix.data.error}</div>}
+                <div style={{ fontSize: 11.5, color: C.faint, marginTop: 2 }}>After fixing, hit <strong style={{ color: C.muted }}>Re-evaluate</strong> up top to recompute your score.</div>
               </div>
             ) : (
               <div style={{ color: C.muted, fontSize: 13 }}>✓ No blocking issues. Your store is reading clean to AI.</div>
@@ -352,6 +399,16 @@ export default function Readiness() {
                 <strong style={{ color: C.brand2 }}>{d.content.published}</strong> published · <strong style={{ color: C.text }}>{d.content.total}</strong> in calendar{d.content.autoPublish ? " · auto daily" : " · approval-first"}
               </div>
 
+              {/* Approval process stepper */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14, padding: "11px 13px", borderRadius: 12, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
+                {["🗓️ Drafted daily", d.content.autoPublish ? "⚡ Auto-approved" : "✅ You approve", "🚀 Published live"].map((s, i, arr) => (
+                  <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: i === 1 && !d.content!.autoPublish ? C.brand2 : C.text, background: i === 1 && !d.content!.autoPublish ? `${C.brand}18` : "rgba(255,255,255,0.04)", border: `1px solid ${i === 1 && !d.content!.autoPublish ? C.brand + "44" : C.lineSoft}`, padding: "5px 11px", borderRadius: 999 }}>{s}</span>
+                    {i < arr.length - 1 && <span style={{ color: C.faint, fontSize: 13 }}>→</span>}
+                  </span>
+                ))}
+              </div>
+
               {d.content.draftTitle && !d.content.autoPublish && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 12, border: `1px solid ${C.brand}55`, background: `${C.brand}12`, marginBottom: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -375,6 +432,10 @@ export default function Readiness() {
                         <div style={{ fontWeight: 650, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
                         <div style={{ fontSize: 11.5, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.angle}</div>
                       </div>
+                      <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: mono, color: C.faint, textAlign: "right" }}>
+                        {d.content!.autoPublish ? "live " : "draft "}
+                        {new Date(Date.now() + (i + 1) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
                     </div>
                   ))}
                 </div>
