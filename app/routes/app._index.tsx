@@ -1,16 +1,20 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { authenticate } from "../shopify.server";
+import { getShopProfile } from "../lib/onboarding.server";
 
 /**
- * Scan-first onboarding: the app's landing is the AI-Readiness Score — the hook,
- * not a plan gate or questionnaire. /app simply redirects there. (Pricing and
- * onboarding apply later, when the merchant goes to work in the Editor.)
+ * Post-install entry. First-time installs land on the scan-first onboarding
+ * (which extracts the store, scores AI-readiness, and shows the fix-and-grow
+ * plan). Returning merchants go straight to the AI-Readiness dashboard.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  return redirect(`/app/readiness?${url.searchParams.toString()}`);
+  const qs = url.searchParams.toString();
+  const profile = await getShopProfile(session.shop).catch(() => null);
+  if (!profile?.onboardedAt) return redirect(`/app/onboarding?${qs}`);
+  return redirect(`/app/readiness?${qs}`);
 }
 
 export default function Index() {
