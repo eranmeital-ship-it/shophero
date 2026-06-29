@@ -605,6 +605,85 @@ function ChoiceClosing() {
   );
 }
 
+function HeroChatDemo() {
+  const [phase, setPhase] = useState(0); // 0 shopper · 1 typing · 2 reco · 3 order
+  useEffect(() => {
+    const durations = [1700, 1300, 2900, 2900];
+    let p = 0;
+    let id: ReturnType<typeof setTimeout>;
+    const run = () => { setPhase(p); id = setTimeout(() => { p = (p + 1) % 4; run(); }, durations[p]); };
+    run();
+    return () => clearTimeout(id);
+  }, []);
+  const products = [
+    { name: "Chunky Platform Loafers", price: "$89", emoji: "👟" },
+    { name: "Sleek Ankle Boots", price: "$95", emoji: "🥾" },
+  ];
+  const showReco = phase >= 2;
+  const showOrder = phase === 3;
+  return (
+    <section style={{ maxWidth: 560, margin: "0 auto", padding: "10px 18px 4px" }}>
+      <style>{`
+        @keyframes shFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        @keyframes shBlink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
+        .sh-cd-fade { animation: shFade .45s ease both; }
+        .sh-cd-dot { width:6px; height:6px; border-radius:50%; background:#9fb098; display:inline-block; animation: shBlink 1.2s infinite; }
+      `}</style>
+      <GlowCard>
+        <div style={{ padding: 16, minHeight: 320 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 12, borderBottom: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, color: C.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+            <span style={{ width: 19, height: 19, borderRadius: 6, background: `linear-gradient(135deg,${C.accent},${C.violet})`, display: "inline-grid", placeItems: "center", color: "#06120c", fontSize: 11, fontWeight: 900 }}>✦</span>
+            ChatGPT
+            <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em", color: C.accent }}>● LIVE</span>
+          </div>
+
+          {/* shopper */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <div className="sh-cd-fade" style={{ maxWidth: "85%", background: "rgba(255,255,255,0.07)", color: C.text, borderRadius: "14px 14px 4px 14px", padding: "10px 13px", fontSize: 13.5, lineHeight: 1.45 }}>
+              I'm looking for comfortable black shoes under $100 in Chicago.
+            </div>
+          </div>
+
+          {/* typing */}
+          {phase === 1 && (
+            <div className="sh-cd-fade" style={{ marginTop: 12, display: "flex", gap: 5, alignItems: "center", color: C.muted, fontSize: 12 }}>
+              <span className="sh-cd-dot" /><span className="sh-cd-dot" style={{ animationDelay: ".2s" }} /><span className="sh-cd-dot" style={{ animationDelay: ".4s" }} />
+              <span style={{ marginLeft: 4 }}>ChatGPT is finding the best stores…</span>
+            </div>
+          )}
+
+          {/* recommendation */}
+          {showReco && (
+            <div className="sh-cd-fade" style={{ marginTop: 12 }}>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "14px 14px 14px 4px", padding: "11px 13px" }}>
+                <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.5, marginBottom: 10 }}>Great picks available for delivery in Chicago, from <strong style={{ color: C.brand2 }}>your store</strong>:</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {products.map((p, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 10px", borderRadius: 12, background: "rgba(110,197,49,0.10)", border: "1px solid rgba(110,197,49,0.30)" }}>
+                      <span style={{ width: 38, height: 38, borderRadius: 9, background: `linear-gradient(135deg,${C.accent}33,${C.violet}33)`, display: "grid", placeItems: "center", fontSize: 20 }}>{p.emoji}</span>
+                      <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{p.name}</div><div style={{ fontSize: 11.5, color: C.muted }}>★ 4.8 · in stock · your store</div></div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{p.price}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* order confirmed */}
+          {showOrder && (
+            <div className="sh-cd-fade" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: 12, background: "rgba(52,224,161,0.12)", border: `1px solid ${C.accent}66` }}>
+              <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.accent, color: "#06120c", display: "grid", placeItems: "center", fontWeight: 900 }}>✓</span>
+              <div><div style={{ fontWeight: 800, fontSize: 13, color: C.text }}>Order confirmed — Chunky Platform Loafers</div><div style={{ fontSize: 11.5, color: C.muted }}>Delivering to Chicago · from your store</div></div>
+            </div>
+          )}
+        </div>
+      </GlowCard>
+      <p style={{ textAlign: "center", color: "#6f7d68", fontSize: 12, marginTop: 12 }}>This is the new buying journey. ShopHero makes sure your store is the one AI picks.</p>
+    </section>
+  );
+}
+
 function Benchmarks() {
   const rows = [
     { label: "Average Shopify store", score: 31, color: C.coral, you: false },
@@ -738,6 +817,9 @@ export default function LandingV2() {
           </div>
         </div>
       </section>
+
+      {/* LIVE AI-RECOMMENDATION DEMO */}
+      <HeroChatDemo />
 
       {/* CREDIBILITY */}
       <section className={styles.strip}>
