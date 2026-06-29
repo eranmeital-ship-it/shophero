@@ -32,6 +32,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { showForm: Boolean(login) };
 };
 
+const BADGES = [
+  { lines: ["AI-Readiness", "Score"], sub: "KNOW WHERE YOU STAND", c1: "#5fb024", c2: "#34e0a1" },
+  { lines: ["llms.txt +", "Product Feed"], sub: "BUILT FOR AI CRAWLERS", c1: "#7b6cf6", c2: "#9d7bff" },
+  { lines: ["Auto", "Schema"], sub: "RICH RESULTS ON EVERY PDP", c1: "#1ca7c4", c2: "#34e0a1" },
+  { lines: ["AI-Crawler", "Analytics"], sub: "SEE WHO'S READING YOU", c1: "#e8941a", c2: "#ffce54" },
+  { lines: ["Stays", "Live"], sub: "RE-OPTIMIZES AS YOU CHANGE", c1: "#e0457f", c2: "#f472b6" },
+  { lines: ["Approval", "First"], sub: "YOU APPROVE EVERYTHING", c1: "#2f74e0", c2: "#60a5fa" },
+  { lines: ["30-Second", "Setup"], sub: "INSTALL & GO", c1: "#cf6242", c2: "#f0a07c" },
+];
+
 const SCENARIOS = [
   {
     prompt: "Make my store readable by AI agents",
@@ -178,6 +188,36 @@ function ClaudeMark() {
         <line x1="6.6" y1="6.6" x2="25.4" y2="25.4" />
         <line x1="25.4" y1="6.6" x2="6.6" y2="25.4" />
       </g>
+    </svg>
+  );
+}
+
+function AwardBadge({ lines, sub, c1, c2, idx }: { lines: string[]; sub: string; c1: string; c2: string; idx: number }) {
+  const rg = `rg${idx}`;
+  const sh = `sh${idx}`;
+  return (
+    <svg className={styles.badgeSvg} viewBox="0 0 200 250" role="img" aria-label={`${lines.join(" ")} - ${sub}`}>
+      <defs>
+        <linearGradient id={rg} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={c1} />
+          <stop offset="1" stopColor={c2} />
+        </linearGradient>
+        <filter id={sh} x="-25%" y="-10%" width="150%" height="140%">
+          <feDropShadow dx="0" dy="9" stdDeviation="9" floodColor="#000000" floodOpacity="0.45" />
+        </filter>
+      </defs>
+      <g filter={`url(#${sh})`}>
+        <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V198 L100 240 L22 198 Z" fill={`url(#${rg})`} />
+      </g>
+      <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V176 L100 214 L22 176 Z" fill="#ffffff" />
+      <text x="34" y="26" fontSize="11" fontWeight="800" fill="#16181c" letterSpacing="0.5">SHOPHERO</text>
+      <text x="34" y="41" fontSize="11" fontWeight="700" fill="#8a8a96" letterSpacing="0.5">2026</text>
+      <rect x="138" y="6" width="38" height="38" rx="5" fill={c1} />
+      <text x="157" y="32" textAnchor="middle" fontSize="20" fontWeight="800" fill="#ffffff">✦</text>
+      <line x1="22" y1="54" x2="178" y2="54" stroke="#e9e9ee" strokeWidth="1.5" />
+      <text x="100" y={lines.length > 1 ? 104 : 120} textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[0]}</text>
+      {lines[1] && <text x="100" y="132" textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[1]}</text>}
+      <text x="100" y="162" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#9a9aa6" letterSpacing="0.8">{sub}</text>
     </svg>
   );
 }
@@ -947,6 +987,16 @@ export default function LandingV2() {
       <StatsBand />
       <Benchmarks />
       <FourSteps />
+
+      {/* AUTHORITY BADGES */}
+      <section className={styles.badgesBand}>
+        <p className={styles.badgesTitle}>What ShopHero actually delivers</p>
+        <div className={styles.badges}>
+          {BADGES.map((b, i) => (
+            <AwardBadge key={b.lines.join("-")} lines={b.lines} sub={b.sub} c1={b.c1} c2={b.c2} idx={i} />
+          ))}
+        </div>
+      </section>
 
       {/* FREE AI CHECK PROMO */}
       <section className={styles.aiCheckBand}>
