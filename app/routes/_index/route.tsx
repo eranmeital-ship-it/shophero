@@ -107,12 +107,53 @@ const LEAK_MAP = [
   { issue: "Slow mobile LCP", detail: "2.1s - demoted by Google & AI", sev: "Low", impact: "−4 pts" },
 ];
 
-const BRAINS = [
-  { icon: "🤖", name: "Get recommended by AI", desc: "We give ChatGPT, Claude, Gemini & Perplexity everything they need to understand, trust, and recommend your store — and keep it updated automatically as your catalog changes. (Under the hood: a hosted llms.txt + retrieval feed.)" },
-  { icon: "📐", name: "Make your products understandable to AI", desc: "AI can finally tell what each product is, what it costs, and whether it's in stock — so it answers shopper questions with your products, and you win rich results on Google too." },
-  { icon: "✍️", name: "Give AI better answers about your products", desc: "A steady stream of buying guides and product Q&A, tied to your real best sellers, that AI quotes when shoppers ask what to buy." },
-  { icon: "📈", name: "Proof AI is actually reading you", desc: "See exactly which AI assistants are fetching your store — real logs, not vanity metrics — so you know it's working and watch your score climb." },
-  { icon: "⚡", name: "A fast, clean foundation", desc: "Speed and technical fixes, because slow, broken stores get ignored by both Google and AI." },
+const PILLARS = [
+  {
+    n: "01",
+    tag: "On-page",
+    icon: "🛠️",
+    accent: "#6ec531",
+    title: "On-page optimization",
+    blurb: "Every technical signal AI and Google read to understand your store — done for you, and kept live as your catalog changes.",
+    items: [
+      "Auto JSON-LD schema on every product — Product, Offer, Review, FAQ & Breadcrumb",
+      "Hosted llms.txt + AI-retrieval feed, refreshed automatically",
+      "Product copy restructured into Q&A facts AI can quote",
+      "Core Web Vitals & speed fixes — image compression, lazy-load, deferred scripts",
+      "Clean titles, meta, canonicals, alt text & sitemap",
+      "Mobile + crawlability fixes so nothing blocks the bots",
+    ],
+  },
+  {
+    n: "02",
+    tag: "Content",
+    icon: "✍️",
+    accent: "#34e0a1",
+    title: "Content creation",
+    blurb: "Not blog filler — answer-shaped content engineered from your real catalog to be the source AI quotes.",
+    items: [
+      "Monthly AI-answer articles tied to your actual best sellers",
+      "Buying guides, comparisons, use-case & gift guides, FAQs",
+      "Answer-first structure with Article + FAQ schema baked in",
+      "Internally linked to the right products & collections",
+      "10× a blog post: each piece is built to be cited by AI and rank on Google — not keyword filler nobody reads",
+    ],
+  },
+  {
+    n: "03",
+    tag: "Off-page",
+    icon: "🌐",
+    accent: "#7b6cf6",
+    title: "Off-page authority",
+    blurb: "What the rest of the web says about you — backlinks and mentions from the highest-trust sites on the internet.",
+    items: [
+      "Monthly press release to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more",
+      "High-authority backlinks from top-domain-authority domains",
+      "Brand mentions on the exact sources AI reads to decide who to recommend",
+      "Compounding domain authority — more trust every month",
+      "Powered by MediaFuse · $800/mo of PR value",
+    ],
+  },
 ];
 
 const SAFETY = [
@@ -413,27 +454,6 @@ function Gauge({ value, label, animate }: { value: number; label: string; animat
       <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 10, color, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase" }}>{tag}</div>
     </div>
-  );
-}
-
-function StatsBand() {
-  const stats: { big: string; label: string; src?: string }[] = [
-    { big: "~25%", label: "of search shifts to AI assistants by 2026", src: "Gartner" },
-    { big: "1–3", label: "stores named in a typical AI answer — be one" },
-    { big: "1st", label: "movers get cited before competitors appear" },
-  ];
-  return (
-    <section style={{ maxWidth: 980, margin: "8px auto", padding: "0 18px" }}>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
-        {stats.map((s, i) => (
-          <div key={i} style={{ flex: "1 1 250px", ...glass, padding: "22px 18px", textAlign: "center" }}>
-            <div className={styles.grad} style={{ fontSize: 38, fontWeight: 800, letterSpacing: "-0.02em" }}>{s.big}</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.45 }}>{s.label}</div>
-            {s.src && <div style={{ fontSize: 10.5, color: "#6f7d68", marginTop: 8, letterSpacing: "0.03em" }}>SOURCE: {s.src.toUpperCase()}</div>}
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -814,6 +834,51 @@ function Testimonials() {
   );
 }
 
+/**
+ * The combination pitch — three ranking layers (on-page, content, off-page)
+ * shown as one system, then collapsed into a single "powerhouse" equation.
+ * This is the section that says what only ShopHero does end-to-end.
+ */
+function Powerhouse() {
+  return (
+    <section style={SECT} id="brains">
+      <Kicker>The combination only ShopHero offers</Kicker>
+      <h2 className={styles.h2}>On-page. Content. Off-page.{" "}<span className={styles.grad}>One powerhouse.</span></h2>
+      <p className={styles.lead}>Everyone else does one slice. ShopHero runs all three layers of ranking as a single system — so your store wins where shoppers actually look: AI answers <em>and</em> Google.</p>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 30, textAlign: "left", alignItems: "stretch" }}>
+        {PILLARS.map((p) => (
+          <GlowCard key={p.n} style={{ flex: "1 1 300px" }} accent={p.accent}>
+            <div style={{ padding: 24, height: "100%", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 30 }}>{p.icon}</span>
+                <span style={{ fontSize: 34, fontWeight: 800, color: p.accent, opacity: 0.3, letterSpacing: "-0.02em", lineHeight: 1 }}>{p.n}</span>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.09em", textTransform: "uppercase", color: p.accent, marginTop: 14 }}>{p.tag} SEO</div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: C.text, marginTop: 3 }}>{p.title}</div>
+              <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.55, margin: "7px 0 15px" }}>{p.blurb}</p>
+              <div style={{ marginTop: "auto" }}><ColList tone="good" items={p.items} /></div>
+            </div>
+          </GlowCard>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 24, ...glass, padding: "22px 24px", backgroundImage: "linear-gradient(120deg,rgba(110,197,49,0.08),rgba(52,224,161,0.08),rgba(123,108,246,0.10))" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", flexWrap: "wrap", fontWeight: 800 }}>
+          <span style={{ padding: "6px 14px", borderRadius: 999, background: "rgba(110,197,49,0.16)", color: "#a3e35c", fontSize: 13 }}>On-page</span>
+          <span style={{ color: C.muted, fontSize: 18 }}>+</span>
+          <span style={{ padding: "6px 14px", borderRadius: 999, background: "rgba(52,224,161,0.16)", color: "#34e0a1", fontSize: 13 }}>Content</span>
+          <span style={{ color: C.muted, fontSize: 18 }}>+</span>
+          <span style={{ padding: "6px 14px", borderRadius: 999, background: "rgba(123,108,246,0.18)", color: "#b3a6ff", fontSize: 13 }}>Off-page</span>
+          <span style={{ color: C.text, fontSize: 20, margin: "0 4px" }}>=</span>
+          <span className={styles.grad} style={{ fontSize: 20 }}>a ranking powerhouse</span>
+        </div>
+        <p style={{ textAlign: "center", color: C.muted, fontSize: 13.5, lineHeight: 1.6, maxWidth: 640, margin: "14px auto 0" }}>The only Shopify app that optimizes your store, fuels it with content, <em>and</em> builds real authority — so you rank in both <strong style={{ color: C.text }}>AI search (AEO)</strong> and <strong style={{ color: C.text }}>Google (SEO)</strong>. One system. Both worlds.</p>
+      </div>
+    </section>
+  );
+}
+
 function ScoreRingMini({ score }: { score: number }) {
   const r = 34, c = 2 * Math.PI * r;
   const color = score >= 70 ? C.brand : score >= 40 ? "#e8941a" : C.coral;
@@ -983,7 +1048,6 @@ export default function LandingV2() {
       </section>
 
       {/* AI RECOMMENDATION — before/after */}
-      <StatsBand />
       <Benchmarks />
       <FourSteps />
 
@@ -997,33 +1061,8 @@ export default function LandingV2() {
         </div>
       </section>
 
-      {/* FREE AI CHECK PROMO */}
-      <section className={styles.aiCheckBand}>
-        <span className={styles.kicker}>🤖 Free · instant · no signup</span>
-        <h2 className={styles.aiCheckTitle}>Can ChatGPT &amp; Claude find your store?</h2>
-        <p className={styles.aiCheckSub}>
-          Shoppers now ask AI what to buy. Run the free <strong>AI Visibility Check</strong> and see, in seconds,
-          how readable your store is to AI agents — and the exact gaps stopping them from recommending you.
-        </p>
-        <a href="/ai-check" className={styles.btnPrimary}>Check my store free →</a>
-      </section>
-
-      {/* AI GROWTH PLAN */}
-      <section className={styles.section} id="brains">
-        <h2 className={styles.h2}>What ShopHero <span className={styles.grad}>does for you</span></h2>
-        <p className={styles.lead}>
-          You don't need to know how any of it works. You just get a store AI can recommend —
-          built, kept live, and proven with real data.
-        </p>
-        <div className={styles.brainGrid}>
-          {BRAINS.map((b) => (
-            <div className={styles.brain} key={b.name}>
-              <span className={styles.brainIcon}>{b.icon}</span>
-              <div><strong>{b.name}</strong><p>{b.desc}</p></div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* THE COMBINATION — on-page + content + off-page */}
+      <Powerhouse />
 
       {/* DIY VS SHOPHERO */}
       <DiyVsShopHero />
