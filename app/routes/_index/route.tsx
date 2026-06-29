@@ -137,7 +137,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. 14-day free trial on paid plans, cancel anytime from Shopify.",
+    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. Authority is $399/month and adds a monthly press release distributed to 400+ news sites (Yahoo Finance, Benzinga, MarketWatch and more) for high-authority backlinks and brand mentions on the sources AI trusts. 14-day free trial on paid plans, cancel anytime from Shopify.",
   },
   {
     q: "Which AI powers it?",
@@ -1055,29 +1055,44 @@ export default function LandingV2() {
       <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
         <h2 className={styles.h2}>Start free. <span className={styles.grad}>Scale when it's working.</span></h2>
         <p className={styles.lead}>See your AI-Readiness Score free — no card. Then pick your power level.</p>
-        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center", alignItems: "stretch", marginTop: 26 }}>
-          <div style={{ flex: "1 1 330px", maxWidth: 390, ...glass, padding: 26, textAlign: "left" }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "stretch", marginTop: 26 }}>
+          <div style={{ flex: "1 1 280px", maxWidth: 360, ...glass, padding: 24, textAlign: "left" }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Starter</div>
-            <div style={{ marginTop: 6 }}><span style={{ fontSize: 42, fontWeight: 800, color: C.text }}>$49</span><span style={{ color: C.muted }}>/month</span></div>
+            <div style={{ marginTop: 6 }}><span style={{ fontSize: 40, fontWeight: 800, color: C.text }}>$49</span><span style={{ color: C.muted }}>/month</span></div>
             <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Get your store readable by AI.</div>
             <div style={{ marginTop: 16 }}>
               <ColList tone="good" items={["AI-Readiness Score + ranked gaps", "Auto schema on every product (Product, Offer, Review, FAQ, Breadcrumb)", "Hosted llms.txt + AI-retrieval feed", "AI-crawler analytics — see who's reading you", "Speed audit + safe fixes", "Approval-first · one-click rollback"]} />
             </div>
             <a href="#start" style={{ display: "block", textAlign: "center", marginTop: 18, padding: "13px 20px", borderRadius: 999, border: `1px solid ${C.line}`, color: C.text, fontWeight: 700, textDecoration: "none", background: "rgba(255,255,255,0.04)" }}>Start free →</a>
           </div>
-          <GlowCard style={{ flex: "1 1 330px", maxWidth: 390 }} accent={C.accent}>
-            <div style={{ padding: 26, textAlign: "left", height: "100%" }}>
+          <GlowCard style={{ flex: "1 1 280px", maxWidth: 360 }} accent={C.accent}>
+            <div style={{ padding: 24, textAlign: "left", height: "100%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Pro</span>
-                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#06120c", background: C.accent, padding: "3px 9px", borderRadius: 999 }}>MOST POWERFUL</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#06120c", background: C.accent, padding: "3px 9px", borderRadius: 999 }}>MOST POPULAR</span>
               </div>
-              <div style={{ marginTop: 6 }}><span className={styles.grad} style={{ fontSize: 42, fontWeight: 800 }}>$149</span><span style={{ color: C.muted }}>/month</span></div>
+              <div style={{ marginTop: 6 }}><span className={styles.grad} style={{ fontSize: 40, fontWeight: 800 }}>$149</span><span style={{ color: C.muted }}>/month</span></div>
               <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Extra powers — stay ahead, automatically.</div>
               <div style={{ fontSize: 12.5, color: C.brand2, marginTop: 16, fontWeight: 800 }}>Everything in Starter, plus:</div>
               <div style={{ marginTop: 6 }}>
                 <ColList tone="good" items={["The constant AI-answer content drip — deep strategy + monthly articles on your best sellers", "Live re-optimization as your catalog changes", "Brand-voice tuning for on-brand content", "Priority support"]} />
               </div>
               <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18 }}>Get my free AI-Readiness Score →</a>
+            </div>
+          </GlowCard>
+          <GlowCard style={{ flex: "1 1 280px", maxWidth: 360 }} accent={C.violet}>
+            <div style={{ padding: 24, textAlign: "left", height: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Authority</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#fff", background: C.violet, padding: "3px 9px", borderRadius: 999 }}>DOMINATE AI</span>
+              </div>
+              <div style={{ marginTop: 6 }}><span style={{ fontSize: 40, fontWeight: 800, color: C.violet }}>$399</span><span style={{ color: C.muted }}>/month</span></div>
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Become the store AI cites everywhere.</div>
+              <div style={{ fontSize: 12.5, color: "#b3a6ff", marginTop: 16, fontWeight: 800 }}>Everything in Pro, plus:</div>
+              <div style={{ marginTop: 6 }}>
+                <ColList tone="good" items={["A monthly press release distributed to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more", "High-authority backlinks from the top-domain-authority sites AI already trusts", "Brand mentions on the exact sources AI reads when deciding who to recommend", "Compounding domain authority — more citations every month", "Dedicated authority manager"]} />
+              </div>
+              <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18, background: `linear-gradient(180deg,${C.violet},#5b4bd6)`, color: "#fff" }}>Dominate AI search →</a>
             </div>
           </GlowCard>
         </div>
