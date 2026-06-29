@@ -362,6 +362,81 @@ function Demo() {
   );
 }
 
+function ChatCard({ tone, q, answers, verdict }: { tone: "bad" | "good"; q: string; answers: { name: string; note: string; you?: boolean }[]; verdict: string }) {
+  const accent = tone === "good" ? "#16a34a" : "#e0457f";
+  const border = tone === "good" ? "#bfe6c8" : "#f2c2d4";
+  return (
+    <div style={{ flex: "1 1 320px", background: "#fff", border: `1px solid ${border}`, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderBottom: "1px solid #eee", fontWeight: 700, fontSize: 13, color: "#15171c" }}>
+        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#10a37f", display: "inline-grid", placeItems: "center", color: "#fff", fontSize: 10 }}>✦</span>
+        AI Assistant
+        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", color: accent }}>{tone === "good" ? "WITH SHOPHERO" : "WITHOUT SHOPHERO"}</span>
+      </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ background: "#f3f4f6", borderRadius: 12, padding: "10px 13px", fontSize: 13.5, fontWeight: 600, marginBottom: 12, color: "#15171c" }}>{q}</div>
+        <div style={{ fontSize: 12.5, color: "#667085", marginBottom: 8 }}>Here are the best options:</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {answers.map((a, i) => (
+            <div key={i} style={{ display: "flex", gap: 9, padding: "9px 11px", borderRadius: 10, background: a.you ? "rgba(22,163,74,0.10)" : "rgba(0,0,0,0.03)", border: a.you ? "1px solid #bfe6c8" : "1px solid transparent" }}>
+              <strong style={{ fontSize: 13, color: "#15171c" }}>{i + 1}.</strong>
+              <div><div style={{ fontWeight: a.you ? 800 : 650, fontSize: 13, color: a.you ? "#0a7d34" : "#15171c" }}>{a.name}</div><div style={{ fontSize: 11.5, color: "#667085" }}>{a.note}</div></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 13, padding: "10px 12px", borderRadius: 10, background: tone === "good" ? "rgba(22,163,74,0.08)" : "rgba(224,69,127,0.08)", color: accent, fontWeight: 650, fontSize: 12.5 }}>{tone === "good" ? "✓ " : "✕ "}{verdict}</div>
+      </div>
+    </div>
+  );
+}
+
+function AIComparison() {
+  return (
+    <section style={{ maxWidth: 1040, margin: "0 auto", padding: "8px 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>Right now, AI is recommending your <span className={styles.grad}>competitors.</span></h2>
+      <p className={styles.lead}>When a shopper asks ChatGPT or Perplexity what to buy, it names a few stores. Today it probably isn't yours — because AI can't read your store. ShopHero changes the answer.</p>
+      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
+        <ChatCard tone="bad"
+          q="What's the best trail-running shoe for wide feet?"
+          answers={[
+            { name: "CompetitorBrand", note: "Well reviewed, great wide fit" },
+            { name: "RivalRun", note: "Popular local option" },
+            { name: "OtherStore", note: "Fast shipping" },
+          ]}
+          verdict="Your store isn't mentioned. The shopper clicks a competitor — and you never knew it happened." />
+        <ChatCard tone="good"
+          q="What's the best trail-running shoe for wide feet?"
+          answers={[
+            { name: "YOUR STORE", note: "Top-rated wide-fit trail shoes + an expert fit guide", you: true },
+            { name: "CompetitorBrand", note: "Also well reviewed" },
+            { name: "RivalRun", note: "Decent option" },
+          ]}
+          verdict="Your store is the top pick — and you can see exactly which AI bots read you." />
+      </div>
+    </section>
+  );
+}
+
+function StatsBand() {
+  const stats: { big: string; label: string; src?: string }[] = [
+    { big: "~25%", label: "of search is forecast to shift to AI assistants by 2026", src: "Gartner" },
+    { big: "1–3", label: "stores named in a typical AI answer — you want to be one" },
+    { big: "First", label: "movers get cited before competitors even appear" },
+  ];
+  return (
+    <section style={{ maxWidth: 960, margin: "24px auto 8px", padding: "0 18px" }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+        {stats.map((s, i) => (
+          <div key={i} style={{ flex: "1 1 250px", background: "linear-gradient(180deg,#fff,#f7f9fc)", border: "1px solid #e6e9ef", borderRadius: 16, padding: "20px 18px", textAlign: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", color: "#15171c" }}>{s.big}</div>
+            <div style={{ fontSize: 13, color: "#475467", marginTop: 4, lineHeight: 1.4 }}>{s.label}</div>
+            {s.src && <div style={{ fontSize: 10.5, color: "#9a9aa6", marginTop: 6 }}>Source: {s.src}</div>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function LandingV2() {
   const { showForm } = useLoaderData<typeof loader>();
 
@@ -461,6 +536,10 @@ export default function LandingV2() {
           which AI bots are reading your store.
         </p>
       </section>
+
+      {/* AI RECOMMENDATION — before/after */}
+      <AIComparison />
+      <StatsBand />
 
       {/* AUTHORITY BADGES */}
       <section className={styles.badgesBand}>
