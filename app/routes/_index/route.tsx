@@ -605,10 +605,10 @@ function ChoiceClosing() {
   );
 }
 
-function ShoeTile({ kind, size = 96 }: { kind: "loafer" | "boot"; size?: number }) {
+function ShoeTile({ kind, size = 84, box = 112 }: { kind: "loafer" | "boot"; size?: number; box?: number }) {
   // Self-contained SVG product shot on a studio backdrop — reliable, no external images.
   return (
-    <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: 12, background: "linear-gradient(135deg,#efe9df,#ded7c8)", display: "grid", placeItems: "center", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: box, borderRadius: 12, background: "linear-gradient(135deg,#efe9df,#ded7c8)", display: "grid", placeItems: "center", overflow: "hidden" }}>
       <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
         <ellipse cx="50" cy="84" rx="34" ry="6" fill="rgba(0,0,0,0.12)" />
         {kind === "loafer" ? (
@@ -655,7 +655,7 @@ function HeroChatDemo() {
       `}</style>
       {/* soft glow behind the floating panel */}
       <div aria-hidden="true" style={{ position: "absolute", inset: "8% 12%", background: "radial-gradient(closest-side, rgba(52,224,161,0.18), transparent)", filter: "blur(30px)", zIndex: 0 }} />
-      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, padding: "20px 18px", boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", minHeight: 360 }}>
+      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, padding: "20px 18px", boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", height: 548, overflow: "hidden" }}>
         {/* shopper + avatar */}
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 10 }}>
           <div className="sh-cd-fade" style={{ maxWidth: "82%", background: "#eef1f4", color: T.ink, borderRadius: "16px 16px 4px 16px", padding: "11px 14px", fontSize: 14, lineHeight: 1.45, fontWeight: 500 }}>
@@ -710,7 +710,7 @@ function HeroChatDemo() {
           <div className="sh-cd-fade" style={{ marginTop: 12, background: "#f4f7f6", border: "1px solid #d7e7e1", borderRadius: 16, padding: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, color: T.green, fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>✓ Order Confirmed</div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 56, flexShrink: 0 }}><ShoeTile kind="boot" size={40} /></div>
+              <div style={{ width: 52, flexShrink: 0 }}><ShoeTile kind="boot" size={34} box={52} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>All-Weather Chelsea Boots</div>
                 <div style={{ fontWeight: 800, fontSize: 16, color: T.ink }}>$129</div>
