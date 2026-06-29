@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
@@ -629,8 +629,27 @@ function ShoeTile({ kind, size = 84, box = 112 }: { kind: "loafer" | "boot"; siz
   );
 }
 
+// Real product photo with a graceful SVG fallback if the image can't load.
+const BOOT_IMG = "https://loremflickr.com/440/440/black,chelsea,boots/all?lock=8";
+const LOAFER_IMG = "https://loremflickr.com/440/440/black,leather,loafers/all?lock=14";
+function ProductImg({ src, kind, box = 112 }: { src: string; kind: "loafer" | "boot"; box?: number }) {
+  const [err, setErr] = useState(false);
+  if (err) return <ShoeTile kind={kind} box={box} />;
+  return (
+    <div style={{ width: "100%", height: box, borderRadius: 12, overflow: "hidden", background: "#efe9df" }}>
+      <img src={src} alt="" loading="lazy" onError={() => setErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+    </div>
+  );
+}
+
 function HeroChatDemo() {
   const [phase, setPhase] = useState(0); // 0 ask · 1 typing · 2 cards · 3 processing · 4 purchased · 5 confirmed
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Auto-scroll the chat as new messages arrive — like a real conversation.
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [phase]);
   useEffect(() => {
     const durations = [1700, 1200, 2200, 1400, 1700, 3200];
     let p = 0;
@@ -652,10 +671,14 @@ function HeroChatDemo() {
         .sh-cd-fade { animation: shFade .5s cubic-bezier(.2,.7,.2,1) both; }
         .sh-cd-dot { width:7px; height:7px; border-radius:50%; background:#aeb4bd; display:inline-block; animation: shBlink 1.2s infinite; }
         .sh-cd-spin { width:13px; height:13px; border-radius:50%; border:2px solid rgba(0,0,0,.18); border-top-color:#6b7280; display:inline-block; animation: shSpin .7s linear infinite; }
+        .sh-cd-scroll::-webkit-scrollbar { display: none; }
+        @keyframes shPop { 0% { transform: scale(.6); opacity:0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity:1; } }
+        .sh-cd-pop { animation: shPop .5s cubic-bezier(.2,.8,.2,1) both; }
       `}</style>
       {/* soft glow behind the floating panel */}
       <div aria-hidden="true" style={{ position: "absolute", inset: "8% 12%", background: "radial-gradient(closest-side, rgba(52,224,161,0.18), transparent)", filter: "blur(30px)", zIndex: 0 }} />
-      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, padding: "20px 18px", boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", height: 548, overflow: "hidden" }}>
+      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", height: 470, overflow: "hidden" }}>
+       <div ref={scrollRef} className="sh-cd-scroll" style={{ height: "100%", overflowY: "auto", padding: "20px 18px", scrollbarWidth: "none" }}>
         {/* shopper + avatar */}
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 10 }}>
           <div className="sh-cd-fade" style={{ maxWidth: "82%", background: "#eef1f4", color: T.ink, borderRadius: "16px 16px 4px 16px", padding: "11px 14px", fontSize: 14, lineHeight: 1.45, fontWeight: 500 }}>
@@ -679,13 +702,13 @@ function HeroChatDemo() {
                   <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.5, marginBottom: 12 }}>I found two great wide-fit options shipping to Austin:</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                      <ShoeTile kind="boot" />
+                      <ProductImg src={BOOT_IMG} kind="boot" />
                       <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>All-Weather Chelsea Boots</div>
                       <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$129</div>
                       {phase < 3 ? <Btn solid>Buy Now</Btn> : phase === 3 ? <Btn muted><span className="sh-cd-spin" /> Processing…</Btn> : <Btn solid>✓ Purchased</Btn>}
                     </div>
                     <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                      <ShoeTile kind="loafer" />
+                      <ProductImg src={LOAFER_IMG} kind="loafer" />
                       <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>Wide-Fit Leather Loafers</div>
                       <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$115</div>
                       <Btn solid>Buy Now</Btn>
@@ -705,20 +728,33 @@ function HeroChatDemo() {
           </div>
         )}
 
-        {/* order confirmed */}
+        {/* order confirmed — Shopify-style celebratory receipt */}
         {phase >= 5 && (
-          <div className="sh-cd-fade" style={{ marginTop: 12, background: "#f4f7f6", border: "1px solid #d7e7e1", borderRadius: 16, padding: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, color: T.green, fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>✓ Order Confirmed</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 52, flexShrink: 0 }}><ShoeTile kind="boot" size={34} box={52} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>All-Weather Chelsea Boots</div>
-                <div style={{ fontWeight: 800, fontSize: 16, color: T.ink }}>$129</div>
-                <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>📍 Delivering to Austin</div>
+          <div className="sh-cd-pop" style={{ marginTop: 14, borderRadius: 16, overflow: "hidden", boxShadow: "0 12px 30px rgba(13,138,95,0.22)", border: "1px solid #cfe9df" }}>
+            <div style={{ background: "linear-gradient(135deg,#11a06b,#0a6e4c)", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 9 }}>
+              <span style={{ fontSize: 18 }}>🎉</span>
+              <div style={{ fontWeight: 800, fontSize: 14, flex: 1 }}>Order confirmed!</div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 10px 4px 7px", fontSize: 11, fontWeight: 800 }}>
+                <span style={{ display: "inline-flex", transform: "scale(0.78)", transformOrigin: "center" }}><ShopifyMark /></span> Shopify
+              </span>
+            </div>
+            <div style={{ background: "#fff", padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 54, flexShrink: 0 }}><ProductImg src={BOOT_IMG} kind="boot" box={54} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>All-Weather Chelsea Boots</div>
+                  <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>📍 Delivering to Austin · arrives in 3 days</div>
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: T.ink }}>$129</div>
+              </div>
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11.5, color: T.muted, display: "flex", alignItems: "center", gap: 6 }}>🔒 Paid with Shop Pay</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: T.green }}>+1 sale for your store 🟢</span>
               </div>
             </div>
           </div>
         )}
+       </div>
       </div>
       <p style={{ textAlign: "center", color: "#6f7d68", fontSize: 12.5, marginTop: 14 }}>This is the new buying journey. ShopHero makes sure <strong style={{ color: C.brand2 }}>your store</strong> is the one AI picks.</p>
     </section>
