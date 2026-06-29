@@ -605,81 +605,122 @@ function ChoiceClosing() {
   );
 }
 
+function ShoeTile({ kind, size = 96 }: { kind: "loafer" | "boot"; size?: number }) {
+  // Self-contained SVG product shot on a studio backdrop — reliable, no external images.
+  return (
+    <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: 12, background: "linear-gradient(135deg,#efe9df,#ded7c8)", display: "grid", placeItems: "center", overflow: "hidden" }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+        <ellipse cx="50" cy="84" rx="34" ry="6" fill="rgba(0,0,0,0.12)" />
+        {kind === "loafer" ? (
+          <g fill="#15171c">
+            <path d="M16 60 q-2 12 6 14 h52 q12 0 12-9 q0-6-9-8 l-22-5 q-6-2-10-7 l-6-7 q-3-3-7-2 q-5 1-6 8 z" />
+            <path d="M30 58 h22 q3 0 3 3 t-3 3 H30 z" fill="#2a2d33" />
+            <rect x="16" y="72" width="64" height="6" rx="3" fill="#0a0c0f" />
+          </g>
+        ) : (
+          <g fill="#15171c">
+            <path d="M38 20 q-4 0 -4 6 v30 q-10 3 -14 12 q-3 8 5 9 h40 q8 0 8 -8 v-3 q0 -6 -6 -9 q-9 -4 -13 -12 V26 q0 -6 -6 -6 z" />
+            <rect x="24" y="74" width="50" height="6" rx="3" fill="#0a0c0f" />
+            <path d="M40 26 q8 4 16 0 v6 q-8 4 -16 0 z" fill="#2a2d33" />
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 function HeroChatDemo() {
-  const [phase, setPhase] = useState(0); // 0 shopper · 1 typing · 2 reco · 3 order
+  const [phase, setPhase] = useState(0); // 0 ask · 1 typing · 2 cards · 3 processing · 4 purchased · 5 confirmed
   useEffect(() => {
-    const durations = [1700, 1300, 2900, 2900];
+    const durations = [1700, 1200, 2200, 1400, 1700, 3200];
     let p = 0;
     let id: ReturnType<typeof setTimeout>;
-    const run = () => { setPhase(p); id = setTimeout(() => { p = (p + 1) % 4; run(); }, durations[p]); };
+    const run = () => { setPhase(p); id = setTimeout(() => { p = (p + 1) % 6; run(); }, durations[p]); };
     run();
     return () => clearTimeout(id);
   }, []);
-  const products = [
-    { name: "Chunky Platform Loafers", price: "$89", emoji: "👟" },
-    { name: "Sleek Ankle Boots", price: "$95", emoji: "🥾" },
-  ];
-  const showReco = phase >= 2;
-  const showOrder = phase === 3;
+  const T = { ink: "#1f2430", muted: "#6b7280", line: "#eceef1", green: "#15795e", studio: "#efe9df" };
+  const Btn = ({ children, solid, muted }: { children: ReactNode; solid?: boolean; muted?: boolean }) => (
+    <div style={{ marginTop: 9, textAlign: "center", fontSize: 12.5, fontWeight: 700, padding: "9px 0", borderRadius: 9, background: muted ? "#eceef1" : solid ? T.green : "#f3f4f6", color: muted ? T.muted : solid ? "#fff" : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{children}</div>
+  );
   return (
-    <section style={{ maxWidth: 560, margin: "0 auto", padding: "10px 18px 4px" }}>
+    <section style={{ maxWidth: 600, margin: "0 auto", padding: "12px 18px 6px", position: "relative" }}>
       <style>{`
-        @keyframes shFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-        @keyframes shBlink { 0%,80%,100% { opacity: .25; } 40% { opacity: 1; } }
-        .sh-cd-fade { animation: shFade .45s ease both; }
-        .sh-cd-dot { width:6px; height:6px; border-radius:50%; background:#9fb098; display:inline-block; animation: shBlink 1.2s infinite; }
+        @keyframes shFade { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:none; } }
+        @keyframes shBlink { 0%,80%,100% { opacity:.25; } 40% { opacity:1; } }
+        @keyframes shSpin { to { transform: rotate(360deg); } }
+        .sh-cd-fade { animation: shFade .5s cubic-bezier(.2,.7,.2,1) both; }
+        .sh-cd-dot { width:7px; height:7px; border-radius:50%; background:#aeb4bd; display:inline-block; animation: shBlink 1.2s infinite; }
+        .sh-cd-spin { width:13px; height:13px; border-radius:50%; border:2px solid rgba(0,0,0,.18); border-top-color:#6b7280; display:inline-block; animation: shSpin .7s linear infinite; }
       `}</style>
-      <GlowCard>
-        <div style={{ padding: 16, minHeight: 320 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 12, borderBottom: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, color: C.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-            <span style={{ width: 19, height: 19, borderRadius: 6, background: `linear-gradient(135deg,${C.accent},${C.violet})`, display: "inline-grid", placeItems: "center", color: "#06120c", fontSize: 11, fontWeight: 900 }}>✦</span>
-            ChatGPT
-            <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em", color: C.accent }}>● LIVE</span>
+      {/* soft glow behind the floating panel */}
+      <div aria-hidden="true" style={{ position: "absolute", inset: "8% 12%", background: "radial-gradient(closest-side, rgba(52,224,161,0.18), transparent)", filter: "blur(30px)", zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 1, background: "linear-gradient(180deg,#ffffff,#f6f8fa)", borderRadius: 22, padding: "20px 18px", boxShadow: "0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)", minHeight: 360 }}>
+        {/* shopper + avatar */}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 10 }}>
+          <div className="sh-cd-fade" style={{ maxWidth: "82%", background: "#eef1f4", color: T.ink, borderRadius: "16px 16px 4px 16px", padding: "11px 14px", fontSize: 14, lineHeight: 1.45, fontWeight: 500 }}>
+            I need waterproof Chelsea boots for wide feet under $150, shipping to Austin.
           </div>
+          <img src="https://i.pravatar.cc/80?img=45" alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "linear-gradient(135deg,#c7d2fe,#a5b4fc)" }} />
+        </div>
 
-          {/* shopper */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <div className="sh-cd-fade" style={{ maxWidth: "85%", background: "rgba(255,255,255,0.07)", color: C.text, borderRadius: "14px 14px 4px 14px", padding: "10px 13px", fontSize: 13.5, lineHeight: 1.45 }}>
-              I'm looking for comfortable black shoes under $100 in Chicago.
-            </div>
-          </div>
-
-          {/* typing */}
-          {phase === 1 && (
-            <div className="sh-cd-fade" style={{ marginTop: 12, display: "flex", gap: 5, alignItems: "center", color: C.muted, fontSize: 12 }}>
-              <span className="sh-cd-dot" /><span className="sh-cd-dot" style={{ animationDelay: ".2s" }} /><span className="sh-cd-dot" style={{ animationDelay: ".4s" }} />
-              <span style={{ marginLeft: 4 }}>ChatGPT is finding the best stores…</span>
-            </div>
-          )}
-
-          {/* recommendation */}
-          {showReco && (
-            <div className="sh-cd-fade" style={{ marginTop: 12 }}>
-              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "14px 14px 14px 4px", padding: "11px 13px" }}>
-                <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.5, marginBottom: 10 }}>Great picks available for delivery in Chicago, from <strong style={{ color: C.brand2 }}>your store</strong>:</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {products.map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 10px", borderRadius: 12, background: "rgba(110,197,49,0.10)", border: "1px solid rgba(110,197,49,0.30)" }}>
-                      <span style={{ width: 38, height: 38, borderRadius: 9, background: `linear-gradient(135deg,${C.accent}33,${C.violet}33)`, display: "grid", placeItems: "center", fontSize: 20 }}>{p.emoji}</span>
-                      <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{p.name}</div><div style={{ fontSize: 11.5, color: C.muted }}>★ 4.8 · in stock · your store</div></div>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{p.price}</div>
-                    </div>
-                  ))}
+        {/* ChatGPT */}
+        {phase >= 1 && (
+          <div className="sh-cd-fade" style={{ marginTop: 16, display: "flex", gap: 10 }}>
+            <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#10a37f", display: "grid", placeItems: "center", color: "#fff", fontWeight: 900, fontSize: 13, flexShrink: 0 }}>✦</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#10a37f", marginBottom: 6 }}>ChatGPT</div>
+              {phase === 1 ? (
+                <div style={{ display: "flex", gap: 5, alignItems: "center", color: T.muted, fontSize: 12.5 }}>
+                  <span className="sh-cd-dot" /><span className="sh-cd-dot" style={{ animationDelay: ".2s" }} /><span className="sh-cd-dot" style={{ animationDelay: ".4s" }} />
                 </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.5, marginBottom: 12 }}>I found two great wide-fit options shipping to Austin:</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                      <ShoeTile kind="boot" />
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>All-Weather Chelsea Boots</div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$129</div>
+                      {phase < 3 ? <Btn solid>Buy Now</Btn> : phase === 3 ? <Btn muted><span className="sh-cd-spin" /> Processing…</Btn> : <Btn solid>✓ Purchased</Btn>}
+                    </div>
+                    <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                      <ShoeTile kind="loafer" />
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>Wide-Fit Leather Loafers</div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$115</div>
+                      <Btn solid>Buy Now</Btn>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* purchase approved */}
+        {phase >= 4 && (
+          <div className="sh-cd-fade" style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 999, padding: "7px 14px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <span style={{ width: 18, height: 18, borderRadius: "50%", background: T.green, color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 900 }}>✓</span>
+            <span style={{ fontWeight: 700, fontSize: 12.5, color: T.ink }}>Purchase approved</span>
+          </div>
+        )}
+
+        {/* order confirmed */}
+        {phase >= 5 && (
+          <div className="sh-cd-fade" style={{ marginTop: 12, background: "#f4f7f6", border: "1px solid #d7e7e1", borderRadius: 16, padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, color: T.green, fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>✓ Order Confirmed</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 56, flexShrink: 0 }}><ShoeTile kind="boot" size={40} /></div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>All-Weather Chelsea Boots</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: T.ink }}>$129</div>
+                <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>📍 Delivering to Austin</div>
               </div>
             </div>
-          )}
-
-          {/* order confirmed */}
-          {showOrder && (
-            <div className="sh-cd-fade" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: 12, background: "rgba(52,224,161,0.12)", border: `1px solid ${C.accent}66` }}>
-              <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.accent, color: "#06120c", display: "grid", placeItems: "center", fontWeight: 900 }}>✓</span>
-              <div><div style={{ fontWeight: 800, fontSize: 13, color: C.text }}>Order confirmed — Chunky Platform Loafers</div><div style={{ fontSize: 11.5, color: C.muted }}>Delivering to Chicago · from your store</div></div>
-            </div>
-          )}
-        </div>
-      </GlowCard>
-      <p style={{ textAlign: "center", color: "#6f7d68", fontSize: 12, marginTop: 12 }}>This is the new buying journey. ShopHero makes sure your store is the one AI picks.</p>
+          </div>
+        )}
+      </div>
+      <p style={{ textAlign: "center", color: "#6f7d68", fontSize: 12.5, marginTop: 14 }}>This is the new buying journey. ShopHero makes sure <strong style={{ color: C.brand2 }}>your store</strong> is the one AI picks.</p>
     </section>
   );
 }
@@ -795,26 +836,6 @@ export default function LandingV2() {
           <p style={{ maxWidth: 560, margin: "16px auto 0", color: "#9fb098", fontSize: 14, lineHeight: 1.55 }}>
             You don't need to understand AI optimization — just whether AI can recommend your store. <strong style={{ color: "#f2f6f0" }}>ShopHero handles the rest.</strong>
           </p>
-          <div className={styles.heroStats}>
-            <div className={styles.stat}>
-              <span className={styles.statIcon}>📊</span>
-              <strong className={styles.statBig}>0–100</strong>
-              <span className={styles.statLabel}>your AI-Readiness Score</span>
-              <span className={styles.statVs}>free, in 30 seconds</span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statIcon}>🤖</span>
-              <strong className={styles.statBig}>Yes</strong>
-              <span className={styles.statLabel}>AI can finally read your store</span>
-              <span className={styles.statVs}>vs <s>invisible to AI</s></span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statIcon}>📈</span>
-              <strong className={styles.statBig}>Proof</strong>
-              <span className={styles.statLabel}>see AI actually reading you</span>
-              <span className={styles.statVs}>real crawler logs</span>
-            </div>
-          </div>
         </div>
       </section>
 
