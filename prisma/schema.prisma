@@ -99,6 +99,8 @@ model StoreReport {
 model ContentPlan {
   shop           String    @id
   strategy       String?   // topic/strategy notes from setup
+  strategySummary String?  // AI strategy summary from the deep shop analysis
+  queue          String    @default("[]") // JSON ContentPiece[] — the prioritized drip queue
   perDay         Int       @default(1)
   days           Int       @default(30)
   publishedCount Int       @default(0)

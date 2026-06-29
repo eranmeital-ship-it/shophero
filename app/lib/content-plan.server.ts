@@ -4,6 +4,7 @@ import db from "../db.server";
 import { gql, resolveKey } from "./onboarding.server";
 import { buildBrandContext } from "./brand.server";
 import { complete } from "./llm.server";
+import type { ContentPiece } from "./content-strategy.server";
 
 /**
  * Content Plan — ShopHero drafts the next best article on a cadence; the merchant
@@ -49,6 +50,24 @@ export async function setStatus(shop: string, status: "active" | "paused"): Prom
   await db.contentPlan.update({ where: { shop }, data: { status } }).catch(() => {});
 }
 
+/** Seed/refresh the plan from a deep content-strategy analysis (the drip queue). */
+export async function setStrategy(
+  shop: string,
+  summary: string,
+  pieces: ContentPiece[],
+  opts?: { perDay?: number; days?: number },
+): Promise<void> {
+  const data = {
+    strategySummary: summary || null,
+    queue: JSON.stringify(pieces),
+    perDay: Math.max(1, Math.min(2, opts?.perDay ?? 1)),
+    days: Math.max(1, Math.min(90, opts?.days ?? Math.max(7, pieces.length))),
+    status: "active",
+    startedAt: new Date(),
+  };
+  await db.contentPlan.upsert({ where: { shop }, create: { shop, publishedCount: 0, ...data }, update: data });
+}
+
 /** Existing article titles (to avoid repeats / find gaps) + product types for grounding. */
 async function gatherContentContext(admin: AdminApiContext): Promise<{ titles: string[]; types: string[] }> {
   const titles: string[] = [];
@@ -63,9 +82,9 @@ async function gatherContentContext(admin: AdminApiContext): Promise<{ titles: s
   return { titles, types };
 }
 
-const GEN_SYSTEM = `You write one high-converting, SEO-optimized blog article for a Shopify store, grounded in the content strategy below and the Brand Kit. Pick the single highest-value NEW topic for THIS store (fill a real gap; buying intent first) that is NOT already covered by the existing titles. Write a complete, genuinely helpful, on-brand article with internal-link suggestions to products/collections.
+const GEN_SYSTEM = `You write one AI-answer blog article for a Shopify store — content an AI assistant (ChatGPT, Perplexity) would quote when a shopper asks what to buy — grounded in the strategy below and the Brand Kit. If an ASSIGNED TOPIC is given, write exactly that piece; otherwise pick the single highest-value NEW topic not already covered (buying intent first). Write answer-first: open by directly answering the core question, use question-style <h2> headings, link to the store's REAL products/collections inline, and end with a short 3–4 question FAQ then a soft CTA.
 Respond with ONLY JSON, no prose, no code fences:
-{"title":"…","topic":"short topic label","metaDescription":"≤155 chars","bodyHtml":"<p>…</p> full article in valid HTML with <h2>/<h3>/<ul>/<p> and a closing CTA"}`;
+{"title":"…","topic":"short topic label","metaDescription":"≤155 chars","bodyHtml":"<p>…</p> full article in valid HTML with <h2>/<h3>/<ul>/<p>, an FAQ section, and a closing CTA"}`;
 
 function parseDraft(text: string): ContentDraft | null {
   let t = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
@@ -99,10 +118,17 @@ export async function generateDraft(admin: AdminApiContext, shop: string, plan: 
   const byokKey = plan === "byok" ? (await resolveKey(shop, plan)) ?? undefined : undefined;
   if (plan === "byok" && !byokKey) return row;
 
+  // The deep content-strategy queue drives the drip: write the top planned piece.
+  let assigned: ContentPiece | null = null;
+  try { const q = JSON.parse(row.queue || "[]") as ContentPiece[]; if (q.length) assigned = q[0]; } catch { /* no queue */ }
+
   const [{ titles, types }, brand] = await Promise.all([gatherContentContext(admin), buildBrandContext(shop)]);
   const userMsg = [
     types.length ? `The store sells: ${types.join(", ")}.` : "",
-    row.strategy ? `Content focus: ${row.strategy}.` : "",
+    row.strategySummary ? `Content strategy: ${row.strategySummary}` : row.strategy ? `Content focus: ${row.strategy}.` : "",
+    assigned
+      ? `ASSIGNED TOPIC — write this exact piece:\nTitle: ${assigned.title}\nAngle: ${assigned.angle}\nLink to: ${assigned.target && assigned.target !== "general" ? `/collections/${assigned.target} and/or /products/${assigned.target}` : "the most relevant products/collections"}`
+      : "",
     titles.length ? `Already published (do NOT repeat): ${titles.slice(0, 40).join("; ")}.` : "No articles published yet.",
     brand ? `\n${brand}` : "",
   ]
@@ -120,7 +146,7 @@ export async function generateDraft(admin: AdminApiContext, shop: string, plan: 
 
     return db.contentPlan.update({
       where: { shop },
-      data: { draftTitle: draft.title, draftBody: draft.bodyHtml, draftMeta: draft.metaDescription, draftTopic: draft.topic, draftDate: new Date() },
+      data: { draftTitle: draft.title, draftBody: draft.bodyHtml, draftMeta: draft.metaDescription, draftTopic: assigned?.title ?? draft.topic, draftDate: new Date() },
     });
   } catch (e) {
     console.warn("[content-plan] generation failed:", e instanceof Error ? e.message : e);
@@ -167,11 +193,18 @@ export async function publishDraft(admin: AdminApiContext, shop: string): Promis
     return { ok: false, error: errs.map((e) => e.message).join(", ") || "Publish failed." };
   }
 
+  // Consume the planned piece from the strategy queue (it just went live).
+  let queue = row.queue;
+  try {
+    const q = JSON.parse(row.queue || "[]") as ContentPiece[];
+    if (q.length) queue = JSON.stringify(q.filter((p) => p.title !== (row.draftTopic ?? row.draftTitle)).length === q.length ? q.slice(1) : q.filter((p) => p.title !== (row.draftTopic ?? row.draftTitle)));
+  } catch { /* keep as-is */ }
+
   const count = row.publishedCount + 1;
   const done = count >= row.days * row.perDay;
   await db.contentPlan.update({
     where: { shop },
-    data: { publishedCount: count, status: done ? "done" : "active", draftTitle: null, draftBody: null, draftMeta: null, draftTopic: null },
+    data: { publishedCount: count, status: done ? "done" : "active", queue, draftTitle: null, draftBody: null, draftMeta: null, draftTopic: null },
   });
   await db.appEvent.create({ data: { shop, level: "info", type: "content_publish", message: `Published article: ${row.draftTitle}` } }).catch(() => {});
   return { ok: true };

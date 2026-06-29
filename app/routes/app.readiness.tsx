@@ -1,9 +1,11 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData, Link } from "react-router";
+import { useLoaderData, useFetcher, Link } from "react-router";
 import { authenticate } from "../shopify.server";
 import { ensureReady } from "../lib/bootstrap.server";
 import { auditSchema } from "../lib/schema-audit.server";
 import { gql } from "../lib/onboarding.server";
+import { getPlan } from "../lib/content-plan.server";
+import type { ContentPiece } from "../lib/content-strategy.server";
 import db from "../db.server";
 
 /**
@@ -57,9 +59,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch { /* table may be empty */ }
   const crawlerTotal = crawlers.reduce((s, c) => s + c.count, 0);
 
+  // Content plan (the constant AI-answer SEO drip) — strategy summary + queue.
+  let content: { summary: string | null; status: string; published: number; queue: ContentPiece[]; total: number; draftTitle: string | null } | null = null;
+  try {
+    const cp = await getPlan(shop);
+    if (cp) {
+      let queue: ContentPiece[] = [];
+      try { queue = JSON.parse(cp.queue || "[]"); } catch { /* ignore */ }
+      content = { summary: cp.strategySummary, status: cp.status, published: cp.publishedCount, queue: queue.slice(0, 8), total: queue.length, draftTitle: cp.draftTitle };
+    }
+  } catch { /* ignore */ }
+
   const score = Math.round(structured * 0.5 + feedScore * 0.2 + contentPct * 0.3);
   const base = `https://${shop}`;
   return {
+    content,
     score, grade, productCount, liveNote, crawlers, crawlerTotal,
     dims: [
       { key: "structured", label: "Structured data", score: structured, note: installed ? "JSON-LD installed" : "Not installed yet" },
@@ -87,6 +101,8 @@ function ScoreRing({ score }: { score: number }) {
 
 export default function Readiness() {
   const d = useLoaderData<typeof loader>();
+  const analyze = useFetcher();
+  const analyzing = analyze.state !== "idle";
   return (
     <div className="sh-rd">
       <div className="sh-rd-head">
@@ -146,6 +162,39 @@ export default function Readiness() {
           ))}
         </div>
       )}
+
+      <div className="sh-rd-card">
+        <div style={{ fontWeight: 750, marginBottom: 4 }}>✍️ Content plan <span className="sh-rd-sub" style={{ fontWeight: 500 }}>· constant AI-answer SEO drip</span></div>
+        {d.content?.summary ? (
+          <>
+            <div className="sh-rd-sub" style={{ marginBottom: 8 }}>{d.content.summary}</div>
+            <div className="sh-rd-sub" style={{ fontSize: 12, marginBottom: 8 }}>
+              <strong>{d.content.published}</strong> published · <strong>{d.content.total}</strong> planned in the queue{d.content.draftTitle ? ` · next draft: "${d.content.draftTitle}"` : ""}
+            </div>
+            {d.content.queue.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                {d.content.queue.map((p, i) => (
+                  <div key={i} className="sh-rd-gap" style={{ padding: "7px 0" }}>
+                    <span className="sh-rd-bot" style={{ fontSize: 10.5 }}>{p.intent}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{p.title}</div>
+                      <div className="sh-rd-sub" style={{ fontSize: 11.5 }}>{p.angle}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="sh-rd-sub" style={{ marginBottom: 10 }}>Analyze your store — best sellers, categories, content gaps — to build a prioritized plan of AI-answer articles that keep earning SEO/AI traffic, drafted on a cadence for your approval.</div>
+        )}
+        <analyze.Form method="post" action="/api/content-plan">
+          <input type="hidden" name="intent" value="analyze" />
+          <button className="sh-btn sh-btn-primary" type="submit" disabled={analyzing}>
+            {analyzing ? "Analyzing your store…" : d.content?.summary ? "Rebuild content plan" : "Analyze my store & build a content plan →"}
+          </button>
+        </analyze.Form>
+      </div>
 
       <div className="sh-rd-card">
         <div style={{ fontWeight: 750, marginBottom: 8 }}>Your hosted agent-ready files</div>

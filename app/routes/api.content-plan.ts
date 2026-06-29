@@ -1,9 +1,14 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getActivePlan } from "../lib/billing.server";
-import { generateDraft, getPlan, publishDraft, setStatus, startPlan } from "../lib/content-plan.server";
+import { enforceSpend } from "../lib/spend-guard.server";
+import { rateLimitResponse } from "../lib/rate-limit.server";
+import { resolveKey } from "../lib/onboarding.server";
+import { analyzeContentStrategy } from "../lib/content-strategy.server";
+import { generateDraft, getPlan, publishDraft, setStatus, setStrategy, startPlan } from "../lib/content-plan.server";
+import db from "../db.server";
 
-/** Content Plan control: start / generate (daily draft) / publish / regenerate / pause / resume. */
+/** Content Plan control: analyze / start / generate / publish / regenerate / pause / resume. */
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -11,7 +16,21 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
 
-  if (intent === "start") {
+  if (intent === "analyze") {
+    // Deep shop analysis → a prioritized AI-answer content plan (the drip queue).
+    const limited = rateLimitResponse(shop, 10, 60_000);
+    if (limited) return limited;
+    const blocked = await enforceSpend(shop, plan);
+    if (blocked) return blocked;
+    const byokKey = plan === "byok" ? (await resolveKey(shop, plan)) ?? undefined : undefined;
+    const res = await analyzeContentStrategy(admin, shop, byokKey);
+    if (res.costUsd > 0) {
+      await db.usageEvent.create({ data: { shop, plan, model: res.model, kind: "content_strategy", costUsd: res.costUsd, billedUsd: plan === "managed" ? res.costUsd * 3 : 0 } }).catch(() => {});
+    }
+    await setStrategy(shop, res.summary, res.pieces, { perDay: Number(form.get("perDay") ?? 1), days: Number(form.get("days") ?? 0) || undefined });
+    await generateDraft(admin, shop, plan, true); // draft the top piece right away
+    return { plan: await getPlan(shop), summary: res.summary, pieces: res.pieces };
+  } else if (intent === "start") {
     await startPlan(shop, {
       perDay: Number(form.get("perDay") ?? 1),
       days: Number(form.get("days") ?? 30),
