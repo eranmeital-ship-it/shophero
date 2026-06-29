@@ -4,7 +4,7 @@ import db from "../db.server";
 import { gql, resolveKey } from "./onboarding.server";
 import { buildBrandContext } from "./brand.server";
 import { complete } from "./llm.server";
-import type { ContentPiece } from "./content-strategy.server";
+import { suggestReplacement, type ContentPiece } from "./content-strategy.server";
 
 /**
  * Content Plan — ShopHero drafts the next best article on a cadence; the merchant
@@ -53,6 +53,41 @@ export async function setStatus(shop: string, status: "active" | "paused"): Prom
 /** Toggle auto-publish: when on, the daily draft publishes without manual approval. */
 export async function setAutoPublish(shop: string, on: boolean): Promise<void> {
   await db.contentPlan.update({ where: { shop }, data: { autoPublish: on } }).catch(() => {});
+}
+
+function readQueue(q: string | null): ContentPiece[] {
+  try { return JSON.parse(q || "[]"); } catch { return []; }
+}
+
+/** Remove one piece from the calendar queue (by index). */
+export async function removeQueueItem(shop: string, index: number): Promise<void> {
+  const row = await getPlan(shop); if (!row) return;
+  const q = readQueue(row.queue);
+  if (index < 0 || index >= q.length) return;
+  q.splice(index, 1);
+  await db.contentPlan.update({ where: { shop }, data: { queue: JSON.stringify(q) } }).catch(() => {});
+}
+
+/** Edit a queued piece's title/angle. */
+export async function editQueueItem(shop: string, index: number, title: string, angle: string): Promise<void> {
+  const row = await getPlan(shop); if (!row) return;
+  const q = readQueue(row.queue);
+  if (!q[index]) return;
+  if (title.trim()) q[index].title = title.trim().slice(0, 160);
+  if (angle.trim()) q[index].angle = angle.trim().slice(0, 240);
+  await db.contentPlan.update({ where: { shop }, data: { queue: JSON.stringify(q) } }).catch(() => {});
+}
+
+/** Replace a queued piece with a freshly generated alternative (one cheap call). */
+export async function replaceQueueItem(admin: AdminApiContext, shop: string, plan: string | null, index: number): Promise<void> {
+  const row = await getPlan(shop); if (!row) return;
+  const q = readQueue(row.queue);
+  if (!q[index]) return;
+  const byokKey = plan === "byok" ? (await resolveKey(shop, plan)) ?? undefined : undefined;
+  const piece = await suggestReplacement(admin, shop, byokKey, q.map((p) => p.title)).catch(() => null);
+  if (!piece) return;
+  q[index] = piece;
+  await db.contentPlan.update({ where: { shop }, data: { queue: JSON.stringify(q) } }).catch(() => {});
 }
 
 /** Seed/refresh the plan from a deep content-strategy analysis (the drip queue). */

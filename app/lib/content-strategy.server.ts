@@ -40,6 +40,46 @@ interface Ctx {
   collections?: { nodes?: { title?: string; handle?: string }[] };
 }
 
+/** Generate ONE fresh AI-answer piece to swap into the calendar (avoids given titles). */
+export async function suggestReplacement(
+  admin: AdminApiContext,
+  shop: string,
+  byokKey: string | undefined,
+  avoid: string[],
+): Promise<ContentPiece | null> {
+  const ctx = await gql<Ctx>(
+    admin,
+    `{ shop { name } bestSellers: products(first: 15, sortKey: BEST_SELLING) { nodes { title handle productType } } collections(first: 12, sortKey: TITLE) { nodes { title handle } } }`,
+  );
+  const sellers = (ctx?.bestSellers?.nodes ?? []).filter((p) => p.title);
+  const colls = (ctx?.collections?.nodes ?? []).filter((c) => c.title);
+  const user = [
+    `Current year: ${new Date().getFullYear()} (use this year if any, never a past one).`,
+    `Store: ${ctx?.shop?.name ?? shop}`,
+    sellers.length ? `Best sellers: ${sellers.map((p) => `${p.title} [${p.handle}]`).join("; ")}` : "",
+    colls.length ? `Collections: ${colls.map((c) => `${c.title} [${c.handle}]`).join("; ")}` : "",
+    avoid.length ? `Do NOT repeat any of these: ${avoid.slice(0, 40).join("; ")}` : "",
+    "Suggest ONE new AI-answer article — a buying guide, comparison, use-case or support piece a shopper would ask AI before buying.",
+  ].filter(Boolean).join("\n");
+  const SYS_ONE = `You are an ecommerce content strategist. Respond with ONLY one JSON object, no prose, no code fences:
+{"title":"…","angle":"…","target":"<product/collection handle or 'general'>","intent":"buying|research|support|brand","priority":1}`;
+  try {
+    const res = await complete({ system: SYS_ONE, user, maxTokens: 300, tier: "cheap", byokKey });
+    let t = res.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+    const a = t.indexOf("{"), b = t.lastIndexOf("}");
+    if (a >= 0 && b > a) t = t.slice(a, b + 1);
+    const p = JSON.parse(t);
+    if (!p?.title) return null;
+    return {
+      title: String(p.title).slice(0, 160),
+      angle: String(p.angle ?? "").slice(0, 240),
+      target: String(p.target ?? "general").slice(0, 120),
+      intent: (["buying", "research", "support", "brand"].includes(String(p.intent)) ? p.intent : "research") as ContentPiece["intent"],
+      priority: Math.min(3, Math.max(1, Number(p.priority) || 2)),
+    };
+  } catch { return null; }
+}
+
 export async function analyzeContentStrategy(
   admin: AdminApiContext,
   shop: string,

@@ -5,7 +5,7 @@ import { enforceSpend } from "../lib/spend-guard.server";
 import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
 import { analyzeContentStrategy } from "../lib/content-strategy.server";
-import { generateDraft, getPlan, publishDraft, setAutoPublish, setStatus, setStrategy, startPlan } from "../lib/content-plan.server";
+import { editQueueItem, generateDraft, getPlan, publishDraft, removeQueueItem, replaceQueueItem, setAutoPublish, setStatus, setStrategy, startPlan } from "../lib/content-plan.server";
 import db from "../db.server";
 
 /** Content Plan control: analyze / start / generate / publish / regenerate / pause / resume. */
@@ -18,7 +18,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // The content engine is available on every tier (Starter = 1 article/week,
   // Pro+ = daily) — but it requires an active subscription.
-  const GATED = new Set(["analyze", "start", "generate", "regenerate", "autopublish"]);
+  const GATED = new Set(["analyze", "start", "generate", "regenerate", "autopublish", "remove", "edit", "replace"]);
   if (GATED.has(intent) && !(await getActiveTier(admin).catch(() => null))) {
     return { plan: await getPlan(shop), error: "Start a ShopHero plan to build your content engine.", upgrade: true };
   }
@@ -57,6 +57,12 @@ export async function action({ request }: ActionFunctionArgs) {
   } else if (intent === "resume") {
     await setStatus(shop, "active");
     await generateDraft(admin, shop, plan);
+  } else if (intent === "remove") {
+    await removeQueueItem(shop, Number(form.get("index")));
+  } else if (intent === "edit") {
+    await editQueueItem(shop, Number(form.get("index")), String(form.get("title") ?? ""), String(form.get("angle") ?? ""));
+  } else if (intent === "replace") {
+    await replaceQueueItem(admin, shop, plan, Number(form.get("index")));
   } else if (intent === "autopublish") {
     // "Approve all / auto-publish": future daily drafts go live without manual
     // approval. Turning it on also publishes any draft already waiting.

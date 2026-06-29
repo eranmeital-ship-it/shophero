@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, Link } from "react-router";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { authenticate } from "../shopify.server";
 import { getActiveTier } from "../lib/billing.server";
 import { TIERS } from "../lib/plans";
@@ -34,7 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const C = {
   bg: "#0a0e09", panel: "#121a10", panel2: "#0e140c", line: "#26331f", lineSoft: "#1c2618",
   text: "#f2f6f0", muted: "#9fb098", faint: "#6f7d68",
-  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6",
+  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6", coral: "#d97757",
 };
 const card: CSSProperties = { background: `linear-gradient(180deg, ${C.panel}, ${C.panel2})`, border: `1px solid ${C.line}`, borderRadius: 18, padding: 22 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -47,16 +47,18 @@ export default function ContentCalendar() {
   const analyzing = analyze.state !== "idle";
   const acting = act.state !== "idle";
   const c = d.content;
+  const [sel, setSel] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
 
   // Project the queue onto real calendar dates at the tier's cadence.
   const cadenceDays = d.dailyContent ? 1 : 7;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const dk = (dt: Date) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-  type Slot = { title: string; intent: string; ready?: boolean };
+  type Slot = { title: string; angle?: string; intent: string; ready?: boolean; qi?: number };
   const byDay = new Map<string, Slot[]>();
   const addSlot = (dt: Date, s: Slot) => { const k = dk(dt); const a = byDay.get(k) ?? []; a.push(s); byDay.set(k, a); };
   if (c?.draftTitle && !c.autoPublish) addSlot(today, { title: c.draftTitle, intent: "review", ready: true });
-  (c?.queue ?? []).forEach((p, i) => addSlot(new Date(today.getTime() + (i + 1) * cadenceDays * 86400000), { title: p.title, intent: p.intent }));
+  (c?.queue ?? []).forEach((p, i) => addSlot(new Date(today.getTime() + (i + 1) * cadenceDays * 86400000), { title: p.title, angle: p.angle, intent: p.intent, qi: i }));
   const gridStart = new Date(today); gridStart.setDate(gridStart.getDate() - gridStart.getDay());
   const gridDays = Array.from({ length: 35 }, (_, i) => new Date(gridStart.getTime() + i * 86400000));
   const intentColor: Record<string, string> = { buying: C.brand, research: C.accent, support: C.violet, brand: "#e8941a", review: C.brand2 };
@@ -149,16 +151,26 @@ export default function ContentCalendar() {
                             <span style={{ fontSize: 11, fontWeight: 800, color: isToday ? C.brand2 : inMonth ? C.muted : C.faint, fontFamily: mono }}>{dt.getDate()}</span>
                             {isToday && <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "0.06em", color: "#06120c", background: C.brand2, padding: "2px 6px", borderRadius: 999 }}>TODAY</span>}
                           </div>
-                          {slots.slice(0, 3).map((s, i) => (
-                            <div key={i} title={s.title} style={{
-                              fontSize: 10.5, fontWeight: 700, lineHeight: 1.25, color: "#0a1206",
-                              background: `linear-gradient(180deg, ${intentColor[s.intent] ?? C.brand}, ${intentColor[s.intent] ?? C.brand}cc)`,
-                              borderRadius: 6, padding: "4px 6px", overflow: "hidden",
-                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                              boxShadow: s.ready ? `0 0 0 1.5px ${C.brand2}` : "none",
-                            }}>{s.ready ? "● " : ""}{s.title}</div>
-                          ))}
-                          {slots.length > 3 && <div style={{ fontSize: 9.5, color: C.faint, fontWeight: 700 }}>+{slots.length - 3} more</div>}
+                          {slots.slice(0, 2).map((s, i) => {
+                            const col2 = intentColor[s.intent] ?? C.brand;
+                            const selectable = s.qi != null;
+                            const isSel = selectable && sel === s.qi;
+                            return (
+                              <button key={i} type="button" title={s.title}
+                                onClick={selectable ? () => { setSel(s.qi!); setEditing(false); } : undefined}
+                                style={{
+                                  textAlign: "left", border: "none", cursor: selectable ? "pointer" : "default", width: "100%",
+                                  background: `linear-gradient(180deg, ${col2}, ${col2}cc)`,
+                                  borderRadius: 7, padding: "5px 7px", color: "#0a1206",
+                                  boxShadow: isSel ? `0 0 0 2px #fff` : s.ready ? `0 0 0 1.5px ${C.brand2}` : "none",
+                                }}>
+                                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", opacity: 0.8 }}>{s.ready ? "● ready" : s.intent}</div>
+                                <div style={{ fontSize: 11, fontWeight: 800, lineHeight: 1.25, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{s.title}</div>
+                                {s.angle && <div style={{ fontSize: 9.5, fontWeight: 600, lineHeight: 1.25, marginTop: 2, opacity: 0.78, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{s.angle}</div>}
+                              </button>
+                            );
+                          })}
+                          {slots.length > 2 && <div style={{ fontSize: 9.5, color: C.faint, fontWeight: 700 }}>+{slots.length - 2} more</div>}
                         </div>
                       );
                     })}
@@ -170,8 +182,48 @@ export default function ContentCalendar() {
                     <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: col }} />{k}</span>
                   ))}
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: C.brand, boxShadow: `0 0 0 1.5px ${C.brand2}` }} />ready to review</span>
+                  <span style={{ color: C.faint }}>· click any article to edit, replace or remove</span>
                 </div>
               </div>
+
+              {/* Edit / replace / remove panel for the selected queued article */}
+              {sel != null && c.queue[sel] && (
+                <div style={{ ...card, padding: 18, marginBottom: 14, borderColor: `${C.brand}3a`, background: `linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: C.violet, background: `${C.violet}1e`, padding: "3px 9px", borderRadius: 999 }}>{c.queue[sel].intent}</span>
+                    <button type="button" onClick={() => { setSel(null); setEditing(false); }} style={{ background: "none", border: "none", color: C.faint, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>✕</button>
+                  </div>
+                  {!editing ? (
+                    <>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{c.queue[sel].title}</div>
+                      <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, margin: "6px 0 14px" }}>{c.queue[sel].angle}</div>
+                      <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => setEditing(true)} style={{ fontSize: 12.5, fontWeight: 800, color: C.text, background: "rgba(255,255,255,0.06)", border: `1px solid ${C.line}`, padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>✏️ Edit</button>
+                        <act.Form method="post" action="/api/content-plan" onSubmit={() => { setEditing(false); }}>
+                          <input type="hidden" name="intent" value="replace" /><input type="hidden" name="index" value={sel} />
+                          <button type="submit" disabled={acting} style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", background: `linear-gradient(120deg,#a78bfa,${C.violet})`, border: "none", padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>{acting ? "Replacing…" : "↻ Replace with a new idea"}</button>
+                        </act.Form>
+                        <act.Form method="post" action="/api/content-plan" onSubmit={() => { setSel(null); }}>
+                          <input type="hidden" name="intent" value="remove" /><input type="hidden" name="index" value={sel} />
+                          <button type="submit" disabled={acting} style={{ fontSize: 12.5, fontWeight: 800, color: C.coral, background: "transparent", border: `1px solid ${C.coral}55`, padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>🗑 Remove</button>
+                        </act.Form>
+                      </div>
+                    </>
+                  ) : (
+                    <act.Form method="post" action="/api/content-plan" onSubmit={() => setEditing(false)}>
+                      <input type="hidden" name="intent" value="edit" /><input type="hidden" name="index" value={sel} />
+                      <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>Title</label>
+                      <input name="title" defaultValue={c.queue[sel].title} style={{ width: "100%", boxSizing: "border-box", fontSize: 13.5, fontWeight: 700, color: C.text, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "9px 11px", marginBottom: 10 }} />
+                      <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>Angle</label>
+                      <textarea name="angle" defaultValue={c.queue[sel].angle} rows={2} style={{ width: "100%", boxSizing: "border-box", fontSize: 13, color: C.text, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "9px 11px", marginBottom: 12, resize: "vertical", fontFamily: "inherit" }} />
+                      <div style={{ display: "flex", gap: 9 }}>
+                        <button type="submit" disabled={acting} style={{ ...btn }}>{acting ? "Saving…" : "Save changes"}</button>
+                        <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 12.5, fontWeight: 700, color: C.muted, background: "transparent", border: `1px solid ${C.line}`, padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>Cancel</button>
+                      </div>
+                    </act.Form>
+                  )}
+                </div>
+              )}
 
               {!d.dailyContent && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 14px", borderRadius: 12, background: `${C.violet}12`, border: `1px solid ${C.violet}3a`, marginBottom: 14 }}>
