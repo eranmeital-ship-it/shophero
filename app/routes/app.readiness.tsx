@@ -95,9 +95,17 @@ const C = {
   coral: "#d97757", amber: "#e8941a", blue: "#3b82f6",
 };
 const scoreColor = (s: number) => (s >= 80 ? C.brand : s >= 50 ? C.amber : C.coral);
-const card: React.CSSProperties = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 20 };
-const sectionTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: C.faint, marginBottom: 12 };
+const card: React.CSSProperties = { background: `linear-gradient(180deg, ${C.panel}, ${C.panel2})`, border: `1px solid ${C.line}`, borderRadius: 18, padding: 20 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+function Label({ children, mb = 14 }: { children: React.ReactNode; mb?: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: mb }}>
+      <span style={{ width: 3, height: 13, borderRadius: 2, background: `linear-gradient(${C.brand2},${C.accent})`, flexShrink: 0 }} />
+      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.11em", textTransform: "uppercase", color: C.faint }}>{children}</span>
+    </div>
+  );
+}
 
 function Gauge({ score, shown }: { score: number; shown: number }) {
   const r = 64, c = 2 * Math.PI * r;
@@ -174,7 +182,16 @@ export default function Readiness() {
   const articles = d.content?.published ?? 0;
 
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", margin: "-16px", padding: "22px 22px 40px", fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div style={{
+      color: C.text, minHeight: "100vh", margin: "-16px", padding: "22px 22px 48px",
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      background: `
+        radial-gradient(900px 520px at 8% -8%, ${C.brand}14, transparent 58%),
+        radial-gradient(820px 520px at 102% -4%, ${C.violet}12, transparent 54%),
+        linear-gradient(rgba(255,255,255,0.016) 1px, transparent 1px) 0 0 / 100% 42px,
+        linear-gradient(90deg, rgba(255,255,255,0.016) 1px, transparent 1px) 0 0 / 42px 100%,
+        ${C.bg}`,
+    }}>
       <style>{`
         .rdx-card { transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
         .rdx-card:hover { transform: translateY(-2px); border-color: ${C.brand}55; box-shadow: 0 12px 28px rgba(0,0,0,.35); }
@@ -205,7 +222,8 @@ export default function Readiness() {
 
         {/* ── Hero: gauge + telemetry tiles ── */}
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1.1fr) minmax(280px, 1fr)", gap: 14, marginBottom: 14 }}>
-          <div className="rdx-card" style={{ ...card, padding: 22, display: "flex", gap: 20, alignItems: "center", background: `radial-gradient(120% 120% at 0% 0%, ${C.brand}12, transparent 60%), ${C.panel}`, borderColor: `${C.brand}33` }}>
+          <div className="rdx-card" style={{ ...card, position: "relative", overflow: "hidden", padding: 24, display: "flex", gap: 20, alignItems: "center", background: `radial-gradient(130% 130% at 0% 0%, ${C.brand}18, transparent 58%), linear-gradient(180deg, ${C.panel}, ${C.panel2})`, borderColor: `${C.brand}3a` }}>
+            <span style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.brand2}, ${C.accent}, ${C.violet})` }} />
             <Gauge score={d.score} shown={shown} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: C.faint }}>AI-Readiness Score™</div>
@@ -224,7 +242,7 @@ export default function Readiness() {
 
         {/* ── Signal breakdown ── */}
         <div className="rdx-card" style={{ ...card, marginBottom: 14 }}>
-          <div style={sectionTitle}>Signal breakdown</div>
+          <Label>Signal breakdown</Label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 18 }}>
             {d.dims.map((dim) => (
               <div key={dim.key}>
@@ -242,7 +260,7 @@ export default function Readiness() {
         </div>
 
         {/* ── Systems status ── */}
-        <div style={sectionTitle}>Systems</div>
+        <Label>Systems</Label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 22 }}>
           <SystemCard icon="📐" title="Structured data" on={structuredOn} detail={structuredOn ? "JSON-LD installed & rendering" : "Not installed yet — fix to switch on"} />
           <SystemCard icon="🤖" title="AI feed & llms.txt" on detail={d.liveNote ? d.liveNote : "Hosted & live for AI crawlers"} />
@@ -255,7 +273,7 @@ export default function Readiness() {
           {/* Open issues */}
           <div className="rdx-card" style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ ...sectionTitle, marginBottom: 0 }}>Open issues · blocking AI</div>
+              <Label mb={0}>Open issues · blocking AI</Label>
               <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 800, color: d.gaps.length ? C.amber : C.brand }}>{d.gaps.length} active</span>
             </div>
             {d.gaps.length > 0 ? (
@@ -278,7 +296,7 @@ export default function Readiness() {
 
           {/* Crawler radar */}
           <div className="rdx-card" style={card}>
-            <div style={{ ...sectionTitle }}>📡 AI-crawler radar · 30 days</div>
+            <Label>📡 AI-crawler radar · 30 days</Label>
             {d.crawlerTotal > 0 ? (
               <>
                 <div style={{ fontSize: 32, fontWeight: 800, fontFamily: mono, color: C.accent }}>{d.crawlerTotal}<span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}> reads</span></div>
@@ -314,7 +332,7 @@ export default function Readiness() {
         {/* ── Content engine ── */}
         <div className="rdx-card" style={{ ...card, marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-            <div style={{ ...sectionTitle, marginBottom: 0 }}>✍️ Content engine · AI-answer drip</div>
+            <Label mb={0}>✍️ Content engine · AI-answer drip</Label>
             {d.content?.summary && (
               <act.Form method="post" action="/api/content-plan">
                 <input type="hidden" name="intent" value="autopublish" />
@@ -383,7 +401,7 @@ export default function Readiness() {
 
         {/* ── Hosted endpoints ── */}
         <div className="rdx-card" style={card}>
-          <div style={sectionTitle}>Hosted agent-ready endpoints</div>
+          <Label>Hosted agent-ready endpoints</Label>
           <div style={{ color: C.muted, fontSize: 12.5, marginBottom: 12 }}>Served live from ShopHero — exactly what AI crawlers read.{d.liveNote ? ` (${d.liveNote})` : ""}</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <a className="rdx-chip" href={d.links.llms} target="_blank" rel="noreferrer"><span style={{ color: C.brand }}>GET</span> /llms.txt ↗</a>
