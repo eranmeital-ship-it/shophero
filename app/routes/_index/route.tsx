@@ -220,15 +220,49 @@ function ShopifyMark() {
   );
 }
 
-function ClaudeMark() {
+function ClaudeMark({ s = 22, color = "#D97757" }: { s?: number; color?: string }) {
   return (
-    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
-      <g stroke="#D97757" strokeWidth="3" strokeLinecap="round">
+    <svg viewBox="0 0 32 32" width={s} height={s} aria-hidden="true">
+      <g stroke={color} strokeWidth="3" strokeLinecap="round">
         <line x1="16" y1="3" x2="16" y2="29" />
         <line x1="3" y1="16" x2="29" y2="16" />
         <line x1="6.6" y1="6.6" x2="25.4" y2="25.4" />
         <line x1="25.4" y1="6.6" x2="6.6" y2="25.4" />
       </g>
+    </svg>
+  );
+}
+
+// AI-engine logomarks (recreated for the "recommended by" lineup).
+function OpenAiLogo({ s = 20 }: { s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="#0f9d76" aria-hidden="true">
+      <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071.006l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.843-3.387L15.092 7.2a.076.076 0 0 1 .071-.006l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v3l-2.597 1.5-2.607-1.5z" />
+    </svg>
+  );
+}
+function GeminiLogo({ s = 20 }: { s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="shGem" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#4285f4" />
+          <stop offset=".5" stopColor="#9168f0" />
+          <stop offset="1" stopColor="#d96570" />
+        </linearGradient>
+      </defs>
+      <path d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.305 14.305 0 0 0 12 12 14.305 14.305 0 0 0-12 12" fill="url(#shGem)" />
+    </svg>
+  );
+}
+function PerplexityLogo({ s = 20 }: { s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 48 48" fill="none" stroke="#20808d" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="24" y1="8" x2="24" y2="40" />
+      <path d="M24 13 L10 8 V20 a14 9 0 0 0 14 5 a14 9 0 0 0 14 -5 V8 L24 13" />
+      <path d="M24 25 V40" />
+      <path d="M24 35 L11 40 V27" />
+      <path d="M24 35 L37 40 V27" />
     </svg>
   );
 }
@@ -1032,11 +1066,11 @@ function ScoreChecker({ showForm }: { showForm: boolean }) {
 }
 
 // The AI engines that recommend stores — the "result" side of the hero lockup.
-const ENGINES: { name: string; glyph: string; bg: string }[] = [
-  { name: "ChatGPT", glyph: "✦", bg: "#10a37f" },
-  { name: "Claude", glyph: "✳", bg: "#d97757" },
-  { name: "Perplexity", glyph: "✺", bg: "#20808d" },
-  { name: "Gemini", glyph: "✶", bg: "linear-gradient(135deg,#4285f4,#9b72cb)" },
+const ENGINES: { name: string; mark: ReactNode }[] = [
+  { name: "ChatGPT", mark: <OpenAiLogo /> },
+  { name: "Claude", mark: <ClaudeMark s={20} /> },
+  { name: "Perplexity", mark: <PerplexityLogo /> },
+  { name: "Gemini", mark: <GeminiLogo /> },
 ];
 
 export default function LandingV2() {
@@ -1076,7 +1110,7 @@ export default function LandingV2() {
             <span className={styles.engines}>
               <span className={styles.engineRow}>
                 {ENGINES.map((e) => (
-                  <span key={e.name} className={styles.engineBadge} style={{ background: e.bg }} title={e.name} aria-label={e.name}>{e.glyph}</span>
+                  <span key={e.name} className={styles.engineBadge} title={e.name} aria-label={e.name}>{e.mark}</span>
                 ))}
               </span>
               <span className={styles.engineLabel}>Recommended by AI</span>
