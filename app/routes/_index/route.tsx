@@ -437,6 +437,144 @@ function StatsBand() {
   );
 }
 
+function FourSteps() {
+  const steps = [
+    { n: 1, icon: "🔍", title: "Scan", desc: "We deep-read your store — best sellers, catalog, content, schema — and score how readable it is to AI agents." },
+    { n: 2, icon: "📐", title: "Structure", desc: "We add the structured data, retrieval feed and llms.txt that let ChatGPT, Claude & Perplexity actually parse what you sell." },
+    { n: 3, icon: "✍️", title: "Drip", desc: "A constant plan of AI-answer content — buying guides, comparisons, FAQs — mapped to your real products, drafted for approval." },
+    { n: 4, icon: "📈", title: "Get recommended", desc: "AI reads and cites you — and you watch real crawler reads climb in your dashboard. No ad spend." },
+  ];
+  return (
+    <section style={{ maxWidth: 1040, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>From invisible to <span className={styles.grad}>recommended</span> — in 4 steps.</h2>
+      <p className={styles.lead}>You approve; ShopHero does the work and keeps it live.</p>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 22 }}>
+        {steps.map((s) => (
+          <div key={s.n} style={{ flex: "1 1 220px", background: "#fff", border: "1px solid #e6e9ef", borderRadius: 16, padding: "20px 18px", textAlign: "left", boxShadow: "0 4px 14px rgba(0,0,0,0.05)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ width: 30, height: 30, borderRadius: "50%", background: "#15171c", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 14 }}>{s.n}</span>
+              <span style={{ fontSize: 22 }}>{s.icon}</span>
+            </div>
+            <div style={{ fontWeight: 750, fontSize: 16, color: "#15171c" }}>{s.title}</div>
+            <div style={{ fontSize: 13, color: "#475467", marginTop: 5, lineHeight: 1.5 }}>{s.desc}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ColList({ items, tone }: { items: string[]; tone: "bad" | "good" }) {
+  const c = tone === "good" ? "#16a34a" : "#e0457f";
+  return (
+    <>{items.map((t, i) => (
+      <div key={i} style={{ display: "flex", gap: 9, padding: "7px 0", fontSize: 13.5, color: tone === "good" ? "#15171c" : "#475467" }}>
+        <span style={{ color: c }}>{tone === "good" ? "✓" : "✕"}</span>{t}
+      </div>
+    ))}</>
+  );
+}
+
+function DiyVsShopHero() {
+  return (
+    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>ChatGPT writes blog posts. <span className={styles.grad}>ShopHero makes AI recommend you.</span></h2>
+      <p className={styles.lead}>A prompt gives you a draft. ShopHero makes your store the answer.</p>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
+        <div style={{ flex: "1 1 320px", background: "#fff", border: "1px solid #f2c2d4", borderRadius: 16, padding: 20 }}>
+          <div style={{ fontWeight: 800, color: "#e0457f", marginBottom: 8 }}>DIY with ChatGPT / blog tools</div>
+          <ColList tone="bad" items={["Generic posts anyone can prompt — no real angle or voice", "Zero knowledge of your catalog, best sellers or customers", "No structured data, feed or llms.txt — AI still can't read you", "One article, then silence. The grind never ends", "No proof it works — you're guessing"]} />
+        </div>
+        <div style={{ flex: "1 1 320px", background: "linear-gradient(180deg,#fff,#f6fdf8)", border: "1px solid #bfe6c8", borderRadius: 16, padding: 20 }}>
+          <div style={{ fontWeight: 800, color: "#16a34a", marginBottom: 8 }}>ShopHero</div>
+          <ColList tone="good" items={["A deep read of YOUR store before a word is written", "Schema + retrieval feed + llms.txt — AI can finally parse you", "AI-answer content mapped to your real products, on a cadence", "Re-optimizes as your catalog changes — never goes stale", "Real AI-crawler logs prove who's reading you"]} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CostCompare() {
+  const ul = { marginTop: 12, padding: 0, listStyle: "none", color: "#475467", fontSize: 13, lineHeight: 1.9 } as const;
+  return (
+    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>Agency depth. <span className={styles.grad}>Without the agency bill.</span></h2>
+      <p className={styles.lead}>What AI-discoverability costs the old way — vs ShopHero.</p>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
+        <div style={{ flex: "1 1 260px", border: "1px solid #e6e9ef", borderRadius: 16, padding: 20, background: "#fff" }}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>SEO / AEO agency</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>$3,000–8,000<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
+          <ul style={ul}><li>✕ 3-month minimums, black-box reports</li><li>✕ A few articles, no technical readiness</li><li>✕ You hope it's working</li></ul>
+        </div>
+        <div style={{ flex: "1 1 260px", border: "1px solid #e6e9ef", borderRadius: 16, padding: 20, background: "#fff" }}>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Blog-only AI-SEO tools</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>~$400<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
+          <ul style={ul}><li>✕ Volume of generic articles</li><li>✕ No schema, feed or llms.txt on your store</li><li>✕ Vanity metrics, not real crawler data</li></ul>
+        </div>
+        <div style={{ flex: "1 1 260px", border: "2px solid #16a34a", borderRadius: 16, padding: 20, background: "linear-gradient(180deg,#fff,#f6fdf8)" }}>
+          <div style={{ fontWeight: 800, marginBottom: 6, color: "#16a34a" }}>ShopHero ⭐</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>$99<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
+          <ul style={ul}><li>✓ Hosted llms.txt + feed + auto schema</li><li>✓ AI-answer content on your real products</li><li>✓ Real AI-crawler analytics — proof it works</li></ul>
+          <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700, marginTop: 8 }}>Free AI-Readiness Score to start</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Objections() {
+  const items = [
+    { q: "Is it just AI spam?", a: "No. We don't fling posts at the wall — we make your store machine-readable (schema, feed, llms.txt) and write answer-shaped content grounded in your real catalog, for your approval. If you wouldn't send it to a customer, we don't ship it." },
+    { q: "Will AI content hurt my Google rankings?", a: "Mass thin content can. Ours is depth-first, product-linked, schema'd and merchant-approved — and the core of ShopHero is technical readiness, not volume." },
+    { q: "I've been burned by SEO before.", a: "Fair. The difference: you start free with a real AI-Readiness Score, you see your hosted files live, and you watch actual AI-crawler logs. No black box — cancel anytime from Shopify." },
+    { q: "Will it work for my store?", a: "It's Shopify-only and built on your real catalog, so it adapts to any niche — and the score shows your gaps before you pay a cent." },
+  ];
+  return (
+    <section style={{ maxWidth: 820, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>Still on the <span className={styles.grad}>fence?</span></h2>
+      <div style={{ marginTop: 18, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
+        {items.map((it, i) => (
+          <div key={i} style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 14, padding: "16px 18px" }}>
+            <div style={{ fontWeight: 750, marginBottom: 5 }}>{it.q}</div>
+            <div style={{ color: "#475467", fontSize: 13.5, lineHeight: 1.6 }}>{it.a}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FoundingStores() {
+  return (
+    <section style={{ maxWidth: 820, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <div style={{ background: "linear-gradient(180deg,#0f1216,#181c22)", color: "#fff", borderRadius: 20, padding: "32px 24px" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.06em", color: "#7bdca0" }}>FOUNDING STORES</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 6px" }}>Be one of the first stores AI learns to recommend.</h2>
+        <p style={{ color: "#b8bec8", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.6 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. We'd rather show you your own crawler data than a wall of testimonials.</p>
+        <a href="#start" style={{ display: "inline-block", background: "#16a34a", color: "#fff", fontWeight: 700, padding: "12px 22px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
+      </div>
+    </section>
+  );
+}
+
+function ChoiceClosing() {
+  return (
+    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+      <h2 className={styles.h2}>The choice is <span className={styles.grad}>yours.</span></h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
+        <div style={{ flex: "1 1 320px", border: "1px solid #f2c2d4", borderRadius: 16, padding: 20, background: "#fff" }}>
+          <div style={{ fontWeight: 800, color: "#e0457f", marginBottom: 8 }}>Keep waiting</div>
+          <ColList tone="bad" items={["Stay invisible when shoppers ask AI what to buy", "Watch competitors get named instead of you", "Pay agencies $3k+/mo, or guess with blog tools", "Hope it's working, with no real data"]} />
+        </div>
+        <div style={{ flex: "1 1 320px", border: "1px solid #bfe6c8", borderRadius: 16, padding: 20, background: "linear-gradient(180deg,#fff,#f6fdf8)" }}>
+          <div style={{ fontWeight: 800, color: "#16a34a", marginBottom: 8 }}>Start today</div>
+          <ColList tone="good" items={["Be the store AI agents read and recommend", "Auto schema + feed + llms.txt, kept live", "Start free, then $99/mo — cancel anytime", "See real AI-crawler reads in your dashboard"]} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingV2() {
   const { showForm } = useLoaderData<typeof loader>();
 
@@ -540,6 +678,7 @@ export default function LandingV2() {
       {/* AI RECOMMENDATION — before/after */}
       <AIComparison />
       <StatsBand />
+      <FourSteps />
 
       {/* AUTHORITY BADGES */}
       <section className={styles.badgesBand}>
@@ -646,6 +785,9 @@ export default function LandingV2() {
         </div>
       </section>
 
+      {/* DIY VS SHOPHERO */}
+      <DiyVsShopHero />
+
       {/* SAFETY */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="safety">
         <h2 className={styles.h2}>AI on your store - <span className={styles.grad}>with the brakes on.</span></h2>
@@ -677,6 +819,11 @@ export default function LandingV2() {
         </div>
       </section>
 
+      {/* COST COMPARISON + OBJECTIONS + FOUNDING STORES */}
+      <CostCompare />
+      <Objections />
+      <FoundingStores />
+
       {/* PRICING */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
         <h2 className={styles.h2}>One subscription. <span className={styles.grad}>Always-on AI discoverability.</span></h2>
@@ -699,6 +846,9 @@ export default function LandingV2() {
           <p className={styles.micro}>Start free. Cancel anytime, right from Shopify.</p>
         </div>
       </section>
+
+      {/* THE CHOICE */}
+      <ChoiceClosing />
 
       {/* FINAL CTA */}
       <section className={styles.finalCta}>
