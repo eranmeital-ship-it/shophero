@@ -28,7 +28,7 @@ export interface ScanResult {
   grade: string;
   dims: { label: string; score: number; note: string }[];
   gaps: { label: string; detail: string }[];
-  plan: { tag: "Fix" | "Grow"; icon: string; title: string; desc: string }[];
+  plan: { tag: "Fix" | "Grow"; icon: string; title: string; desc: string; act: "install" | "link"; to?: string; cta: string }[];
 }
 
 function gradeFor(score: number): string {
@@ -87,13 +87,13 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<ScanResul
     gaps.push({ label: "No AI-answer content", detail: "Nothing for AI to quote when a shopper asks what to buy in your category." });
 
   const plan: ScanResult["plan"] = [
-    { tag: "Fix", icon: "📐", title: "Make every product readable by AI", desc: "Auto-add Product, Offer, Review, FAQ & Breadcrumb schema to all your products." },
-    { tag: "Fix", icon: "🤖", title: "Go live with your AI feed + llms.txt", desc: "Hosted by ShopHero and kept fresh — the map AI crawlers read to understand your catalog." },
+    { tag: "Fix", icon: "📐", title: "Make every product readable by AI", desc: "Auto-add Product, Offer, Review, FAQ & Breadcrumb schema to all your products.", act: "install", cta: "Install now" },
+    { tag: "Fix", icon: "🤖", title: "Go live with your AI feed + llms.txt", desc: "Hosted by ShopHero and kept fresh — the map AI crawlers read to understand your catalog.", act: "link", to: "/app/readiness", cta: "View live →" },
   ];
   if (contentPct < 60)
-    plan.push({ tag: "Fix", icon: "✍️", title: "Turn thin descriptions into AI-answer content", desc: "Rewrite product copy into the Q&A facts AI quotes when recommending." });
-  plan.push({ tag: "Grow", icon: "📚", title: "Become the source AI quotes", desc: "Publish answer-shaped buying guides built from your best sellers." });
-  plan.push({ tag: "Grow", icon: "📈", title: "Watch AI discover your store", desc: "See GPTBot, ClaudeBot & Perplexity read your store — real proof it's working." });
+    plan.push({ tag: "Fix", icon: "✍️", title: "Turn thin descriptions into AI-answer content", desc: "Rewrite product copy into the Q&A facts AI quotes when recommending.", act: "link", to: "/app/editor", cta: "Open editor →" });
+  plan.push({ tag: "Grow", icon: "📚", title: "Become the source AI quotes", desc: "Publish answer-shaped buying guides built from your best sellers.", act: "link", to: "/app/readiness", cta: "Build plan →" });
+  plan.push({ tag: "Grow", icon: "📈", title: "Watch AI discover your store", desc: "See GPTBot, ClaudeBot & Perplexity read your store — real proof it's working.", act: "link", to: "/app/readiness", cta: "See analytics →" });
 
   return {
     profile: {

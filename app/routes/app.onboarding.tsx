@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useNavigate, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -60,6 +60,7 @@ function ScoreRing({ score }: { score: number }) {
 export default function Onboarding() {
   const scan = useFetcher<ScanResult>();
   const complete = useFetcher();
+  const install = useFetcher<{ ok?: boolean; error?: string; alreadyPresent?: boolean }>();
   const navigate = useNavigate();
   const [sp] = useSearchParams();
 
@@ -100,10 +101,13 @@ export default function Onboarding() {
     return () => clearInterval(settle);
   }, [phase, scan.state, data]);
 
-  const finish = () => {
+  const goto = (path: string) => {
     complete.submit({ intent: "complete" }, { method: "post" });
-    navigate({ pathname: "/app/readiness", search: sp.toString() ? `?${sp.toString()}` : "" });
+    navigate({ pathname: path, search: sp.toString() ? `?${sp.toString()}` : "" });
   };
+  const installing = install.state !== "idle";
+  const installed = !!install.data?.ok;
+  const installSchema = () => install.submit({}, { method: "post", action: "/api/structured-data" });
 
   // ── Scanning ────────────────────────────────────────────────────────────
   if (phase === "scanning") {
@@ -150,7 +154,7 @@ export default function Onboarding() {
         <div className="sh-ob-card sh-ob-center" style={{ maxWidth: 480 }}>
           <h2>Let's get you set up</h2>
           <p className="sh-ob-sub">We couldn't finish the scan, but your dashboard is ready to go.</p>
-          <button type="button" className="sh-btn sh-btn-primary sh-ob-scan-btn" onClick={finish}>Open my dashboard →</button>
+          <button type="button" className="sh-btn sh-btn-primary sh-ob-scan-btn" onClick={() => goto("/app/readiness")}>Open my dashboard →</button>
         </div>
       </div>
     );
@@ -213,20 +217,35 @@ export default function Onboarding() {
         <h2 style={{ fontSize: 19, margin: "26px 0 4px" }}>Your plan to fix it &amp; grow</h2>
         <p className="sh-ob-sub" style={{ marginTop: 2 }}>ShopHero does the work — you approve. Here's the order we'll tackle it in.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-          {data.plan.map((p, i) => (
-            <div key={i} style={{ ...fade(i), display: "flex", gap: 12, alignItems: "center", padding: "13px 14px", border: `1px solid ${C.line}`, borderRadius: 12, background: "#fff" }}>
-              <span style={{ fontSize: 22, width: 30, textAlign: "center", flexShrink: 0 }}>{p.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: C.ink }}>{p.title}</div>
-                <div style={{ fontSize: 12.5, color: C.muted, marginTop: 2, lineHeight: 1.5 }}>{p.desc}</div>
+          {data.plan.map((p, i) => {
+            const isInstall = p.act === "install";
+            const btnLabel = isInstall ? (installed ? "✓ Staged" : installing ? "Installing…" : p.cta) : p.cta;
+            const onClick = isInstall ? installSchema : () => goto(p.to ?? "/app/readiness");
+            const btnStyle: CSSProperties = isInstall && installed
+              ? { background: "rgba(22,163,74,0.12)", color: C.brand2, border: `1px solid rgba(22,163,74,0.3)` }
+              : { background: `linear-gradient(180deg,${C.brand},${C.brand2})`, color: "#fff", border: "none" };
+            return (
+              <div key={i} style={{ ...fade(i), display: "flex", gap: 12, alignItems: "center", padding: "13px 14px", border: `1px solid ${C.line}`, borderRadius: 12, background: "#fff" }}>
+                <span style={{ fontSize: 22, width: 30, textAlign: "center", flexShrink: 0 }}>{p.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: C.ink }}>{p.title}</span>
+                    <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 999, color: p.tag === "Fix" ? C.brand2 : C.violet, background: p.tag === "Fix" ? "rgba(22,163,74,0.1)" : "rgba(123,108,246,0.1)" }}>{p.tag}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>{p.desc}</div>
+                  {isInstall && install.data?.error && <div style={{ fontSize: 12, color: "#e0457f", marginTop: 4 }}>{install.data.error}</div>}
+                </div>
+                <button type="button" onClick={onClick} disabled={isInstall && (installing || installed)}
+                  style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, padding: "8px 14px", borderRadius: 9, cursor: isInstall && (installing || installed) ? "default" : "pointer", whiteSpace: "nowrap", ...btnStyle }}>
+                  {btnLabel}
+                </button>
               </div>
-              <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "4px 9px", borderRadius: 999, color: p.tag === "Fix" ? C.brand2 : C.violet, background: p.tag === "Fix" ? "rgba(22,163,74,0.1)" : "rgba(123,108,246,0.1)" }}>{p.tag}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <button type="button" className="sh-btn sh-btn-primary sh-ob-scan-btn" style={{ marginTop: 24, width: "100%" }} onClick={finish}>
-          Start fixing my store →
+        <button type="button" className="sh-btn sh-btn-primary sh-ob-scan-btn" style={{ marginTop: 24, width: "100%" }} onClick={() => goto("/app/readiness")}>
+          Go to my dashboard →
         </button>
         <p className="sh-ob-fineprint" style={{ textAlign: "center" }}>
           This is your starting estimate from a catalog scan. Your dashboard verifies it live and tracks it as ShopHero works.
