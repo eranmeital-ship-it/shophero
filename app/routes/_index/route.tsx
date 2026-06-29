@@ -178,7 +178,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. Authority is $399/month and adds a monthly press release distributed to 400+ news sites (Yahoo Finance, Benzinga, MarketWatch and more) — an $800/month value powered by MediaFuse — for high-authority backlinks and brand mentions on the sources AI trusts. 14-day free trial on paid plans, cancel anytime from Shopify.",
+    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. Authority is $399/month and adds a monthly press release distributed to 400+ news sites (Yahoo Finance, Benzinga, MarketWatch and more) — an $800/month value powered by MediaFuse — for high-authority backlinks and brand mentions on the sources AI trusts. 3-day free trial on paid plans, cancel anytime from Shopify.",
   },
   {
     q: "Which AI powers it?",
@@ -1256,7 +1256,7 @@ export default function LandingV2() {
             </div>
           </GlowCard>
         </div>
-        <p className={styles.micro} style={{ textAlign: "center", marginTop: 16 }}>Free AI-Readiness Score™ to start — no card. 14-day trial on paid plans. Cancel anytime, right from Shopify.</p>
+        <p className={styles.micro} style={{ textAlign: "center", marginTop: 16 }}>Free AI-Readiness Score™ to start — no card. 3-day trial on paid plans. Cancel anytime, right from Shopify.</p>
       </section>
 
       {/* THE CHOICE */}

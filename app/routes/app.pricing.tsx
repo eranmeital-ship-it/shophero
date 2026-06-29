@@ -31,7 +31,7 @@ export default function Pricing() {
   return (
     <div style={S.page}>
       <h1 style={S.title}>Get your store recommended by AI</h1>
-      <p style={S.sub}>Start with your free AI-Readiness Score™ — then pick your power level. 14-day trial · cancel anytime from Shopify.</p>
+      <p style={S.sub}>Start with your free AI-Readiness Score™ — then pick your power level. 3-day trial · cancel anytime from Shopify.</p>
 
       <div style={S.grid}>
         {TIER_ORDER.map((name) => {
