@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
+import { redirect, Form, useFetcher, useLoaderData } from "react-router";
+import type { VisibilityReport } from "../../lib/ai-visibility.server";
 
 import { login } from "../../shopify.server";
 
@@ -30,16 +31,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   return { showForm: Boolean(login) };
 };
-
-const BADGES = [
-  { lines: ["AI-Readiness", "Score"], sub: "KNOW WHERE YOU STAND", c1: "#5fb024", c2: "#34e0a1" },
-  { lines: ["llms.txt +", "Product Feed"], sub: "BUILT FOR AI CRAWLERS", c1: "#7b6cf6", c2: "#9d7bff" },
-  { lines: ["Auto", "Schema"], sub: "RICH RESULTS ON EVERY PDP", c1: "#1ca7c4", c2: "#34e0a1" },
-  { lines: ["AI-Crawler", "Analytics"], sub: "SEE WHO'S READING YOU", c1: "#e8941a", c2: "#ffce54" },
-  { lines: ["Stays", "Live"], sub: "RE-OPTIMIZES AS YOU CHANGE", c1: "#e0457f", c2: "#f472b6" },
-  { lines: ["Approval", "First"], sub: "YOU APPROVE EVERYTHING", c1: "#2f74e0", c2: "#60a5fa" },
-  { lines: ["30-Second", "Setup"], sub: "INSTALL & GO", c1: "#cf6242", c2: "#f0a07c" },
-];
 
 const SCENARIOS = [
   {
@@ -106,17 +97,6 @@ const LEAK_MAP = [
   { issue: "Slow mobile LCP", detail: "2.1s - demoted by Google & AI", sev: "Low", impact: "−4 pts" },
 ];
 
-const COMPARE_ROWS: [string, string][] = [
-  ["Pump out blog posts and hope AI notices", "Make your store directly machine-readable for AI"],
-  ["No idea if AI can even see your products", "See exactly which AI bots fetch your store"],
-  ["Schema hand-coded in your theme (or missing)", "Auto schema on every PDP, kept live"],
-  ["A static feed that goes stale in a week", "A retrieval feed that updates as your catalog changes"],
-  ["Generic descriptions agents can't quote", "Q&A descriptions written for how agents read"],
-  ["A one-time audit you can't act on", "A live AI-Readiness Score with one-tap fixes"],
-  ["Optimized once, invisible again in a month", "Re-optimizes automatically as you change"],
-  ["Guess whether any of it is working", "Watch AI-crawler reads climb in your dashboard"],
-];
-
 const BRAINS = [
   { icon: "🤖", name: "Get recommended by AI", desc: "We give ChatGPT, Claude, Gemini & Perplexity everything they need to understand, trust, and recommend your store — and keep it updated automatically as your catalog changes. (Under the hood: a hosted llms.txt + retrieval feed.)" },
   { icon: "📐", name: "Make your products understandable to AI", desc: "AI can finally tell what each product is, what it costs, and whether it's in stock — so it answers shopper questions with your products, and you win rich results on Google too." },
@@ -165,6 +145,18 @@ const FAQ = [
     q: "What if I don't like what it does?",
     a: "Every change is reversible in one click through full version history. You're always in control.",
   },
+  {
+    q: "Is it just AI spam?",
+    a: "No. We don't fling posts at the wall — we make your store machine-readable (schema, feed, llms.txt) and write answer-shaped content grounded in your real catalog, for your approval. If you wouldn't send it to a customer, we don't ship it.",
+  },
+  {
+    q: "Will AI content hurt my Google rankings?",
+    a: "Mass thin content can. Ours is depth-first, product-linked, schema'd and merchant-approved — and the core of ShopHero is technical readiness, not volume.",
+  },
+  {
+    q: "I've been burned by SEO before.",
+    a: "Fair. The difference: you start free with a real AI-Readiness Score, you see your hosted files live, and you watch actual AI-crawler logs. No black box — cancel anytime from Shopify.",
+  },
 ];
 
 function ShopifyMark() {
@@ -186,36 +178,6 @@ function ClaudeMark() {
         <line x1="6.6" y1="6.6" x2="25.4" y2="25.4" />
         <line x1="25.4" y1="6.6" x2="6.6" y2="25.4" />
       </g>
-    </svg>
-  );
-}
-
-function AwardBadge({ lines, sub, c1, c2, idx }: { lines: string[]; sub: string; c1: string; c2: string; idx: number }) {
-  const rg = `rg${idx}`;
-  const sh = `sh${idx}`;
-  return (
-    <svg className={styles.badgeSvg} viewBox="0 0 200 250" role="img" aria-label={`${lines.join(" ")} - ${sub}`}>
-      <defs>
-        <linearGradient id={rg} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={c1} />
-          <stop offset="1" stopColor={c2} />
-        </linearGradient>
-        <filter id={sh} x="-25%" y="-10%" width="150%" height="140%">
-          <feDropShadow dx="0" dy="9" stdDeviation="9" floodColor="#000000" floodOpacity="0.45" />
-        </filter>
-      </defs>
-      <g filter={`url(#${sh})`}>
-        <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V198 L100 240 L22 198 Z" fill={`url(#${rg})`} />
-      </g>
-      <path d="M22 16 a12 12 0 0 1 12 -12 H166 a12 12 0 0 1 12 12 V176 L100 214 L22 176 Z" fill="#ffffff" />
-      <text x="34" y="26" fontSize="11" fontWeight="800" fill="#16181c" letterSpacing="0.5">SHOPHERO</text>
-      <text x="34" y="41" fontSize="11" fontWeight="700" fill="#8a8a96" letterSpacing="0.5">2026</text>
-      <rect x="138" y="6" width="38" height="38" rx="5" fill={c1} />
-      <text x="157" y="32" textAnchor="middle" fontSize="20" fontWeight="800" fill="#ffffff">✦</text>
-      <line x1="22" y1="54" x2="178" y2="54" stroke="#e9e9ee" strokeWidth="1.5" />
-      <text x="100" y={lines.length > 1 ? 104 : 120} textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[0]}</text>
-      {lines[1] && <text x="100" y="132" textAnchor="middle" fontSize="24" fontWeight="800" fill="#15171c">{lines[1]}</text>}
-      <text x="100" y="162" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#9a9aa6" letterSpacing="0.8">{sub}</text>
     </svg>
   );
 }
@@ -479,7 +441,7 @@ function ColList({ items, tone }: { items: string[]; tone: "bad" | "good" }) {
 
 function DiyVsShopHero() {
   return (
-    <section style={SECT}>
+    <section style={SECT} id="compare">
       <Kicker>Advanced AI optimization · powered by Claude</Kicker>
       <h2 className={styles.h2}>ChatGPT writes blog posts. <span className={styles.grad}>ShopHero makes AI recommend you.</span></h2>
       <p className={styles.lead}>This isn't keyword stuffing or a content firehose. It's deep, Claude-powered optimization that makes your store readable to AI agents — something no one else is doing for Shopify.</p>
@@ -536,44 +498,6 @@ function CostCompare() {
       <div style={{ marginTop: 18, display: "inline-block", ...glass, border: "1px solid rgba(110,197,49,0.3)", padding: "12px 20px", color: C.text, fontWeight: 700, fontSize: 14 }}>
         💰 Save <span className={styles.grad}>$35,000+ a year</span> vs a typical SEO agency — for a tool that's actually built for AI.
       </div>
-    </section>
-  );
-}
-
-function Objections() {
-  const items = [
-    { q: "Is it just AI spam?", a: "No. We don't fling posts at the wall — we make your store machine-readable (schema, feed, llms.txt) and write answer-shaped content grounded in your real catalog, for your approval. If you wouldn't send it to a customer, we don't ship it." },
-    { q: "Will AI content hurt my Google rankings?", a: "Mass thin content can. Ours is depth-first, product-linked, schema'd and merchant-approved — and the core of ShopHero is technical readiness, not volume." },
-    { q: "I've been burned by SEO before.", a: "Fair. The difference: you start free with a real AI-Readiness Score, you see your hosted files live, and you watch actual AI-crawler logs. No black box — cancel anytime from Shopify." },
-    { q: "Will it work for my store?", a: "It's Shopify-only and built on your real catalog, so it adapts to any niche — and the score shows your gaps before you pay a cent." },
-  ];
-  return (
-    <section style={{ ...SECT, maxWidth: 820 }}>
-      <Kicker>No black boxes</Kicker>
-      <h2 className={styles.h2}>Still on the <span className={styles.grad}>fence?</span></h2>
-      <div style={{ marginTop: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
-        {items.map((it, i) => (
-          <div key={i} style={{ ...glass, padding: "16px 18px" }}>
-            <div style={{ fontWeight: 750, marginBottom: 5, color: C.text }}>{it.q}</div>
-            <div style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6 }}>{it.a}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FoundingStores() {
-  return (
-    <section style={{ ...SECT, maxWidth: 860 }}>
-      <GlowCard accent={C.brand}>
-        <div style={{ padding: "34px 26px" }}>
-          <Kicker>Founding stores</Kicker>
-          <h2 style={{ fontSize: 25, fontWeight: 800, margin: "4px 0 8px", color: C.text }}>Be one of the first stores AI learns to <span className={styles.grad}>recommend.</span></h2>
-          <p style={{ color: C.muted, maxWidth: 580, margin: "0 auto 18px", lineHeight: 1.6 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. We'd rather show you your own crawler data than a wall of testimonials.</p>
-          <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 24px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
-        </div>
-      </GlowCard>
     </section>
   );
 }
@@ -796,6 +720,7 @@ function EarlyMover() {
           <Kicker>The window is open — right now</Kicker>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "4px 0 10px" }}>Be early. <span className={styles.grad}>That's the whole opportunity.</span></h2>
           <p style={{ color: C.muted, maxWidth: 620, margin: "0 auto", lineHeight: 1.65 }}>AI shopping is where SEO was 15 years ago. Today, AI names only a handful of stores per question — and most merchants haven't realized it yet. The stores that become readable and trusted by AI <em>now</em> build citations, authority and data <strong style={{ color: C.text }}>before the seats fill up.</strong></p>
+          <p style={{ color: C.muted, maxWidth: 620, margin: "12px auto 0", lineHeight: 1.65 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. <strong style={{ color: C.text }}>We'd rather show you your own crawler data than a wall of testimonials.</strong></p>
           <p style={{ color: C.text, fontWeight: 800, margin: "16px 0 18px", fontSize: 17 }}>Start now. Thank yourself later.</p>
           <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 24px", borderRadius: 999, textDecoration: "none" }}>Claim your seat — free score →</a>
         </div>
@@ -820,6 +745,7 @@ function Hl({ children }: { children: ReactNode }) {
   return <mark style={{ background: "rgba(110,197,49,0.20)", color: "#cdeea9", padding: "0 3px", borderRadius: 4 }}>{children}</mark>;
 }
 function Testimonials() {
+  if (TESTIMONIALS.length === 0) return null; // auto-hide until real reviews are dropped in
   return (
     <section style={SECT}>
       <Kicker>Loved by early stores</Kicker>
@@ -846,6 +772,90 @@ function Testimonials() {
         <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 26px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
       </div>
     </section>
+  );
+}
+
+function ScoreRingMini({ score }: { score: number }) {
+  const r = 34, c = 2 * Math.PI * r;
+  const color = score >= 70 ? C.brand : score >= 40 ? "#e8941a" : C.coral;
+  return (
+    <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
+      <circle cx="46" cy="46" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
+      <circle cx="46" cy="46" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - score / 100)} transform="rotate(-90 46 46)" />
+      <text x="46" y="44" textAnchor="middle" fontSize="26" fontWeight="800" fill={C.text}>{score}</text>
+      <text x="46" y="60" textAnchor="middle" fontSize="9" fontWeight="700" fill={C.muted}>/ 100</text>
+    </svg>
+  );
+}
+
+/**
+ * The hero lead magnet — enter a store URL, get a real AI-Readiness Score inline
+ * (powered by the same public runVisibilityCheck behind /ai-check), then convert
+ * straight into the install. No signup to see the score; the gaps create the pull.
+ */
+function ScoreChecker({ showForm }: { showForm: boolean }) {
+  const fetcher = useFetcher<{ ok: boolean; report?: VisibilityReport; error?: string }>();
+  const [again, setAgain] = useState(false);
+  const loading = fetcher.state !== "idle";
+  const data = fetcher.data;
+  const report = !again && data?.ok ? data.report : undefined;
+  const error = !again && data && !data.ok ? data.error : undefined;
+
+  if (report) {
+    const verdict =
+      report.score >= 70 ? "AI can already read your store well." :
+      report.score >= 40 ? "AI can partly read your store — real gaps remain." :
+      "Most AI agents can't read your store yet.";
+    return (
+      <div style={{ ...glass, padding: 20, textAlign: "left", maxWidth: 540, margin: "0 auto" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <ScoreRingMini score={report.score} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: C.muted, textTransform: "uppercase" }}>Your AI-Readiness Score</div>
+            <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginTop: 3, lineHeight: 1.4 }}>{verdict}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2, wordBreak: "break-all" }}>{report.url.replace(/^https?:\/\//, "")}</div>
+          </div>
+        </div>
+        {report.topGaps.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 7 }}>Biggest gaps stopping AI from recommending you:</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {report.topGaps.slice(0, 3).map((g, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: C.muted, lineHeight: 1.45 }}>
+                  <span style={{ color: C.coral, fontWeight: 800 }}>✕</span><span>{g}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ marginTop: 16 }}>
+          {showForm ? (
+            <Form method="post" action="/auth/login" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input className={styles.input} type="text" name="shop" placeholder="your-store.myshopify.com" aria-label="Your Shopify store domain" style={{ flex: "1 1 200px" }} />
+              <button className={styles.btnPrimary} type="submit">Fix these — install free →</button>
+            </Form>
+          ) : (
+            <a href="https://apps.shopify.com" className={styles.btnPrimary} style={{ display: "inline-block" }}>Fix these — add to Shopify free →</a>
+          )}
+          <div style={{ display: "flex", gap: 16, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setAgain(true)} style={{ background: "none", border: "none", color: C.muted, fontSize: 12.5, cursor: "pointer", textDecoration: "underline", padding: 0 }}>↻ Check another store</button>
+            <a href="/ai-check" style={{ fontSize: 12.5, color: "#6f7d68", textDecoration: "none" }}>See the full report →</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 540, margin: "0 auto" }}>
+      <fetcher.Form method="post" action="/ai-check" onSubmit={() => setAgain(false)} className={styles.form}>
+        <input className={styles.input} type="text" name="url" placeholder="yourstore.com" aria-label="Your store URL" required />
+        <button className={styles.btnPrimary} type="submit" disabled={loading}>{loading ? "Scanning your store…" : "Get my free score →"}</button>
+      </fetcher.Form>
+      {error && <p style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>{error}</p>}
+      <p className={styles.micro}>Free AI-Readiness Score · no card · checks your public store in seconds</p>
+    </div>
   );
 }
 
@@ -909,8 +919,7 @@ export default function LandingV2() {
             <span>AI shopping is still in its first innings</span>
           </div>
           <div id="start" className={styles.startBlock}>
-            <StartForm />
-            <p className={styles.micro}>Get your free AI-Readiness Score · no card · installs in 30 seconds</p>
+            <ScoreChecker showForm={showForm} />
           </div>
           <p style={{ maxWidth: 560, margin: "16px auto 0", color: "#9fb098", fontSize: 14, lineHeight: 1.55 }}>
             You don't need to understand AI optimization — just whether AI can recommend your store. <strong style={{ color: "#f2f6f0" }}>ShopHero handles the rest.</strong>
@@ -939,16 +948,6 @@ export default function LandingV2() {
       <Benchmarks />
       <FourSteps />
 
-      {/* AUTHORITY BADGES */}
-      <section className={styles.badgesBand}>
-        <p className={styles.badgesTitle}>What ShopHero actually delivers</p>
-        <div className={styles.badges}>
-          {BADGES.map((b, i) => (
-            <AwardBadge key={b.lines.join("-")} lines={b.lines} sub={b.sub} c1={b.c1} c2={b.c2} idx={i} />
-          ))}
-        </div>
-      </section>
-
       {/* FREE AI CHECK PROMO */}
       <section className={styles.aiCheckBand}>
         <span className={styles.kicker}>🤖 Free · instant · no signup</span>
@@ -958,25 +957,6 @@ export default function LandingV2() {
           how readable your store is to AI agents — and the exact gaps stopping them from recommending you.
         </p>
         <a href="/ai-check" className={styles.btnPrimary}>Check my store free →</a>
-      </section>
-
-      {/* COMPARISON */}
-      <section className={`${styles.section} ${styles.sectionAlt}`} id="compare">
-        <h2 className={styles.h2}>Blog posts vs. <span className={styles.grad}>actually being readable by AI.</span></h2>
-        <p className={styles.lead}>The 2010 SEO playbook in an AI coat of paint - vs. making your store something agents can truly read, trust, and recommend.</p>
-        <div className={styles.compareTable}>
-          <div className={styles.compareHead}>
-            <div className={styles.headCell}><span className={styles.tagOld}>✕ Without ShopHero</span></div>
-            <div className={`${styles.headCell} ${styles.headCellNew}`}><span className={styles.tagNew}>✓ With ShopHero</span></div>
-          </div>
-          {COMPARE_ROWS.map(([without, withSh]) => (
-            <div className={styles.compareRow} key={without}>
-              <span className={styles.cellOld}><span className={styles.x}>✕</span>{without}</span>
-              <span className={styles.cellNew}><span className={styles.check}>✓</span>{withSh}</span>
-            </div>
-          ))}
-        </div>
-        <p className={styles.compareMore}>…and endless more options.</p>
       </section>
 
       {/* AI GROWTH PLAN */}
@@ -1018,11 +998,9 @@ export default function LandingV2() {
         </div>
       </section>
 
-      {/* COST COMPARISON + OBJECTIONS + FOUNDING STORES */}
+      {/* COST COMPARISON + EARLY-MOVER */}
       <CostCompare />
       <EarlyMover />
-      <Objections />
-      <FoundingStores />
 
       {/* PRICING */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
