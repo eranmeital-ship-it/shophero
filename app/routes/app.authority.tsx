@@ -171,8 +171,9 @@ export default function Authority() {
           ) : (
             <>
               <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Ready to dominate off-page?</div>
-              <p style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6, maxWidth: 520, margin: "0 auto 18px" }}>
+              <p style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6, maxWidth: 560, margin: "0 auto 18px" }}>
                 Upgrade to <strong style={{ color: C.text }}>Authority — ${price}/mo</strong>. Your authority manager sets up your first press release right after you order.
+                Each press release is hand-crafted monthly to build your market authority — and in every one your store earns <strong style={{ color: C.text }}>at least 3 backlinks</strong> (homepage <em>and</em> internal pages).
               </p>
               <Form method="post" action="/app/pricing">
                 <input type="hidden" name="tier" value="authority" />
