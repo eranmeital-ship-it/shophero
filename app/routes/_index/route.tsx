@@ -178,7 +178,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. Authority is $399/month and adds a monthly press release distributed to 400+ news sites (Yahoo Finance, Benzinga, MarketWatch and more) — an $800/month value powered by MediaFuse — for high-authority backlinks and brand mentions on the sources AI trusts. 3-day free trial on paid plans, cancel anytime from Shopify.",
+    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, ~15 authentic shop backlinks/month via the ShopHero Link Network, live re-optimization and brand-voice tuning. Authority is $399/month and adds a monthly press release distributed to 400+ news sites (Yahoo Finance, Benzinga, MarketWatch and more) — an $800/month value powered by MediaFuse — for high-authority backlinks and brand mentions on the sources AI trusts. 3-day free trial on paid plans, cancel anytime from Shopify.",
   },
   {
     q: "Which AI powers it?",
@@ -1226,7 +1226,7 @@ export default function LandingV2() {
               <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Extra powers — stay ahead, automatically.</div>
               <div style={{ fontSize: 12.5, color: C.brand2, marginTop: 16, fontWeight: 800 }}>Everything in Starter, plus:</div>
               <div style={{ marginTop: 6 }}>
-                <ColList tone="good" items={["The constant AI-answer content drip — deep strategy + monthly articles on your best sellers", "Live re-optimization as your catalog changes", "Brand-voice tuning for on-brand content", "Priority support"]} />
+                <ColList tone="good" items={["The constant AI-answer content drip — deep strategy + monthly articles on your best sellers", "~15 authentic shop backlinks/month via the ShopHero Link Network", "Live re-optimization as your catalog changes", "Brand-voice tuning for on-brand content", "Priority support"]} />
               </div>
               <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18 }}>Get my free AI-Readiness Score™ →</a>
             </div>
@@ -1250,7 +1250,7 @@ export default function LandingV2() {
               </div>
               <div style={{ fontSize: 12.5, color: "#b3a6ff", marginTop: 16, fontWeight: 800 }}>Everything in Pro, plus:</div>
               <div style={{ marginTop: 6 }}>
-                <ColList tone="good" items={["Monthly AI-answer content + authority backlinks working together — the full ranking signal AI looks for", "A monthly press release distributed to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more (an $800/mo value via MediaFuse)", "High-authority backlinks from the top-domain-authority sites AI already trusts", "Brand mentions on the exact sources AI reads when deciding who to recommend", "Compounding domain authority — more citations every month", "Dedicated authority manager"]} />
+                <ColList tone="good" items={["Everything in Pro, including ~15 authentic shop backlinks/month via the ShopHero Link Network", "A monthly press release distributed to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch, AP & more (an $800/mo value via MediaFuse)", "High-authority backlinks from the top-domain-authority sites AI already trusts", "Brand mentions on the exact sources AI reads when deciding who to recommend", "Compounding domain authority — more citations every month", "Dedicated authority manager"]} />
               </div>
               <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18, backgroundImage: "linear-gradient(120deg,#a78bfa,#7b6cf6,#5b4bd6)", color: "#fff" }}>Dominate AI search →</a>
             </div>

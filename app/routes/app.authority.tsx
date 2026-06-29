@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { authenticate } from "../shopify.server";
 import { getActiveTier } from "../lib/billing.server";
 import { TIERS } from "../lib/plans";
-import { getMembership, type Membership } from "../lib/link-exchange.server";
+import { getMembership, enroll, type Membership } from "../lib/link-exchange.server";
 
 /**
  * Authority & PR — the off-page layer (Authority tier). Sells and explains the
@@ -16,7 +16,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const tier = await getActiveTier(admin).catch(() => null);
   const canNetwork = tier === "pro" || tier === "authority"; // Pro+
-  const membership = await getMembership(session.shop).catch(() => null);
+  let membership = await getMembership(session.shop).catch(() => null);
+  // Pro+ stores are in the network by default — enroll on first visit.
+  if (canNetwork && !membership?.member) {
+    await enroll(admin, session.shop).catch(() => {});
+    membership = await getMembership(session.shop).catch(() => null);
+  }
   return { tier, isAuthority: tier === "authority", price: TIERS.authority.amount, canNetwork, membership };
 }
 
@@ -121,7 +126,7 @@ export default function Authority() {
             {joined && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.05em", color: active ? C.brand2 : C.faint }}>{active ? "● ENROLLED" : "PAUSED"}</span>}
           </div>
           <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
-            A relevance-matched <strong style={{ color: C.text }}>3-way link exchange</strong> with other ShopHero stores. For every link you give, you get one back — but never to the same store (A→B→C→A), so it reads as organic to search &amp; AI. Our algorithm picks the <strong style={{ color: C.text }}>most relevant</strong> partners by your niche &amp; keywords, and we <strong style={{ color: C.text }}>monitor every link to keep it live</strong> (fair use).
+            On Pro &amp; Authority, your store earns <strong style={{ color: C.text }}>around 15 authentic backlinks every month</strong> from the most relevant stores in the network — safe, genuinely useful, and matched to your niche &amp; keywords. It&apos;s a <strong style={{ color: C.text }}>3-way exchange</strong> (A→B→C→A — never a direct swap), so every link reads as organic to search &amp; AI.
           </p>
 
           {!canNetwork ? (
@@ -137,9 +142,9 @@ export default function Authority() {
                 <NetworkRow label="You give" p={m!.giving} />
                 <NetworkRow label="You get" p={m!.receiving} />
               </div>
-              <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 12 }}>Your given link is served from your hosted llms.txt and checked regularly. New matches roll in as the network grows.</div>
+              <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 12 }}>Every link you give is served from your hosted llms.txt and monitored continuously to stay live. Fresh, relevant matches roll in automatically as the network grows.</div>
               <net.Form method="post" action="/api/link-exchange"><input type="hidden" name="intent" value="pause" />
-                <button type="submit" disabled={net.state !== "idle"} style={{ fontSize: 12.5, fontWeight: 700, color: C.muted, background: "transparent", border: `1px solid ${C.line}`, padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>Pause my membership</button>
+                <button type="submit" disabled={net.state !== "idle"} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 800, color: C.coral, background: `${C.coral}14`, border: `1px solid ${C.coral}55`, padding: "11px 18px", borderRadius: 11, cursor: "pointer" }}>⏸ Pause my shop in the network</button>
               </net.Form>
             </>
           ) : joined && !active ? (

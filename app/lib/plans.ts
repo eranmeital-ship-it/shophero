@@ -88,6 +88,7 @@ export const TIERS = {
     features: [
       "Everything in Starter, plus:",
       "A daily AI-answer article (vs 1/week on Starter)",
+      "~15 authentic shop backlinks/month via the ShopHero Link Network",
       "Product description rewrites across your whole catalog",
       "Live re-optimization as your catalog changes",
       "Brand-voice tuning for on-brand content",
