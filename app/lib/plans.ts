@@ -39,3 +39,84 @@ export const PLANS = {
 } as const;
 
 export type PlanName = keyof typeof PLANS;
+
+/**
+ * Customer-facing subscription TIERS — what the marketing site sells. These are
+ * orthogonal to PlanName: every tier is "managed" (we supply Claude), so the AI
+ * key/usage logic is unchanged. Tiers differ in price, included usage, and which
+ * capabilities they unlock (content drip = Pro+, authority/PR = Authority).
+ */
+export const TIERS = {
+  starter: {
+    name: "starter" as const,
+    label: "ShopHero Starter",
+    amount: 49,
+    currencyCode: "USD" as const,
+    interval: "EVERY_30_DAYS" as const,
+    trialDays: 14,
+    tagline: "Get your store readable by AI.",
+    includedUsage: 15,
+    topUp: 50,
+    usageCap: 150,
+    contentDrip: false,
+    authority: false,
+    features: [
+      "AI-Readiness Score™ + ranked gaps",
+      "Auto schema on every product (Product, Offer, Review, FAQ, Breadcrumb)",
+      "Hosted llms.txt + AI-retrieval feed",
+      "AI-crawler analytics — see who's reading you",
+      "Speed audit + safe fixes",
+      "Approval-first · one-click rollback",
+    ],
+  },
+  pro: {
+    name: "pro" as const,
+    label: "ShopHero Pro",
+    amount: 149,
+    currencyCode: "USD" as const,
+    interval: "EVERY_30_DAYS" as const,
+    trialDays: 14,
+    tagline: "Stay ahead, automatically.",
+    includedUsage: 50,
+    topUp: 50,
+    usageCap: 400,
+    contentDrip: true,
+    authority: false,
+    features: [
+      "Everything in Starter, plus:",
+      "The constant AI-answer content drip — strategy + monthly articles on your best sellers",
+      "Live re-optimization as your catalog changes",
+      "Brand-voice tuning for on-brand content",
+      "Priority support",
+    ],
+  },
+  authority: {
+    name: "authority" as const,
+    label: "ShopHero Authority",
+    amount: 399,
+    currencyCode: "USD" as const,
+    interval: "EVERY_30_DAYS" as const,
+    trialDays: 14,
+    tagline: "Become the store AI cites everywhere.",
+    includedUsage: 80,
+    topUp: 50,
+    usageCap: 600,
+    contentDrip: true,
+    authority: true,
+    features: [
+      "Everything in Pro, plus:",
+      "Monthly press release to 400+ news sites — Yahoo Finance, Benzinga, MarketWatch & more (via MediaFuse)",
+      "High-authority backlinks from top-domain-authority sites",
+      "Brand mentions on the sources AI trusts",
+      "Dedicated authority manager",
+    ],
+  },
+} as const;
+
+export type TierName = keyof typeof TIERS;
+export const TIER_ORDER: TierName[] = ["starter", "pro", "authority"];
+
+/** Build the usage-billing terms string for a tier's Shopify usage line. */
+export function tierUsageTerms(t: (typeof TIERS)[TierName]): string {
+  return `Includes $${t.includedUsage} of AI usage/month. Beyond that, usage is billed automatically in $${t.topUp} increments, up to a $${t.usageCap}/month limit. The limit is a cap, not a charge — you only pay for what you actually use.`;
+}

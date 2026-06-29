@@ -1,101 +1,117 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { redirect } from "react-router";
-import { useLoaderData, useFetcher } from "react-router";
+import { redirect, useLoaderData, useFetcher } from "react-router";
+import type { CSSProperties } from "react";
 import { authenticate } from "../shopify.server";
-import { getActivePlan, createSubscription } from "../lib/billing.server";
-import { PLANS } from "../lib/plans";
+import { getActiveTier, createTierSubscription } from "../lib/billing.server";
+import { TIERS, TIER_ORDER, type TierName } from "../lib/plans";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
-  const activePlan = await getActivePlan(admin);
-  return { activePlan, shop: session.shop };
+  const activeTier = await getActiveTier(admin).catch(() => null);
+  return { activeTier, shop: session.shop };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const form = await request.formData();
-  const plan = (form.get("plan") as "managed" | "byok") || "managed";
-
-  if (!["managed", "byok"].includes(plan)) {
+  const tier = String(form.get("tier") ?? "") as TierName;
+  if (!TIER_ORDER.includes(tier)) {
     return Response.json({ error: "Invalid plan" }, { status: 400 });
   }
-
-  // After Shopify billing approval, merchant lands back on /app (the main page).
   const returnUrl = `https://${session.shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
-
-  const confirmationUrl = await createSubscription(admin, plan, returnUrl);
+  const confirmationUrl = await createTierSubscription(admin, tier, returnUrl);
   return redirect(confirmationUrl);
 }
 
 export default function Pricing() {
-  const { activePlan } = useLoaderData<typeof loader>();
+  const { activeTier } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
-  const m = PLANS.managed;
+  const submitting = fetcher.state !== "idle";
 
   return (
     <div style={S.page}>
-      <h1 style={S.title}>Start with ShopHero</h1>
-      <p style={S.sub}>One plan. Everything included. Cancel anytime.</p>
+      <h1 style={S.title}>Get your store recommended by AI</h1>
+      <p style={S.sub}>Start with your free AI-Readiness Score™ — then pick your power level. 14-day trial · cancel anytime from Shopify.</p>
 
-      <div style={S.card}>
-        <div style={S.badge}>Managed AI</div>
-        <div style={S.price}>
-          <span style={S.amount}>${m.amount}</span>
-          <span style={S.interval}>/month</span>
-        </div>
-        <p style={S.desc}>Claude AI fully included — no API key, no setup. Just ask, approve, ship.</p>
-
-        <ul style={S.features}>
-          <li>✓ Full ShopHero editor, CRO brain &amp; one-click fixes</li>
-          <li>✓ No Anthropic API key needed</li>
-          <li>✓ <strong>${m.includedUsage} of AI usage included</strong> every month</li>
-          <li>✓ After that, usage auto-tops-up in ${m.topUp} increments</li>
-          <li>✓ Priority support</li>
-        </ul>
-
-        {/* The part merchants worry about — stated plainly. */}
-        <div style={S.usageBox}>
-          <div style={S.usageTitle}>How usage works</div>
-          <p style={S.usageText}>
-            Your ${m.amount}/month includes <strong>${m.includedUsage} of AI usage</strong>. Beyond that,
-            ShopHero automatically tops up in <strong>${m.topUp}</strong> increments so you never get
-            interrupted. There's a <strong>${m.usageCap}/month limit</strong> for peace of mind —{" "}
-            <strong>that's a cap, not a charge: you're only ever billed for what you actually use.</strong>{" "}
-            Reach the limit and we'll ask before going higher.
-          </p>
-        </div>
-
-        {activePlan === "managed" ? (
-          <div style={S.current}>✓ Current plan</div>
-        ) : (
-          <fetcher.Form method="post">
-            <input type="hidden" name="plan" value="managed" />
-            <button style={S.btn} type="submit" disabled={fetcher.state !== "idle"}>
-              {fetcher.state !== "idle" ? "Redirecting…" : `Subscribe — $${m.amount}/mo`}
-            </button>
-          </fetcher.Form>
-        )}
-        <p style={S.fineprint}>Billed through Shopify. Usage is metered transparently and shown live in the editor.</p>
+      <div style={S.grid}>
+        {TIER_ORDER.map((name) => {
+          const t = TIERS[name];
+          const current = activeTier === name;
+          const popular = name === "pro";
+          const isAuthority = name === "authority";
+          return (
+            <div key={name} style={{ ...S.card, ...(popular ? S.cardPopular : {}), ...(isAuthority ? S.cardAuthority : {}) }}>
+              {popular && <div style={S.ribbon}>MOST POPULAR</div>}
+              {isAuthority && <div style={{ ...S.ribbon, background: "#7b6cf6" }}>DOMINATE AI</div>}
+              <div style={S.name}>{t.label.replace("ShopHero ", "")}</div>
+              <div style={S.price}>
+                <span style={{ ...S.amount, ...(isAuthority ? { color: "#7b6cf6" } : {}) }}>${t.amount}</span>
+                <span style={S.interval}>/month</span>
+              </div>
+              <div style={S.tagline}>{t.tagline}</div>
+              <ul style={S.features}>
+                {t.features.map((f, i) => {
+                  const heading = f.endsWith("plus:");
+                  return (
+                    <li key={i} style={heading ? S.featHeading : S.feat}>
+                      {!heading && <span style={{ ...S.check, ...(isAuthority ? { color: "#7b6cf6" } : {}) }}>✓</span>}
+                      <span>{f}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div style={S.usageNote}>
+                Includes ${t.includedUsage} of AI usage/month, then automatic ${t.topUp} top-ups up to a ${t.usageCap} cap.
+                <strong> The cap is a limit, not a charge.</strong>
+              </div>
+              {current ? (
+                <div style={S.current}>✓ Current plan</div>
+              ) : (
+                <fetcher.Form method="post">
+                  <input type="hidden" name="tier" value={name} />
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    style={{ ...S.btn, ...(popular ? S.btnPopular : {}), ...(isAuthority ? S.btnAuthority : {}) }}
+                  >
+                    {submitting ? "Redirecting…" : `Start ${t.label.replace("ShopHero ", "")} — $${t.amount}/mo`}
+                  </button>
+                </fetcher.Form>
+              )}
+            </div>
+          );
+        })}
       </div>
+      <p style={S.fineprint}>
+        Billed securely through Shopify. AI usage is metered transparently and shown live in your dashboard.
+        Authority press distribution is set up with you by your authority manager after signup.
+      </p>
     </div>
   );
 }
 
-const S: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 540, margin: "0 auto", padding: "48px 24px", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, sans-serif" },
-  title: { fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 8, textAlign: "center" },
-  sub: { color: "#6d7175", textAlign: "center", marginBottom: 32, fontSize: 15 },
-  card: { border: "2px solid #1a1a1a", borderRadius: 20, padding: 32, position: "relative", boxShadow: "0 18px 50px rgba(0,0,0,0.10)", background: "linear-gradient(180deg,#fff,#f7f8fb)" },
-  badge: { display: "inline-block", background: "#1a1a1a", color: "#fff", borderRadius: 999, padding: "5px 14px", fontSize: 12, fontWeight: 700, marginBottom: 16 },
-  price: { display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 },
-  amount: { fontSize: 46, fontWeight: 800, letterSpacing: "-0.03em" },
-  interval: { fontSize: 17, color: "#6d7175" },
-  desc: { color: "#6d7175", fontSize: 15, marginBottom: 20, lineHeight: 1.5 },
-  features: { listStyle: "none", padding: 0, margin: "0 0 20px", fontSize: 14.5, display: "flex", flexDirection: "column", gap: 10, lineHeight: 1.4 },
-  usageBox: { background: "#f1f5fb", border: "1px solid #e1e6ee", borderRadius: 14, padding: 16, marginBottom: 22 },
-  usageTitle: { fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6d7175", marginBottom: 8 },
-  usageText: { fontSize: 13.5, color: "#3a3a3c", lineHeight: 1.6, margin: 0 },
-  btn: { width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "#1a1a1a", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 15.5 },
-  current: { textAlign: "center", color: "#008060", fontWeight: 700, padding: "14px 0", fontSize: 15 },
-  fineprint: { textAlign: "center", color: "#9da2a8", fontSize: 12, marginTop: 14, marginBottom: 0 },
+const S: Record<string, CSSProperties> = {
+  page: { maxWidth: 1080, margin: "0 auto", padding: "40px 20px", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, sans-serif" },
+  title: { fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 8, textAlign: "center" },
+  sub: { color: "#6d7175", textAlign: "center", marginBottom: 32, fontSize: 15, maxWidth: 620, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 },
+  grid: { display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "stretch" },
+  card: { flex: "1 1 300px", maxWidth: 350, border: "1px solid #e1e3e5", borderRadius: 18, padding: 26, position: "relative", background: "#fff", display: "flex", flexDirection: "column", boxShadow: "0 8px 24px rgba(0,0,0,0.05)" },
+  cardPopular: { border: "2px solid #16a34a", boxShadow: "0 16px 40px rgba(22,163,74,0.14)" },
+  cardAuthority: { border: "2px solid #7b6cf6", boxShadow: "0 16px 40px rgba(123,108,246,0.14)" },
+  ribbon: { position: "absolute", top: -11, left: 24, background: "#16a34a", color: "#fff", borderRadius: 999, padding: "4px 12px", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.05em" },
+  name: { fontSize: 16, fontWeight: 800, marginBottom: 4 },
+  price: { display: "flex", alignItems: "baseline", gap: 4 },
+  amount: { fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", color: "#16a34a" },
+  interval: { fontSize: 15, color: "#6d7175" },
+  tagline: { color: "#6d7175", fontSize: 13.5, margin: "4px 0 16px" },
+  features: { listStyle: "none", padding: 0, margin: "0 0 16px", fontSize: 13.5, display: "flex", flexDirection: "column", gap: 9, lineHeight: 1.45, flex: 1 },
+  feat: { display: "flex", gap: 9, alignItems: "flex-start", color: "#2b2f33" },
+  featHeading: { fontWeight: 800, color: "#15795e", marginTop: 4 },
+  check: { color: "#16a34a", fontWeight: 800, flexShrink: 0 },
+  usageNote: { background: "#f6f8f7", border: "1px solid #e7e9ec", borderRadius: 12, padding: "11px 13px", fontSize: 12, color: "#525659", lineHeight: 1.55, marginBottom: 16 },
+  btn: { width: "100%", padding: "13px 0", borderRadius: 11, border: "1px solid #d3d6d9", background: "#fff", color: "#1a1a1a", fontWeight: 700, cursor: "pointer", fontSize: 14.5 },
+  btnPopular: { background: "linear-gradient(180deg,#22c55e,#16a34a)", color: "#fff", border: "none" },
+  btnAuthority: { background: "linear-gradient(120deg,#a78bfa,#7b6cf6,#5b4bd6)", color: "#fff", border: "none" },
+  current: { textAlign: "center", color: "#16a34a", fontWeight: 800, padding: "13px 0", fontSize: 14.5 },
+  fineprint: { textAlign: "center", color: "#9da2a8", fontSize: 12, marginTop: 22, lineHeight: 1.6, maxWidth: 620, marginLeft: "auto", marginRight: "auto" },
 };

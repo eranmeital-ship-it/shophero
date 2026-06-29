@@ -1,11 +1,30 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
-import { PLANS, type PlanName } from "./plans";
+import { PLANS, TIERS, TIER_ORDER, tierUsageTerms, type PlanName, type TierName } from "./plans";
 import db from "../db.server";
 
 // Re-export so existing server-side imports of PLANS/PlanName from this module
 // keep working. The definitions live in ./plans (client-safe).
-export { PLANS };
-export type { PlanName };
+export { PLANS, TIERS };
+export type { PlanName, TierName };
+
+/** Map a Shopify subscription name back to a customer-facing tier. */
+function tierFromName(name: string): TierName | null {
+  for (const t of TIER_ORDER) if (TIERS[t].label === name) return t;
+  return null;
+}
+/** All subscription names that count as "managed" (we supply the key). */
+function managedLabels(): string[] {
+  return [PLANS.managed.label, ...TIER_ORDER.map((t) => TIERS[t].label)];
+}
+/** Usage config for the active tier (falls back to the legacy managed numbers). */
+function usageOf(tier: TierName | null) {
+  const t = tier ? TIERS[tier] : null;
+  return {
+    included: t?.includedUsage ?? PLANS.managed.includedUsage ?? 15,
+    topUp: t?.topUp ?? PLANS.managed.topUp ?? 50,
+    cap: t?.usageCap ?? PLANS.managed.usageCap ?? 150,
+  };
+}
 
 // Shopify billing runs in TEST mode (no real money) unless explicitly disabled.
 // Set DRIFT_BILLING_TEST=false in production.
@@ -23,6 +42,74 @@ export function devPlanOverride(): PlanName | null {
 /** Dev bypass active → no real Shopify subscription exists, so skip metering. */
 export function billingBypassed(): boolean {
   return devPlanOverride() !== null;
+}
+
+/** Dev tier override (DRIFT_DEV_TIER). When billing is bypassed, defaults to "pro". */
+export function devTierOverride(): TierName | null {
+  const d = process.env.DRIFT_DEV_TIER?.trim().toLowerCase();
+  if (d === "starter" || d === "pro" || d === "authority") return d;
+  return billingBypassed() ? "pro" : null;
+}
+
+/** Which customer-facing tier the shop is on, or null if none. */
+export async function getActiveTier(admin: AdminApiContext): Promise<TierName | null> {
+  const dev = devTierOverride();
+  if (dev) return dev;
+  const response = await admin.graphql(`
+    query { currentAppInstallation { activeSubscriptions { name status } } }
+  `);
+  const { data } = await response.json();
+  const subs = data?.currentAppInstallation?.activeSubscriptions ?? [];
+  const active = subs.find((s: { status: string }) => s.status === "ACTIVE");
+  return active ? tierFromName(active.name) : null;
+}
+
+/** Does the shop's tier unlock a capability? ("contentDrip" | "authority") */
+export async function tierAllows(admin: AdminApiContext, cap: "contentDrip" | "authority"): Promise<boolean> {
+  const tier = await getActiveTier(admin).catch(() => null);
+  if (!tier) return false;
+  return !!TIERS[tier][cap];
+}
+
+/** Create a subscription for a customer-facing TIER. Returns the confirmation URL. */
+export async function createTierSubscription(
+  admin: AdminApiContext,
+  tier: TierName,
+  returnUrl: string,
+): Promise<string> {
+  const t = TIERS[tier];
+  const lineItems: unknown[] = [
+    {
+      plan: {
+        appRecurringPricingDetails: {
+          price: { amount: t.amount, currencyCode: t.currencyCode },
+          interval: t.interval,
+        },
+      },
+    },
+    {
+      plan: {
+        appUsagePricingDetails: {
+          cappedAmount: { amount: t.usageCap, currencyCode: t.currencyCode },
+          terms: tierUsageTerms(t),
+        },
+      },
+    },
+  ];
+  const response = await admin.graphql(
+    `mutation CreateSubscription($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $test: Boolean!) {
+      appSubscriptionCreate(name: $name, lineItems: $lineItems, returnUrl: $returnUrl, trialDays: $trialDays, test: $test) {
+        appSubscription { id status }
+        confirmationUrl
+        userErrors { field message }
+      }
+    }`,
+    { variables: { name: t.label, returnUrl, trialDays: t.trialDays, test: BILLING_TEST, lineItems } },
+  );
+  const { data } = await response.json();
+  const errors = data?.appSubscriptionCreate?.userErrors ?? [];
+  if (errors.length) throw new Error(errors.map((e: { message: string }) => e.message).join(", "));
+  return data.appSubscriptionCreate.confirmationUrl;
 }
 
 /**
@@ -53,8 +140,9 @@ export async function getActivePlan(
   const subs = data?.currentAppInstallation?.activeSubscriptions ?? [];
   const active = subs.find((s: { status: string }) => s.status === "ACTIVE");
   if (!active) return null;
-  if (active.name === PLANS.managed.label) return "managed";
   if (active.name === PLANS.byok.label) return "byok";
+  // Every customer-facing tier is key-supplied → "managed" for AI/usage logic.
+  if (managedLabels().includes(active.name)) return "managed";
   return null;
 }
 
@@ -125,6 +213,7 @@ export interface ManagedSubscription {
   balanceUsed: number; // $ of usage already billed this cycle (sum of top-ups)
   cappedAmount: number; // $ usage limit this cycle
   currentPeriodEnd: string; // ISO; cycle ends here
+  tier: TierName | null; // which customer-facing tier this subscription is
 }
 
 /** Fetch the active Managed AI subscription's usage line + cap + period. */
@@ -154,9 +243,8 @@ export async function getManagedSubscription(admin: AdminApiContext): Promise<Ma
   `);
   const { data } = await response.json();
   const subs = data?.currentAppInstallation?.activeSubscriptions ?? [];
-  const active = subs.find(
-    (s: { status: string; name: string }) => s.status === "ACTIVE" && s.name === PLANS.managed.label,
-  );
+  const labels = managedLabels();
+  const active = subs.find((s: { status: string; name: string }) => s.status === "ACTIVE" && labels.includes(s.name));
   if (!active) return null;
   const usageLine = (active.lineItems ?? []).find(
     (li: { plan?: { pricingDetails?: { __typename?: string } } }) => li.plan?.pricingDetails?.__typename === "AppUsagePricing",
@@ -168,6 +256,7 @@ export async function getManagedSubscription(admin: AdminApiContext): Promise<Ma
     balanceUsed: Number(pd.balanceUsed?.amount ?? 0),
     cappedAmount: Number(pd.cappedAmount?.amount ?? 0),
     currentPeriodEnd: active.currentPeriodEnd,
+    tier: tierFromName(active.name),
   };
 }
 
@@ -242,22 +331,22 @@ export interface CycleUsage {
  * Works in dev (no subscription) by simulating the blocks from consumption.
  */
 export async function getCycleUsage(admin: AdminApiContext, shop: string): Promise<CycleUsage> {
-  const included = PLANS.managed.includedUsage ?? 0;
-  const topUp = PLANS.managed.topUp ?? 50;
-  const cap = PLANS.managed.usageCap ?? 150;
-  const maxBlocks = Math.max(1, Math.floor(cap / topUp));
-
   let cycleEnd: string | null = null;
   let balanceUsed: number | null = null;
   let live = false;
+  let tier: TierName | null = devTierOverride();
   if (!billingBypassed()) {
     const sub = await getManagedSubscription(admin);
     if (sub) {
       live = true;
       cycleEnd = sub.currentPeriodEnd;
       balanceUsed = sub.balanceUsed;
+      tier = sub.tier;
     }
   }
+
+  const { included, topUp, cap } = usageOf(tier);
+  const maxBlocks = Math.max(1, Math.floor(cap / topUp));
 
   const now = new Date();
   const cycleStart = cycleEnd
@@ -302,8 +391,7 @@ export async function settleUsage(admin: AdminApiContext, shop: string): Promise
       _sum: { billedUsd: true },
     });
     const consumed = agg._sum.billedUsd ?? 0;
-    const included = PLANS.managed.includedUsage ?? 0;
-    const topUp = PLANS.managed.topUp ?? 30;
+    const { included, topUp } = usageOf(sub.tier);
 
     let balanceUsed = sub.balanceUsed;
     // Keep the merchant on POSITIVE credit: the moment consumption catches up to

@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { getActivePlan } from "../lib/billing.server";
+import { getActivePlan, tierAllows } from "../lib/billing.server";
 import { enforceSpend } from "../lib/spend-guard.server";
 import { rateLimitResponse } from "../lib/rate-limit.server";
 import { resolveKey } from "../lib/onboarding.server";
@@ -15,6 +15,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const plan = await getActivePlan(admin).catch(() => null);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
+
+  // The AI-answer content drip is a Pro+ capability. Building/generating content
+  // requires it; pause/resume/publish of an existing plan stay available.
+  const GATED = new Set(["analyze", "start", "generate", "regenerate"]);
+  if (GATED.has(intent) && !(await tierAllows(admin, "contentDrip"))) {
+    return { plan: await getPlan(shop), error: "The AI-answer content drip is a Pro feature. Upgrade to Pro to build your content plan.", upgrade: true };
+  }
 
   if (intent === "analyze") {
     // Deep shop analysis → a prioritized AI-answer content plan (the drip queue).
