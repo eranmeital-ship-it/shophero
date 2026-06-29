@@ -379,48 +379,38 @@ function GlowCard({ children, accent = C.accent, style }: { children: ReactNode;
   );
 }
 
-function ChatCard({ tone, q, answers, verdict }: { tone: "bad" | "good"; q: string; answers: { name: string; note: string; you?: boolean }[]; verdict: string }) {
-  const good = tone === "good";
-  const accent = good ? C.accent : C.coral;
-  const body = (
-    <div style={{ overflow: "hidden", borderRadius: good ? 18.5 : 18 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 16px", borderBottom: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, color: C.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-        <span style={{ width: 19, height: 19, borderRadius: 6, background: `linear-gradient(135deg,${C.accent},${C.violet})`, display: "inline-grid", placeItems: "center", color: "#06120c", fontSize: 11, fontWeight: 900 }}>✦</span>
-        AI Assistant
-        <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em", color: accent }}>{good ? "WITH SHOPHERO" : "WITHOUT SHOPHERO"}</span>
-      </div>
-      <div style={{ padding: 16 }}>
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "10px 13px", fontSize: 13.5, fontWeight: 600, marginBottom: 12, color: C.text }}>{q}</div>
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 9 }}>Top options:</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {answers.map((a, i) => (
-            <div key={i} style={{ display: "flex", gap: 9, padding: "9px 11px", borderRadius: 10, background: a.you ? "rgba(110,197,49,0.13)" : "rgba(255,255,255,0.03)", border: a.you ? "1px solid rgba(110,197,49,0.45)" : `1px solid ${C.line}` }}>
-              <strong style={{ fontSize: 13, color: a.you ? C.brand2 : C.muted }}>{i + 1}.</strong>
-              <div><div style={{ fontWeight: a.you ? 800 : 650, fontSize: 13, color: a.you ? C.brand2 : C.text }}>{a.name}</div><div style={{ fontSize: 11.5, color: C.muted }}>{a.note}</div></div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 13, padding: "10px 12px", borderRadius: 10, background: good ? "rgba(52,224,161,0.10)" : "rgba(217,119,87,0.10)", color: accent, fontWeight: 650, fontSize: 12.5, lineHeight: 1.5 }}>{good ? "✓ " : "✕ "}{verdict}</div>
-      </div>
-    </div>
-  );
-  if (good) return <GlowCard style={{ flex: "1 1 330px" }}>{body}</GlowCard>;
-  return <div style={{ flex: "1 1 330px", ...glass, border: "1px solid rgba(217,119,87,0.32)", boxShadow: "0 0 40px rgba(217,119,87,0.06)", overflow: "hidden" }}>{body}</div>;
+// Reveal-on-scroll hook — drives the gauge animations when they enter view.
+function useInView(ref: { current: Element | null }) {
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || seen) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, seen]);
+  return seen;
 }
 
-function AIComparison() {
-  const a = [{ name: "CompetitorBrand", note: "Well reviewed, great wide fit" }, { name: "RivalRun", note: "Popular local option" }, { name: "OtherStore", note: "Fast shipping" }];
-  const b = [{ name: "YOUR STORE", note: "Top-rated wide-fit trail shoes + expert fit guide", you: true }, { name: "CompetitorBrand", note: "Also well reviewed" }, { name: "RivalRun", note: "Decent option" }];
+// Animated "pressure-clock" gauge (semicircle dial + needle), color-coded by value.
+function Gauge({ value, label, animate }: { value: number; label: string; animate: boolean }) {
+  const v = animate ? value : 0;
+  const color = value >= 80 ? "#6ec531" : value >= 50 ? "#e8941a" : "#d97757";
+  const ARC = 125.6; // semicircle, r=40
+  const angle = (v / 100) * 180 - 90;
+  const tag = value >= 80 ? "great" : value >= 50 ? "okay" : "poor";
   return (
-    <section style={SECT}>
-      <Kicker>The AI shopping shift · not 2016 SEO</Kicker>
-      <h2 className={styles.h2}>Right now, AI is sending customers to your <span className={styles.grad}>competitors.</span></h2>
-      <p className={styles.lead}>You probably don't even know it's happening. Ask ChatGPT what to buy and it names a few stores — today, not yours, because AI literally can't read your store. ShopHero changes the answer.</p>
-      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 26, textAlign: "left", alignItems: "stretch" }}>
-        <ChatCard tone="bad" q="What's the best trail-running shoe for wide feet?" answers={a} verdict="Your store isn't mentioned. The shopper clicks a competitor — and you never knew it happened." />
-        <ChatCard tone="good" q="What's the best trail-running shoe for wide feet?" answers={b} verdict="Your store is the top pick — and you can see exactly which AI bots read you." />
-      </div>
-    </section>
+    <div style={{ textAlign: "center", flex: 1, minWidth: 86 }}>
+      <svg viewBox="0 0 100 62" width="100%" style={{ maxWidth: 116, display: "block", margin: "0 auto" }}>
+        <path d="M10,50 A40,40 0 0 1 90,50" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="9" strokeLinecap="round" />
+        <path d="M10,50 A40,40 0 0 1 90,50" fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" strokeDasharray={ARC} strokeDashoffset={ARC * (1 - v / 100)} style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)" }} />
+        <line x1="50" y1="50" x2="50" y2="17" stroke={C.text} strokeWidth="2.6" strokeLinecap="round" transform={`rotate(${angle} 50 50)`} style={{ transition: "transform 1.1s cubic-bezier(.2,.8,.2,1)" }} />
+        <circle cx="50" cy="50" r="3.6" fill={C.text} />
+      </svg>
+      <div style={{ fontWeight: 800, fontSize: 16, color, marginTop: -2 }}>{value}</div>
+      <div style={{ fontSize: 11.5, color: C.text, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 10, color, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase" }}>{tag}</div>
+    </div>
   );
 }
 
@@ -447,25 +437,28 @@ function StatsBand() {
 
 function FourSteps() {
   const steps = [
-    { n: 1, icon: "🔍", title: "Scan", desc: "We deep-read your store — best sellers, catalog, content, schema — and score how readable it is to AI agents." },
-    { n: 2, icon: "📐", title: "Structure", desc: "We add the structured data, retrieval feed and llms.txt that let ChatGPT, Claude & Perplexity actually parse what you sell." },
-    { n: 3, icon: "✍️", title: "Drip", desc: "A constant plan of AI-answer content — buying guides, comparisons, FAQs — mapped to your real products, drafted for approval." },
-    { n: 4, icon: "📈", title: "Get recommended", desc: "AI reads and cites you — and you watch real crawler reads climb in your dashboard. No ad spend." },
+    { n: 1, icon: "🔍", title: "Deep scan & analysis", desc: "ShopHero crawls your whole store — best sellers, collections, descriptions, existing schema and content gaps — and benchmarks how AI agents see you.", tech: "Output: your AI-Readiness Score + a ranked list of the biggest opportunities to fix first." },
+    { n: 2, icon: "📐", title: "Make your store AI-readable", desc: "We build and maintain the technical layer AI needs to understand and trust your catalog — automatically, kept fresh as products change.", tech: "Product / Offer / Review / FAQ / Breadcrumb schema · hosted llms.txt · retrieval feed · Q&A product data." },
+    { n: 3, icon: "✍️", title: "Constant AI-answer content", desc: "A deep content plan built from your best sellers and gaps — buying guides, comparisons and FAQs that AI quotes when shoppers ask what to buy.", tech: "Published on a cadence, mapped to real products, internally linked + schema'd. A major part of the plan." },
+    { n: 4, icon: "📈", title: "Get recommended & track it", desc: "AI starts reading and citing your store. You see it happen — and ShopHero keeps re-optimizing as your catalog evolves.", tech: "Real crawler analytics: GPTBot, ClaudeBot, PerplexityBot & Google-Extended hits, live in your dashboard." },
   ];
   return (
-    <section style={SECT}>
-      <Kicker>How it works</Kicker>
-      <h2 className={styles.h2}>From invisible to <span className={styles.grad}>recommended</span> — in 4 steps.</h2>
-      <p className={styles.lead}>You approve; ShopHero does the work and keeps it live.</p>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 26 }}>
+    <section style={{ ...SECT, maxWidth: 1140 }}>
+      <Kicker>How ShopHero works</Kicker>
+      <h2 className={styles.h2}>From invisible to <span className={styles.grad}>recommended.</span></h2>
+      <p className={styles.lead}>Four steps. You approve; ShopHero does the work and keeps it live.</p>
+      <div style={{ position: "relative", display: "flex", gap: 14, flexWrap: "wrap", marginTop: 30, alignItems: "stretch" }}>
+        {/* connector line behind the steps (desktop) */}
+        <div aria-hidden="true" style={{ position: "absolute", top: 38, left: "12%", right: "12%", height: 2, background: `linear-gradient(90deg, transparent, ${C.line} 12%, ${C.line} 88%, transparent)`, zIndex: 0 }} />
         {steps.map((s) => (
-          <div key={s.n} style={{ flex: "1 1 220px", ...glass, padding: "22px 20px", textAlign: "left", position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 10 }}>
-              <span style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg,${C.accent},${C.violet})`, color: "#06120c", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 15 }}>{s.n}</span>
-              <span style={{ fontSize: 22 }}>{s.icon}</span>
+          <div key={s.n} style={{ flex: "1 1 230px", ...glass, padding: "22px 20px", textAlign: "left", position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
+              <span style={{ width: 38, height: 38, borderRadius: 12, background: `linear-gradient(135deg,${C.accent},${C.violet})`, color: "#06120c", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 17, boxShadow: `0 0 24px ${C.accent}33` }}>{s.n}</span>
+              <span style={{ fontSize: 24 }}>{s.icon}</span>
             </div>
             <div style={{ fontWeight: 750, fontSize: 16, color: C.text }}>{s.title}</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.55 }}>{s.desc}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 7, lineHeight: 1.55, flex: 1 }}>{s.desc}</div>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 11.5, color: C.brand2, lineHeight: 1.5, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{s.tech}</div>
           </div>
         ))}
       </div>
@@ -761,31 +754,36 @@ function HeroChatDemo() {
   );
 }
 
+function BenchTier({ name, overall, gauges, you, note }: { name: string; overall: number; gauges: { l: string; v: number }[]; you?: boolean; note: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+  const inner = (
+    <div ref={ref} style={{ padding: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <span style={{ color: C.text, fontWeight: 800, fontSize: 14.5 }}>{name}{you && " ⭐"}</span>
+        <span style={{ fontWeight: 800, fontSize: 14, color: you ? C.brand : C.coral }}>{overall}/100</span>
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+        {gauges.map((g) => <Gauge key={g.l} value={g.v} label={g.l} animate={inView} />)}
+      </div>
+      <div style={{ marginTop: 16, textAlign: "center", fontSize: 12.5, fontWeight: 700, color: you ? C.brand2 : C.coral }}>{you ? "✓ " : "✕ "}{note}</div>
+    </div>
+  );
+  if (you) return <GlowCard accent={C.brand} style={{ flex: "1 1 360px" }}>{inner}</GlowCard>;
+  return <div style={{ flex: "1 1 360px", ...glass }}>{inner}</div>;
+}
+
 function Benchmarks() {
-  const rows = [
-    { label: "Average Shopify store", score: 31, color: C.coral, you: false },
-    { label: "With ShopHero", score: 82, color: C.brand, you: true },
-    { label: "Top 1% of stores", score: 95, color: C.accent, you: false },
-  ];
   return (
     <section style={SECT}>
       <Kicker>AI-Readiness Score · the new benchmark</Kicker>
       <h2 className={styles.h2}>Where does your store <span className={styles.grad}>stand?</span></h2>
-      <p className={styles.lead}>Every store gets one number for how readable it is to AI. Most are nowhere near ready — which is exactly the opening.</p>
-      <div style={{ maxWidth: 640, margin: "26px auto 0", display: "flex", flexDirection: "column", gap: 13 }}>
-        {rows.map((r) => (
-          <div key={r.label} style={{ ...glass, padding: "16px 18px", textAlign: "left", ...(r.you ? { border: "1px solid rgba(110,197,49,0.45)", boxShadow: "0 0 40px rgba(110,197,49,0.10)" } : {}) }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ color: C.text, fontWeight: r.you ? 800 : 650, fontSize: 14 }}>{r.label}{r.you && " ⭐"}</span>
-              <span style={{ color: r.color, fontWeight: 800, fontSize: 15 }}>{r.score}/100</span>
-            </div>
-            <div style={{ height: 9, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-              <span style={{ display: "block", height: "100%", width: `${r.score}%`, borderRadius: 999, background: r.you ? `linear-gradient(90deg,${C.brand2},${C.accent})` : r.color }} />
-            </div>
-          </div>
-        ))}
+      <p className={styles.lead}>One score for how readable your store is to AI — broken down across the things that actually move it. Most stores are deep in the red. That's the opening.</p>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 26, alignItems: "stretch" }}>
+        <BenchTier name="Average Shopify store" overall={31} gauges={[{ l: "Speed", v: 38 }, { l: "Content", v: 24 }, { l: "AI Schema", v: 12 }]} note="Invisible to AI — competitors get recommended" />
+        <BenchTier name="With ShopHero" you overall={91} gauges={[{ l: "Speed", v: 90 }, { l: "Content", v: 88 }, { l: "AI Schema", v: 96 }]} note="Top-ranked, readable, and recommended by AI" />
       </div>
-      <div style={{ marginTop: 12, color: "#6f7d68", fontSize: 11.5 }}>Illustrative AI-Readiness Scores · get yours free in 30 seconds</div>
+      <div style={{ marginTop: 14, color: "#6f7d68", fontSize: 11.5 }}>Illustrative AI-Readiness Scores · get yours free in 30 seconds</div>
     </section>
   );
 }
@@ -892,7 +890,6 @@ export default function LandingV2() {
       </section>
 
       {/* AI RECOMMENDATION — before/after */}
-      <AIComparison />
       <StatsBand />
       <Benchmarks />
       <FourSteps />
