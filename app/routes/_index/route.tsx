@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
 
@@ -146,7 +147,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Your AI-Readiness Score is free - no card. Pro is $99/month and includes your hosted llms.txt + AI-retrieval feed, auto schema on every product, monthly AI-answer content, AI-crawler analytics, speed fixes, and live re-optimization. 14-day free trial, cancel anytime from Shopify.",
+    a: "Your AI-Readiness Score is free - no card. Starter is $49/month (hosted llms.txt + AI-retrieval feed, auto schema on every product, AI-crawler analytics, speed fixes). Pro is $149/month and adds the constant AI-answer content drip, live re-optimization and brand-voice tuning. 14-day free trial on paid plans, cancel anytime from Shopify.",
   },
   {
     q: "Which AI powers it?",
@@ -362,55 +363,62 @@ function Demo() {
   );
 }
 
-function ChatCard({ tone, q, answers, verdict }: { tone: "bad" | "good"; q: string; answers: { name: string; note: string; you?: boolean }[]; verdict: string }) {
-  const accent = tone === "good" ? "#16a34a" : "#e0457f";
-  const border = tone === "good" ? "#bfe6c8" : "#f2c2d4";
+// ── Premium dark section kit (matches the page's dark theme + elevates it) ──
+const C = { line: "#243021", text: "#f2f6f0", muted: "#9fb098", brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6", coral: "#d97757" };
+const SECT: CSSProperties = { maxWidth: 1060, margin: "60px auto", padding: "0 18px", textAlign: "center" };
+const glass: CSSProperties = { background: "linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012))", border: `1px solid ${C.line}`, borderRadius: 18 };
+
+function Kicker({ children }: { children: ReactNode }) {
+  return <span style={{ display: "inline-block", fontSize: 11, fontWeight: 800, letterSpacing: "0.09em", textTransform: "uppercase", color: C.brand2, background: "rgba(110,197,49,0.10)", border: "1px solid rgba(110,197,49,0.25)", padding: "6px 13px", borderRadius: 999, marginBottom: 16 }}>{children}</span>;
+}
+function GlowCard({ children, accent = C.accent, style }: { children: ReactNode; accent?: string; style?: CSSProperties }) {
   return (
-    <div style={{ flex: "1 1 320px", background: "#fff", border: `1px solid ${border}`, borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderBottom: "1px solid #eee", fontWeight: 700, fontSize: 13, color: "#15171c" }}>
-        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#10a37f", display: "inline-grid", placeItems: "center", color: "#fff", fontSize: 10 }}>✦</span>
-        AI Assistant
-        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", color: accent }}>{tone === "good" ? "WITH SHOPHERO" : "WITHOUT SHOPHERO"}</span>
-      </div>
-      <div style={{ padding: 16 }}>
-        <div style={{ background: "#f3f4f6", borderRadius: 12, padding: "10px 13px", fontSize: 13.5, fontWeight: 600, marginBottom: 12, color: "#15171c" }}>{q}</div>
-        <div style={{ fontSize: 12.5, color: "#667085", marginBottom: 8 }}>Here are the best options:</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {answers.map((a, i) => (
-            <div key={i} style={{ display: "flex", gap: 9, padding: "9px 11px", borderRadius: 10, background: a.you ? "rgba(22,163,74,0.10)" : "rgba(0,0,0,0.03)", border: a.you ? "1px solid #bfe6c8" : "1px solid transparent" }}>
-              <strong style={{ fontSize: 13, color: "#15171c" }}>{i + 1}.</strong>
-              <div><div style={{ fontWeight: a.you ? 800 : 650, fontSize: 13, color: a.you ? "#0a7d34" : "#15171c" }}>{a.name}</div><div style={{ fontSize: 11.5, color: "#667085" }}>{a.note}</div></div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 13, padding: "10px 12px", borderRadius: 10, background: tone === "good" ? "rgba(22,163,74,0.08)" : "rgba(224,69,127,0.08)", color: accent, fontWeight: 650, fontSize: 12.5 }}>{tone === "good" ? "✓ " : "✕ "}{verdict}</div>
-      </div>
+    <div style={{ background: `linear-gradient(135deg, ${accent}, ${C.violet})`, borderRadius: 20, padding: 1.5, boxShadow: `0 0 60px ${accent}26`, ...style }}>
+      <div style={{ background: "#0b0f0a", borderRadius: 18.5, height: "100%" }}>{children}</div>
     </div>
   );
 }
 
+function ChatCard({ tone, q, answers, verdict }: { tone: "bad" | "good"; q: string; answers: { name: string; note: string; you?: boolean }[]; verdict: string }) {
+  const good = tone === "good";
+  const accent = good ? C.accent : C.coral;
+  const body = (
+    <div style={{ overflow: "hidden", borderRadius: good ? 18.5 : 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 16px", borderBottom: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, color: C.text, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+        <span style={{ width: 19, height: 19, borderRadius: 6, background: `linear-gradient(135deg,${C.accent},${C.violet})`, display: "inline-grid", placeItems: "center", color: "#06120c", fontSize: 11, fontWeight: 900 }}>✦</span>
+        AI Assistant
+        <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em", color: accent }}>{good ? "WITH SHOPHERO" : "WITHOUT SHOPHERO"}</span>
+      </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "10px 13px", fontSize: 13.5, fontWeight: 600, marginBottom: 12, color: C.text }}>{q}</div>
+        <div style={{ fontSize: 12, color: C.muted, marginBottom: 9 }}>Top options:</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {answers.map((a, i) => (
+            <div key={i} style={{ display: "flex", gap: 9, padding: "9px 11px", borderRadius: 10, background: a.you ? "rgba(110,197,49,0.13)" : "rgba(255,255,255,0.03)", border: a.you ? "1px solid rgba(110,197,49,0.45)" : `1px solid ${C.line}` }}>
+              <strong style={{ fontSize: 13, color: a.you ? C.brand2 : C.muted }}>{i + 1}.</strong>
+              <div><div style={{ fontWeight: a.you ? 800 : 650, fontSize: 13, color: a.you ? C.brand2 : C.text }}>{a.name}</div><div style={{ fontSize: 11.5, color: C.muted }}>{a.note}</div></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 13, padding: "10px 12px", borderRadius: 10, background: good ? "rgba(52,224,161,0.10)" : "rgba(217,119,87,0.10)", color: accent, fontWeight: 650, fontSize: 12.5, lineHeight: 1.5 }}>{good ? "✓ " : "✕ "}{verdict}</div>
+      </div>
+    </div>
+  );
+  if (good) return <GlowCard style={{ flex: "1 1 330px" }}>{body}</GlowCard>;
+  return <div style={{ flex: "1 1 330px", ...glass, border: "1px solid rgba(217,119,87,0.32)", boxShadow: "0 0 40px rgba(217,119,87,0.06)", overflow: "hidden" }}>{body}</div>;
+}
+
 function AIComparison() {
+  const a = [{ name: "CompetitorBrand", note: "Well reviewed, great wide fit" }, { name: "RivalRun", note: "Popular local option" }, { name: "OtherStore", note: "Fast shipping" }];
+  const b = [{ name: "YOUR STORE", note: "Top-rated wide-fit trail shoes + expert fit guide", you: true }, { name: "CompetitorBrand", note: "Also well reviewed" }, { name: "RivalRun", note: "Decent option" }];
   return (
-    <section style={{ maxWidth: 1040, margin: "0 auto", padding: "8px 18px", textAlign: "center" }}>
+    <section style={SECT}>
+      <Kicker>The AI shopping shift · not 2016 SEO</Kicker>
       <h2 className={styles.h2}>Right now, AI is recommending your <span className={styles.grad}>competitors.</span></h2>
-      <p className={styles.lead}>When a shopper asks ChatGPT or Perplexity what to buy, it names a few stores. Today it probably isn't yours — because AI can't read your store. ShopHero changes the answer.</p>
-      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
-        <ChatCard tone="bad"
-          q="What's the best trail-running shoe for wide feet?"
-          answers={[
-            { name: "CompetitorBrand", note: "Well reviewed, great wide fit" },
-            { name: "RivalRun", note: "Popular local option" },
-            { name: "OtherStore", note: "Fast shipping" },
-          ]}
-          verdict="Your store isn't mentioned. The shopper clicks a competitor — and you never knew it happened." />
-        <ChatCard tone="good"
-          q="What's the best trail-running shoe for wide feet?"
-          answers={[
-            { name: "YOUR STORE", note: "Top-rated wide-fit trail shoes + an expert fit guide", you: true },
-            { name: "CompetitorBrand", note: "Also well reviewed" },
-            { name: "RivalRun", note: "Decent option" },
-          ]}
-          verdict="Your store is the top pick — and you can see exactly which AI bots read you." />
+      <p className={styles.lead}>Ask ChatGPT or Perplexity what to buy and it names a few stores. Today it isn't yours — because AI literally can't read your store. ShopHero changes the answer.</p>
+      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 26, textAlign: "left", alignItems: "stretch" }}>
+        <ChatCard tone="bad" q="What's the best trail-running shoe for wide feet?" answers={a} verdict="Your store isn't mentioned. The shopper clicks a competitor — and you never knew it happened." />
+        <ChatCard tone="good" q="What's the best trail-running shoe for wide feet?" answers={b} verdict="Your store is the top pick — and you can see exactly which AI bots read you." />
       </div>
     </section>
   );
@@ -418,18 +426,18 @@ function AIComparison() {
 
 function StatsBand() {
   const stats: { big: string; label: string; src?: string }[] = [
-    { big: "~25%", label: "of search is forecast to shift to AI assistants by 2026", src: "Gartner" },
-    { big: "1–3", label: "stores named in a typical AI answer — you want to be one" },
-    { big: "First", label: "movers get cited before competitors even appear" },
+    { big: "~25%", label: "of search shifts to AI assistants by 2026", src: "Gartner" },
+    { big: "1–3", label: "stores named in a typical AI answer — be one" },
+    { big: "1st", label: "movers get cited before competitors appear" },
   ];
   return (
-    <section style={{ maxWidth: 960, margin: "24px auto 8px", padding: "0 18px" }}>
+    <section style={{ maxWidth: 980, margin: "8px auto", padding: "0 18px" }}>
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
         {stats.map((s, i) => (
-          <div key={i} style={{ flex: "1 1 250px", background: "linear-gradient(180deg,#fff,#f7f9fc)", border: "1px solid #e6e9ef", borderRadius: 16, padding: "20px 18px", textAlign: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", color: "#15171c" }}>{s.big}</div>
-            <div style={{ fontSize: 13, color: "#475467", marginTop: 4, lineHeight: 1.4 }}>{s.label}</div>
-            {s.src && <div style={{ fontSize: 10.5, color: "#9a9aa6", marginTop: 6 }}>Source: {s.src}</div>}
+          <div key={i} style={{ flex: "1 1 250px", ...glass, padding: "22px 18px", textAlign: "center" }}>
+            <div className={styles.grad} style={{ fontSize: 38, fontWeight: 800, letterSpacing: "-0.02em" }}>{s.big}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.45 }}>{s.label}</div>
+            {s.src && <div style={{ fontSize: 10.5, color: "#6f7d68", marginTop: 8, letterSpacing: "0.03em" }}>SOURCE: {s.src.toUpperCase()}</div>}
           </div>
         ))}
       </div>
@@ -445,18 +453,19 @@ function FourSteps() {
     { n: 4, icon: "📈", title: "Get recommended", desc: "AI reads and cites you — and you watch real crawler reads climb in your dashboard. No ad spend." },
   ];
   return (
-    <section style={{ maxWidth: 1040, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+    <section style={SECT}>
+      <Kicker>How it works</Kicker>
       <h2 className={styles.h2}>From invisible to <span className={styles.grad}>recommended</span> — in 4 steps.</h2>
       <p className={styles.lead}>You approve; ShopHero does the work and keeps it live.</p>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 22 }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 26 }}>
         {steps.map((s) => (
-          <div key={s.n} style={{ flex: "1 1 220px", background: "#fff", border: "1px solid #e6e9ef", borderRadius: 16, padding: "20px 18px", textAlign: "left", boxShadow: "0 4px 14px rgba(0,0,0,0.05)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <span style={{ width: 30, height: 30, borderRadius: "50%", background: "#15171c", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 14 }}>{s.n}</span>
+          <div key={s.n} style={{ flex: "1 1 220px", ...glass, padding: "22px 20px", textAlign: "left", position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 10 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg,${C.accent},${C.violet})`, color: "#06120c", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 15 }}>{s.n}</span>
               <span style={{ fontSize: 22 }}>{s.icon}</span>
             </div>
-            <div style={{ fontWeight: 750, fontSize: 16, color: "#15171c" }}>{s.title}</div>
-            <div style={{ fontSize: 13, color: "#475467", marginTop: 5, lineHeight: 1.5 }}>{s.desc}</div>
+            <div style={{ fontWeight: 750, fontSize: 16, color: C.text }}>{s.title}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.55 }}>{s.desc}</div>
           </div>
         ))}
       </div>
@@ -465,11 +474,11 @@ function FourSteps() {
 }
 
 function ColList({ items, tone }: { items: string[]; tone: "bad" | "good" }) {
-  const c = tone === "good" ? "#16a34a" : "#e0457f";
+  const c = tone === "good" ? C.brand : C.coral;
   return (
     <>{items.map((t, i) => (
-      <div key={i} style={{ display: "flex", gap: 9, padding: "7px 0", fontSize: 13.5, color: tone === "good" ? "#15171c" : "#475467" }}>
-        <span style={{ color: c }}>{tone === "good" ? "✓" : "✕"}</span>{t}
+      <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", fontSize: 13.5, color: tone === "good" ? C.text : C.muted, lineHeight: 1.45 }}>
+        <span style={{ color: c, fontWeight: 800 }}>{tone === "good" ? "✓" : "✕"}</span>{t}
       </div>
     ))}</>
   );
@@ -477,46 +486,62 @@ function ColList({ items, tone }: { items: string[]; tone: "bad" | "good" }) {
 
 function DiyVsShopHero() {
   return (
-    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+    <section style={SECT}>
+      <Kicker>Advanced AI optimization · powered by Claude</Kicker>
       <h2 className={styles.h2}>ChatGPT writes blog posts. <span className={styles.grad}>ShopHero makes AI recommend you.</span></h2>
-      <p className={styles.lead}>A prompt gives you a draft. ShopHero makes your store the answer.</p>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
-        <div style={{ flex: "1 1 320px", background: "#fff", border: "1px solid #f2c2d4", borderRadius: 16, padding: 20 }}>
-          <div style={{ fontWeight: 800, color: "#e0457f", marginBottom: 8 }}>DIY with ChatGPT / blog tools</div>
+      <p className={styles.lead}>This isn't keyword stuffing or a content firehose. It's deep, Claude-powered optimization that makes your store readable to AI agents — something no one else is doing for Shopify.</p>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 26, textAlign: "left", alignItems: "stretch" }}>
+        <div style={{ flex: "1 1 330px", ...glass, border: "1px solid rgba(217,119,87,0.3)", padding: 22 }}>
+          <div style={{ fontWeight: 800, color: C.coral, marginBottom: 8, fontSize: 14 }}>DIY with ChatGPT / blog tools</div>
           <ColList tone="bad" items={["Generic posts anyone can prompt — no real angle or voice", "Zero knowledge of your catalog, best sellers or customers", "No structured data, feed or llms.txt — AI still can't read you", "One article, then silence. The grind never ends", "No proof it works — you're guessing"]} />
         </div>
-        <div style={{ flex: "1 1 320px", background: "linear-gradient(180deg,#fff,#f6fdf8)", border: "1px solid #bfe6c8", borderRadius: 16, padding: 20 }}>
-          <div style={{ fontWeight: 800, color: "#16a34a", marginBottom: 8 }}>ShopHero</div>
-          <ColList tone="good" items={["A deep read of YOUR store before a word is written", "Schema + retrieval feed + llms.txt — AI can finally parse you", "AI-answer content mapped to your real products, on a cadence", "Re-optimizes as your catalog changes — never goes stale", "Real AI-crawler logs prove who's reading you"]} />
-        </div>
+        <GlowCard style={{ flex: "1 1 330px" }}>
+          <div style={{ padding: 22 }}>
+            <div style={{ fontWeight: 800, color: C.brand2, marginBottom: 8, fontSize: 14 }}>ShopHero — advanced AI optimization</div>
+            <ColList tone="good" items={["A deep, Claude-powered read of YOUR store before a word is written", "Schema + retrieval feed + llms.txt — AI can finally parse you", "AI-answer content mapped to your real products, on a cadence", "Re-optimizes as your catalog changes — never goes stale", "Real AI-crawler logs prove exactly who's reading you"]} />
+          </div>
+        </GlowCard>
       </div>
     </section>
   );
 }
 
 function CostCompare() {
-  const ul = { marginTop: 12, padding: 0, listStyle: "none", color: "#475467", fontSize: 13, lineHeight: 1.9 } as const;
+  const ul: CSSProperties = { marginTop: 12, padding: 0, listStyle: "none", color: C.muted, fontSize: 13, lineHeight: 1.95 };
+  const Tier = ({ name, price, per, items, sub }: { name: string; price: string; per: string; items: string[]; sub?: string }) => (
+    <div style={{ flex: "1 1 260px", ...glass, padding: 22, textAlign: "left" }}>
+      <div style={{ fontWeight: 800, marginBottom: 6, color: C.text }}>{name}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: C.text }}>{price}<span style={{ fontSize: 14, color: C.muted, fontWeight: 600 }}>{per}</span></div>
+      {sub && <div style={{ fontSize: 11.5, color: C.coral, marginTop: 2 }}>{sub}</div>}
+      <ul style={ul}>{items.map((t, i) => <li key={i}>✕ {t}</li>)}</ul>
+    </div>
+  );
   return (
-    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
-      <h2 className={styles.h2}>Agency depth. <span className={styles.grad}>Without the agency bill.</span></h2>
-      <p className={styles.lead}>What AI-discoverability costs the old way — vs ShopHero.</p>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
-        <div style={{ flex: "1 1 260px", border: "1px solid #e6e9ef", borderRadius: 16, padding: 20, background: "#fff" }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>SEO / AEO agency</div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>$3,000–8,000<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
-          <ul style={ul}><li>✕ 3-month minimums, black-box reports</li><li>✕ A few articles, no technical readiness</li><li>✕ You hope it's working</li></ul>
-        </div>
-        <div style={{ flex: "1 1 260px", border: "1px solid #e6e9ef", borderRadius: 16, padding: 20, background: "#fff" }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Blog-only AI-SEO tools</div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>~$400<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
-          <ul style={ul}><li>✕ Volume of generic articles</li><li>✕ No schema, feed or llms.txt on your store</li><li>✕ Vanity metrics, not real crawler data</li></ul>
-        </div>
-        <div style={{ flex: "1 1 260px", border: "2px solid #16a34a", borderRadius: 16, padding: 20, background: "linear-gradient(180deg,#fff,#f6fdf8)" }}>
-          <div style={{ fontWeight: 800, marginBottom: 6, color: "#16a34a" }}>ShopHero ⭐</div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>$99<span style={{ fontSize: 14, color: "#667085" }}>/mo</span></div>
-          <ul style={ul}><li>✓ Hosted llms.txt + feed + auto schema</li><li>✓ AI-answer content on your real products</li><li>✓ Real AI-crawler analytics — proof it works</li></ul>
-          <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 700, marginTop: 8 }}>Free AI-Readiness Score to start</div>
-        </div>
+    <section style={SECT}>
+      <Kicker>Stop overpaying</Kicker>
+      <h2 className={styles.h2}>Save thousands on SEO agencies that <span className={styles.grad}>can't even optimize for AI.</span></h2>
+      <p className={styles.lead}>Most agencies are still running the 2016 playbook — backlinks and blog posts — with no idea how next-gen AI agent search actually picks stores. ShopHero does the new thing, at a fraction of the cost.</p>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 26, alignItems: "stretch" }}>
+        <Tier name="SEO / AEO agency" price="$3,000–8,000" per="/mo" items={["3-month minimums, black-box reports", "Still optimizing for 2016 Google, not AI agents", "A few articles — no technical AI readiness"]} />
+        <Tier name="Blog-only AI-SEO tools" price="~$400" per="/mo" items={["A firehose of generic articles", "No schema, feed or llms.txt on your store", "Vanity metrics, not real crawler data"]} />
+        <GlowCard style={{ flex: "1 1 260px" }}>
+          <div style={{ padding: 22, textAlign: "left", height: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontWeight: 800, color: C.brand2 }}>ShopHero</span>
+              <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#06120c", background: C.accent, padding: "3px 8px", borderRadius: 999 }}>BEST VALUE</span>
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: C.text }}>$49<span style={{ fontSize: 14, color: C.muted, fontWeight: 600 }}>/mo</span></div>
+            <div style={{ fontSize: 11.5, color: C.brand2, marginTop: 2 }}>Pro $149/mo for extra powers</div>
+            <ul style={{ ...ul, color: C.text }}>
+              <li>✓ Hosted llms.txt + feed + auto schema</li>
+              <li>✓ Built for how AI agents actually choose</li>
+              <li>✓ Real AI-crawler analytics — proof it works</li>
+            </ul>
+          </div>
+        </GlowCard>
+      </div>
+      <div style={{ marginTop: 18, display: "inline-block", ...glass, border: "1px solid rgba(110,197,49,0.3)", padding: "12px 20px", color: C.text, fontWeight: 700, fontSize: 14 }}>
+        💰 Save <span className={styles.grad}>$35,000+ a year</span> vs a typical SEO agency — for a tool that's actually built for AI.
       </div>
     </section>
   );
@@ -530,13 +555,14 @@ function Objections() {
     { q: "Will it work for my store?", a: "It's Shopify-only and built on your real catalog, so it adapts to any niche — and the score shows your gaps before you pay a cent." },
   ];
   return (
-    <section style={{ maxWidth: 820, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+    <section style={{ ...SECT, maxWidth: 820 }}>
+      <Kicker>No black boxes</Kicker>
       <h2 className={styles.h2}>Still on the <span className={styles.grad}>fence?</span></h2>
-      <div style={{ marginTop: 18, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ marginTop: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
         {items.map((it, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 14, padding: "16px 18px" }}>
-            <div style={{ fontWeight: 750, marginBottom: 5 }}>{it.q}</div>
-            <div style={{ color: "#475467", fontSize: 13.5, lineHeight: 1.6 }}>{it.a}</div>
+          <div key={i} style={{ ...glass, padding: "16px 18px" }}>
+            <div style={{ fontWeight: 750, marginBottom: 5, color: C.text }}>{it.q}</div>
+            <div style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6 }}>{it.a}</div>
           </div>
         ))}
       </div>
@@ -546,30 +572,34 @@ function Objections() {
 
 function FoundingStores() {
   return (
-    <section style={{ maxWidth: 820, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
-      <div style={{ background: "linear-gradient(180deg,#0f1216,#181c22)", color: "#fff", borderRadius: 20, padding: "32px 24px" }}>
-        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.06em", color: "#7bdca0" }}>FOUNDING STORES</div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 6px" }}>Be one of the first stores AI learns to recommend.</h2>
-        <p style={{ color: "#b8bec8", maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.6 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. We'd rather show you your own crawler data than a wall of testimonials.</p>
-        <a href="#start" style={{ display: "inline-block", background: "#16a34a", color: "#fff", fontWeight: 700, padding: "12px 22px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
-      </div>
+    <section style={{ ...SECT, maxWidth: 860 }}>
+      <GlowCard accent={C.brand}>
+        <div style={{ padding: "34px 26px" }}>
+          <Kicker>Founding stores</Kicker>
+          <h2 style={{ fontSize: 25, fontWeight: 800, margin: "4px 0 8px", color: C.text }}>Be one of the first stores AI learns to <span className={styles.grad}>recommend.</span></h2>
+          <p style={{ color: C.muted, maxWidth: 580, margin: "0 auto 18px", lineHeight: 1.6 }}>We're onboarding a first group of Shopify stores and tracking real AI-crawler reads from day one. Early movers get cited before their category fills up — and help shape the product. We'd rather show you your own crawler data than a wall of testimonials.</p>
+          <a href="#start" style={{ display: "inline-block", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, color: "#06120c", fontWeight: 800, padding: "13px 24px", borderRadius: 999, textDecoration: "none" }}>Get my free AI-Readiness Score →</a>
+        </div>
+      </GlowCard>
     </section>
   );
 }
 
 function ChoiceClosing() {
   return (
-    <section style={{ maxWidth: 1000, margin: "44px auto 8px", padding: "0 18px", textAlign: "center" }}>
+    <section style={SECT}>
       <h2 className={styles.h2}>The choice is <span className={styles.grad}>yours.</span></h2>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 22, textAlign: "left" }}>
-        <div style={{ flex: "1 1 320px", border: "1px solid #f2c2d4", borderRadius: 16, padding: 20, background: "#fff" }}>
-          <div style={{ fontWeight: 800, color: "#e0457f", marginBottom: 8 }}>Keep waiting</div>
-          <ColList tone="bad" items={["Stay invisible when shoppers ask AI what to buy", "Watch competitors get named instead of you", "Pay agencies $3k+/mo, or guess with blog tools", "Hope it's working, with no real data"]} />
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 26, textAlign: "left", alignItems: "stretch" }}>
+        <div style={{ flex: "1 1 330px", ...glass, border: "1px solid rgba(217,119,87,0.3)", padding: 22 }}>
+          <div style={{ fontWeight: 800, color: C.coral, marginBottom: 8, fontSize: 14 }}>Keep waiting</div>
+          <ColList tone="bad" items={["Stay invisible when shoppers ask AI what to buy", "Watch competitors get named instead of you", "Pay agencies $3k+/mo for the wrong playbook", "Hope it's working, with no real data"]} />
         </div>
-        <div style={{ flex: "1 1 320px", border: "1px solid #bfe6c8", borderRadius: 16, padding: 20, background: "linear-gradient(180deg,#fff,#f6fdf8)" }}>
-          <div style={{ fontWeight: 800, color: "#16a34a", marginBottom: 8 }}>Start today</div>
-          <ColList tone="good" items={["Be the store AI agents read and recommend", "Auto schema + feed + llms.txt, kept live", "Start free, then $99/mo — cancel anytime", "See real AI-crawler reads in your dashboard"]} />
-        </div>
+        <GlowCard style={{ flex: "1 1 330px" }} accent={C.brand}>
+          <div style={{ padding: 22 }}>
+            <div style={{ fontWeight: 800, color: C.brand2, marginBottom: 8, fontSize: 14 }}>Start today</div>
+            <ColList tone="good" items={["Be the store AI agents read and recommend", "Auto schema + feed + llms.txt, kept live", "Start free, then $49/mo — cancel anytime", "See real AI-crawler reads in your dashboard"]} />
+          </div>
+        </GlowCard>
       </div>
     </section>
   );
@@ -826,25 +856,35 @@ export default function LandingV2() {
 
       {/* PRICING */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="pricing">
-        <h2 className={styles.h2}>One subscription. <span className={styles.grad}>Always-on AI discoverability.</span></h2>
-        <p className={styles.lead}>Start free with your AI-Readiness Score. Upgrade when you want ShopHero keeping you agent-ready every day.</p>
-        <div className={styles.priceCard}>
-          <div className={styles.priceHead}>
-            <span className={styles.priceName}>Pro</span>
-            <div className={styles.price}><span className={styles.priceAmt}>$99</span><span className={styles.pricePer}>/month</span></div>
+        <h2 className={styles.h2}>Start free. <span className={styles.grad}>Scale when it's working.</span></h2>
+        <p className={styles.lead}>See your AI-Readiness Score free — no card. Then pick your power level.</p>
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center", alignItems: "stretch", marginTop: 26 }}>
+          <div style={{ flex: "1 1 330px", maxWidth: 390, ...glass, padding: 26, textAlign: "left" }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Starter</div>
+            <div style={{ marginTop: 6 }}><span style={{ fontSize: 42, fontWeight: 800, color: C.text }}>$49</span><span style={{ color: C.muted }}>/month</span></div>
+            <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Get your store readable by AI.</div>
+            <div style={{ marginTop: 16 }}>
+              <ColList tone="good" items={["AI-Readiness Score + ranked gaps", "Auto schema on every product (Product, Offer, Review, FAQ, Breadcrumb)", "Hosted llms.txt + AI-retrieval feed", "AI-crawler analytics — see who's reading you", "Speed audit + safe fixes", "Approval-first · one-click rollback"]} />
+            </div>
+            <a href="#start" style={{ display: "block", textAlign: "center", marginTop: 18, padding: "13px 20px", borderRadius: 999, border: `1px solid ${C.line}`, color: C.text, fontWeight: 700, textDecoration: "none", background: "rgba(255,255,255,0.04)" }}>Start free →</a>
           </div>
-          <ul className={styles.priceList}>
-            <li>Hosted <strong>llms.txt + AI-retrieval product feed</strong></li>
-            <li>Auto <strong>schema on every PDP</strong> (Product, Offer, Review, FAQ, Breadcrumb)</li>
-            <li><strong>AI-answer content</strong> — guides &amp; product Q&amp;A every month</li>
-            <li><strong>AI-crawler analytics</strong> — see GPTBot, ClaudeBot &amp; Perplexity read you</li>
-            <li>Live re-optimization as your catalog changes</li>
-            <li>Speed audit + safe fixes · approval-first · one-click rollback</li>
-            <li className={styles.priceNote}>Free AI-Readiness Score to start - no card. 14-day trial on Pro.</li>
-          </ul>
-          <a href="#start" className={styles.btnPrimary}>Get my free AI-Readiness Score →</a>
-          <p className={styles.micro}>Start free. Cancel anytime, right from Shopify.</p>
+          <GlowCard style={{ flex: "1 1 330px", maxWidth: 390 }} accent={C.accent}>
+            <div style={{ padding: 26, textAlign: "left", height: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Pro</span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", color: "#06120c", background: C.accent, padding: "3px 9px", borderRadius: 999 }}>MOST POWERFUL</span>
+              </div>
+              <div style={{ marginTop: 6 }}><span className={styles.grad} style={{ fontSize: 42, fontWeight: 800 }}>$149</span><span style={{ color: C.muted }}>/month</span></div>
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Extra powers — stay ahead, automatically.</div>
+              <div style={{ fontSize: 12.5, color: C.brand2, marginTop: 16, fontWeight: 800 }}>Everything in Starter, plus:</div>
+              <div style={{ marginTop: 6 }}>
+                <ColList tone="good" items={["The constant AI-answer content drip — deep strategy + monthly articles on your best sellers", "Live re-optimization as your catalog changes", "Brand-voice tuning for on-brand content", "Priority support"]} />
+              </div>
+              <a href="#start" className={styles.btnPrimary} style={{ display: "block", textAlign: "center", marginTop: 18 }}>Get my free AI-Readiness Score →</a>
+            </div>
+          </GlowCard>
         </div>
+        <p className={styles.micro} style={{ textAlign: "center", marginTop: 16 }}>Free AI-Readiness Score to start — no card. 14-day trial on paid plans. Cancel anytime, right from Shopify.</p>
       </section>
 
       {/* THE CHOICE */}
