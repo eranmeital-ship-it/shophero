@@ -162,12 +162,8 @@ function SystemCard({ icon, title, on, detail }: { icon: string; title: string; 
 
 export default function Readiness() {
   const d = useLoaderData<typeof loader>();
-  const analyze = useFetcher();
-  const act = useFetcher(); // publish / auto-publish toggle
   const installFix = useFetcher<{ ok?: boolean; error?: string }>(); // one-tap schema install
   const revalidator = useRevalidator();
-  const analyzing = analyze.state !== "idle";
-  const acting = act.state !== "idle";
   const installing = installFix.state !== "idle";
   const installed = !!installFix.data?.ok;
   const reevaluating = revalidator.state === "loading";
@@ -387,98 +383,19 @@ export default function Readiness() {
           </div>
         </div>
 
-        {/* ── Content engine ── */}
-        <div className="rdx-card" style={{ ...card, marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-            <Label mb={0}>✍️ Content engine · AI-answer drip</Label>
-            {d.content?.summary && (
-              <act.Form method="post" action="/api/content-plan">
-                <input type="hidden" name="intent" value="autopublish" />
-                <input type="hidden" name="value" value={d.content.autoPublish ? "off" : "on"} />
-                <button type="submit" disabled={acting} title="Auto-publish each daily article without manual approval"
-                  style={{ fontSize: 12, fontWeight: 800, padding: "7px 13px", borderRadius: 999, cursor: "pointer", border: d.content.autoPublish ? "none" : `1px solid ${C.line}`, background: d.content.autoPublish ? C.brand : "transparent", color: d.content.autoPublish ? "#06120c" : C.muted }}>
-                  {d.content.autoPublish ? "✓ Auto-publishing on" : "Approve all · auto-publish"}
-                </button>
-              </act.Form>
-            )}
+        {/* ── Content engine (teaser → full calendar) ── */}
+        <Link to="/app/content" className="rdx-card" style={{ ...card, marginBottom: 14, display: "flex", alignItems: "center", gap: 16, textDecoration: "none", color: C.text }}>
+          <span style={{ fontSize: 26, flexShrink: 0 }}>✍️</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 750, fontSize: 14.5 }}>Content engine · AI-answer drip</div>
+            <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3, fontFamily: mono }}>
+              {d.content?.summary
+                ? <><strong style={{ color: C.brand2 }}>{d.content.published}</strong> published · <strong style={{ color: C.text }}>{d.content.total}</strong> in calendar · {d.dailyContent ? "daily" : "1 / week"}{d.content.autoPublish ? " · auto" : d.content.draftTitle ? " · 1 awaiting approval" : ""}</>
+                : "Not started — build your AI-answer content calendar"}
+            </div>
           </div>
-
-          {d.content?.summary ? (
-            <>
-              <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.55, marginBottom: 8 }}>{d.content.summary}</div>
-              <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12, fontFamily: mono }}>
-                <strong style={{ color: C.brand2 }}>{d.content.published}</strong> published · <strong style={{ color: C.text }}>{d.content.total}</strong> in calendar · <strong style={{ color: C.text }}>{d.dailyContent ? "daily" : "1 / week"}</strong> cadence
-              </div>
-
-              {!d.dailyContent && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 14px", borderRadius: 12, background: `${C.violet}12`, border: `1px solid ${C.violet}3a`, marginBottom: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
-                    <strong style={{ color: C.text }}>You're on Starter — 1 article/week.</strong> Upgrade to Pro for a <strong style={{ color: C.text }}>daily</strong> article and <strong style={{ color: C.text }}>product-description rewrites</strong> across your catalog.
-                  </div>
-                  <Link to="/app/pricing" style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 800, color: "#fff", textDecoration: "none", background: `linear-gradient(120deg,#a78bfa,${C.violet})`, padding: "9px 15px", borderRadius: 10 }}>Upgrade to Pro →</Link>
-                </div>
-              )}
-
-              {/* Approval process stepper */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14, padding: "11px 13px", borderRadius: 12, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
-                {[`🗓️ Drafted ${d.dailyContent ? "daily" : "weekly"}`, d.content.autoPublish ? "⚡ Auto-approved" : "✅ You approve", "🚀 Published live"].map((s, i, arr) => (
-                  <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: i === 1 && !d.content!.autoPublish ? C.brand2 : C.text, background: i === 1 && !d.content!.autoPublish ? `${C.brand}18` : "rgba(255,255,255,0.04)", border: `1px solid ${i === 1 && !d.content!.autoPublish ? C.brand + "44" : C.lineSoft}`, padding: "5px 11px", borderRadius: 999 }}>{s}</span>
-                    {i < arr.length - 1 && <span style={{ color: C.faint, fontSize: 13 }}>→</span>}
-                  </span>
-                ))}
-              </div>
-
-              {d.content.draftTitle && !d.content.autoPublish && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 12, border: `1px solid ${C.brand}55`, background: `${C.brand}12`, marginBottom: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: C.brand2 }}>● Ready to review</div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginTop: 2 }}>{d.content.draftTitle}</div>
-                  </div>
-                  <act.Form method="post" action="/api/content-plan">
-                    <input type="hidden" name="intent" value="publish" />
-                    <button className="rdx-btn" type="submit" disabled={acting}>{acting ? "Publishing…" : "Approve & publish →"}</button>
-                  </act.Form>
-                </div>
-              )}
-
-              {d.content.queue.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 12 }}>
-                  {d.content.queue.map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 11px", borderRadius: 10, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
-                      <span style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(255,255,255,0.05)", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, color: C.faint, flexShrink: 0, fontFamily: mono }}>{i + 1}</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: C.violet, background: `${C.violet}1e`, padding: "3px 7px", borderRadius: 999, flexShrink: 0 }}>{p.intent}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 650, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
-                        <div style={{ fontSize: 11.5, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.angle}</div>
-                      </div>
-                      <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: mono, color: C.faint, textAlign: "right" }}>
-                        {d.content!.autoPublish ? "live " : "draft "}
-                        {new Date(Date.now() + (i + 1) * (d.dailyContent ? 1 : 7) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 12, lineHeight: 1.5 }}>
-                {d.content.autoPublish
-                  ? "Auto-publish is on — one article goes live each day, hands-off. Switch it off to review each first."
-                  : "Each day's article is drafted automatically and waits here for your approval. Use “Approve all” to let them publish on their own."}
-              </div>
-            </>
-          ) : (
-            <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.55, marginBottom: 12 }}>Analyze your store — best sellers, categories, content gaps — to build a prioritized calendar of AI-answer articles that keep earning SEO/AI traffic, drafted on a cadence for your approval.</div>
-          )}
-          <analyze.Form method="post" action="/api/content-plan">
-            <input type="hidden" name="intent" value="analyze" />
-            <button className="rdx-btn" type="submit" disabled={analyzing}>
-              {analyzing ? "Analyzing your store…" : d.content?.summary ? "Rebuild content plan" : "Analyze my store & build a content plan →"}
-            </button>
-          </analyze.Form>
-          {act.data && typeof act.data === "object" && "error" in act.data && (act.data as { error?: string }).error && (
-            <div style={{ fontSize: 12, color: C.coral, marginTop: 10 }}>{(act.data as { error: string }).error}</div>
-          )}
-        </div>
+          <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: C.brand2 }}>Open calendar →</span>
+        </Link>
 
         {/* ── Hosted endpoints ── */}
         <div className="rdx-card" style={card}>

@@ -24,13 +24,13 @@ export default function App() {
           dead-ended on the login screen. */}
       <NavMenu>
         <Link to="/app" rel="home">Control Center</Link>
-        <Link to="/app/editor">Editor</Link>
+        <Link to="/app/content">Content calendar</Link>
         <Link to="/app/authority">Authority &amp; PR</Link>
         <Link to="/app/pricing">Plans &amp; upgrade</Link>
         <Link to="/app/activity">Activity</Link>
         <Link to="/app/usage">Usage &amp; billing</Link>
-        <Link to="/app/settings">Settings</Link>
         <Link to="/app/tutorials">Learn</Link>
+        <Link to="/app/settings">Settings</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
