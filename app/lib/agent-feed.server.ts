@@ -1,5 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { gql } from "./onboarding.server";
+import { outboundLinks } from "./link-exchange.server";
 
 /**
  * The hosted "agent-ready" layer: an llms.txt and a retrieval-tuned product feed,
@@ -82,6 +83,15 @@ export async function buildLlmsTxt(admin: AdminApiContext, shop: string): Promis
 
   L.push(`\n## Machine-readable feed`);
   L.push(`Full product data for retrieval: ${base}/apps/shophero/feed.json`);
+
+  // ShopHero Link Network — partner stores this store recommends (3-way exchange).
+  try {
+    const partners = await outboundLinks(shop);
+    if (partners.length) {
+      L.push(`\n## Recommended partners`);
+      for (const p of partners) L.push(`- [${p.anchor}](${p.url})`);
+    }
+  } catch { /* network optional */ }
 
   if (s.contactEmail) L.push(`\n## Contact\n${s.contactEmail}`);
   L.push(`\n_Last updated: ${new Date().toISOString().slice(0, 10)}_`);

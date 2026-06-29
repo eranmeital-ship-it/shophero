@@ -1,6 +1,6 @@
 import { Form } from "react-router";
 
-export function AdminNav({ active }: { active: "dashboard" | "shops" }) {
+export function AdminNav({ active }: { active: "dashboard" | "shops" | "network" }) {
   return (
     <div className="sh-admin-nav">
       <div className="sh-admin-tabs">
@@ -9,6 +9,9 @@ export function AdminNav({ active }: { active: "dashboard" | "shops" }) {
         </a>
         <a href="/admin/shops" className={`sh-tab ${active === "shops" ? "sh-tab-on" : ""}`}>
           Shops
+        </a>
+        <a href="/admin/links" className={`sh-tab ${active === "network" ? "sh-tab-on" : ""}`}>
+          Link Network
         </a>
       </div>
       <Form method="post" action="/admin">

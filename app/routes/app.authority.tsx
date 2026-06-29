@@ -1,9 +1,10 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { Form, useLoaderData } from "react-router";
+import { Form, useFetcher, useLoaderData } from "react-router";
 import type { CSSProperties } from "react";
 import { authenticate } from "../shopify.server";
 import { getActiveTier } from "../lib/billing.server";
 import { TIERS } from "../lib/plans";
+import { getMembership, type Membership } from "../lib/link-exchange.server";
 
 /**
  * Authority & PR — the off-page layer (Authority tier). Sells and explains the
@@ -12,15 +13,17 @@ import { TIERS } from "../lib/plans";
  * the live state once the merchant is on Authority.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const tier = await getActiveTier(admin).catch(() => null);
-  return { tier, isAuthority: tier === "authority", price: TIERS.authority.amount };
+  const canNetwork = tier === "pro" || tier === "authority"; // Pro+
+  const membership = await getMembership(session.shop).catch(() => null);
+  return { tier, isAuthority: tier === "authority", price: TIERS.authority.amount, canNetwork, membership };
 }
 
 const C = {
   bg: "#0a0e09", panel: "#121a10", panel2: "#0e140c", line: "#26331f", lineSoft: "#1c2618",
   text: "#f2f6f0", muted: "#9fb098", faint: "#6f7d68",
-  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6", violet2: "#a78bfa",
+  brand: "#6ec531", brand2: "#a3e35c", accent: "#34e0a1", violet: "#7b6cf6", violet2: "#a78bfa", coral: "#d97757",
 };
 const card: CSSProperties = { background: `linear-gradient(180deg, ${C.panel}, ${C.panel2})`, border: `1px solid ${C.line}`, borderRadius: 18, padding: 22 };
 const OUTLETS = ["Yahoo Finance", "Benzinga", "MarketWatch", "Associated Press", "Digital Journal", "+400 more"];
@@ -30,8 +33,30 @@ const STEPS = [
   { icon: "🤖", title: "AI learns to trust you", desc: "When AI decides who to recommend, it leans on what authoritative sites say about you. More citations → more recommendations." },
 ];
 
+function NetworkRow({ label, p }: { label: string; p: Membership["giving"] }) {
+  const statusColor = p?.status === "live" ? C.brand2 : p?.status === "missing" ? C.coral : C.muted;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderRadius: 11, background: C.panel2, border: `1px solid ${C.lineSoft}` }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: C.faint, width: 64, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {p ? (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.url.replace(/^https?:\/\//, "")}</div>
+            <div style={{ fontSize: 11.5, color: C.muted }}>anchor: “{p.anchor}”</div>
+          </>
+        ) : <div style={{ fontSize: 12.5, color: C.faint }}>Matching you with the most relevant store…</div>}
+      </div>
+      {p && <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: statusColor }}>{p.status}</span>}
+    </div>
+  );
+}
+
 export default function Authority() {
-  const { isAuthority, price } = useLoaderData<typeof loader>();
+  const { isAuthority, price, canNetwork, membership } = useLoaderData<typeof loader>();
+  const net = useFetcher<{ ok?: boolean; membership?: Membership; error?: string }>();
+  const m = (net.data?.membership ?? membership) as Membership | null;
+  const joined = !!m?.member && m.member.status !== undefined;
+  const active = m?.member?.status === "active";
   return (
     <div style={{
       color: C.text, minHeight: "100vh", margin: "-16px", padding: "22px 22px 48px",
@@ -87,6 +112,46 @@ export default function Authority() {
               <div style={{ color: C.muted, fontSize: 12.5, lineHeight: 1.5, marginTop: 4 }}>{s.desc}</div>
             </div>
           ))}
+        </div>
+
+        {/* ShopHero Link Network — 3-way exchange */}
+        <div style={{ ...card, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: C.violet2 }}>🔗 ShopHero Link Network</div>
+            {joined && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.05em", color: active ? C.brand2 : C.faint }}>{active ? "● ENROLLED" : "PAUSED"}</span>}
+          </div>
+          <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+            A relevance-matched <strong style={{ color: C.text }}>3-way link exchange</strong> with other ShopHero stores. For every link you give, you get one back — but never to the same store (A→B→C→A), so it reads as organic to search &amp; AI. Our algorithm picks the <strong style={{ color: C.text }}>most relevant</strong> partners by your niche &amp; keywords, and we <strong style={{ color: C.text }}>monitor every link to keep it live</strong> (fair use).
+          </p>
+
+          {!canNetwork ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "13px 14px", borderRadius: 12, background: `${C.violet}12`, border: `1px solid ${C.violet}3a` }}>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: C.muted }}>The Link Network is a <strong style={{ color: C.text }}>Pro &amp; Authority</strong> feature.</div>
+              <Form method="post" action="/app/pricing"><input type="hidden" name="tier" value="pro" />
+                <button type="submit" style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", border: "none", cursor: "pointer", background: `linear-gradient(120deg,#a78bfa,${C.violet})`, padding: "9px 15px", borderRadius: 10 }}>Upgrade to Pro →</button>
+              </Form>
+            </div>
+          ) : joined && active ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                <NetworkRow label="You give" p={m!.giving} />
+                <NetworkRow label="You get" p={m!.receiving} />
+              </div>
+              <div style={{ fontSize: 11.5, color: C.faint, marginBottom: 12 }}>Your given link is served from your hosted llms.txt and checked regularly. New matches roll in as the network grows.</div>
+              <net.Form method="post" action="/api/link-exchange"><input type="hidden" name="intent" value="pause" />
+                <button type="submit" disabled={net.state !== "idle"} style={{ fontSize: 12.5, fontWeight: 700, color: C.muted, background: "transparent", border: `1px solid ${C.line}`, padding: "9px 14px", borderRadius: 10, cursor: "pointer" }}>Pause my membership</button>
+              </net.Form>
+            </>
+          ) : joined && !active ? (
+            <net.Form method="post" action="/api/link-exchange"><input type="hidden" name="intent" value="resume" />
+              <button type="submit" disabled={net.state !== "idle"} style={{ fontSize: 13.5, fontWeight: 800, color: "#06120c", border: "none", cursor: "pointer", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, padding: "12px 20px", borderRadius: 11 }}>Resume my membership →</button>
+            </net.Form>
+          ) : (
+            <net.Form method="post" action="/api/link-exchange"><input type="hidden" name="intent" value="join" />
+              <button type="submit" disabled={net.state !== "idle"} style={{ fontSize: 13.5, fontWeight: 800, color: "#06120c", border: "none", cursor: "pointer", background: `linear-gradient(180deg,${C.brand2},${C.brand})`, padding: "12px 20px", borderRadius: 11 }}>{net.state !== "idle" ? "Joining…" : "Join the Link Network →"}</button>
+            </net.Form>
+          )}
+          {net.data?.error && <div style={{ fontSize: 12, color: C.coral, marginTop: 10 }}>{net.data.error}</div>}
         </div>
 
         {/* CTA / status */}

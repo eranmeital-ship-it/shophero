@@ -207,6 +207,37 @@ model AppEvent {
   @@index([level])
 }
 
+// ShopHero Link Network — opt-in 3-way (A→B→C→A) link exchange between member
+// stores. Matched by relevance; every member gives one link and receives one
+// (from a DIFFERENT store, never reciprocal). Monitored so links stay live.
+model LinkMember {
+  shop      String   @id
+  status    String   @default("active") // active | paused
+  keywords  String   @default("")        // csv of niche keywords for relevance matching
+  storeUrl  String?                       // canonical store URL the network links to
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One directed edge of a ring: `fromShop` PLACES a link to `toShop`. Three edges
+// with the same ringId form the 3-way ring.
+model LinkEdge {
+  id            String    @id @default(cuid())
+  ringId        String
+  fromShop      String    // the giver (places the outbound link)
+  toShop        String    // the receiver (gains the inbound link)
+  anchor        String    // anchor text / keyword
+  targetUrl     String    // receiver's URL
+  placementUrl  String?   // where the giver's link is served (their hosted llms.txt)
+  status        String    @default("pending") // pending | live | missing | removed
+  createdAt     DateTime  @default(now())
+  lastCheckedAt DateTime?
+
+  @@index([fromShop])
+  @@index([toShop])
+  @@index([ringId])
+}
+
 // Real AI-crawler fetches of the hosted agent-ready files (llms.txt / feed),
 // captured at the App Proxy. Powers the honest "who's reading your store"
 // scorecard — server logs, not vanity metrics.
