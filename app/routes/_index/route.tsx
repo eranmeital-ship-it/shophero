@@ -581,36 +581,12 @@ function ChoiceClosing() {
   );
 }
 
-function ShoeTile({ kind, size = 84, box = 112 }: { kind: "loafer" | "boot"; size?: number; box?: number }) {
-  // Self-contained SVG product shot on a studio backdrop — reliable, no external images.
-  return (
-    <div style={{ width: "100%", height: box, borderRadius: 12, background: "linear-gradient(135deg,#efe9df,#ded7c8)", display: "grid", placeItems: "center", overflow: "hidden" }}>
-      <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-        <ellipse cx="50" cy="84" rx="34" ry="6" fill="rgba(0,0,0,0.12)" />
-        {kind === "loafer" ? (
-          <g fill="#15171c">
-            <path d="M16 60 q-2 12 6 14 h52 q12 0 12-9 q0-6-9-8 l-22-5 q-6-2-10-7 l-6-7 q-3-3-7-2 q-5 1-6 8 z" />
-            <path d="M30 58 h22 q3 0 3 3 t-3 3 H30 z" fill="#2a2d33" />
-            <rect x="16" y="72" width="64" height="6" rx="3" fill="#0a0c0f" />
-          </g>
-        ) : (
-          <g fill="#15171c">
-            <path d="M38 20 q-4 0 -4 6 v30 q-10 3 -14 12 q-3 8 5 9 h40 q8 0 8 -8 v-3 q0 -6 -6 -9 q-9 -4 -13 -12 V26 q0 -6 -6 -6 z" />
-            <rect x="24" y="74" width="50" height="6" rx="3" fill="#0a0c0f" />
-            <path d="M40 26 q8 4 16 0 v6 q-8 4 -16 0 z" fill="#2a2d33" />
-          </g>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-// Real product photo with a graceful SVG fallback if the image can't load.
-const BOOT_IMG = "https://loremflickr.com/440/440/black,chelsea,boots/all?lock=8";
-const LOAFER_IMG = "https://loremflickr.com/440/440/black,leather,loafers/all?lock=14";
-function ProductImg({ src, kind, box = 112 }: { src: string; kind: "loafer" | "boot"; box?: number }) {
+// Real product photo with a graceful emoji-on-studio fallback if the image can't load.
+function ProductTile({ src, emoji, box = 112 }: { src: string; emoji: string; box?: number }) {
   const [err, setErr] = useState(false);
-  if (err) return <ShoeTile kind={kind} box={box} />;
+  if (err) return (
+    <div style={{ width: "100%", height: box, borderRadius: 12, background: "linear-gradient(135deg,#efe9df,#ded7c8)", display: "grid", placeItems: "center", fontSize: Math.round(box * 0.46) }} aria-hidden="true">{emoji}</div>
+  );
   return (
     <div style={{ width: "100%", height: box, borderRadius: 12, overflow: "hidden", background: "#efe9df" }}>
       <img src={src} alt="" loading="lazy" onError={() => setErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -618,28 +594,87 @@ function ProductImg({ src, kind, box = 112 }: { src: string; kind: "loafer" | "b
   );
 }
 
+// Rotating shopper scenarios — each a real-sounding query, two suggested
+// products, and the one the AI buys. The hero demo cycles through them.
+interface DemoProduct { name: string; price: string; img: string; emoji: string }
+interface DemoScene { city: string; avatar: number; query: string; intro: string; products: [DemoProduct, DemoProduct]; eta: string }
+const SCENES: DemoScene[] = [
+  {
+    city: "Austin", avatar: 45, eta: "3 days",
+    query: "I need waterproof Chelsea boots for wide feet under $150, shipping to Austin.",
+    intro: "I found two great wide-fit options shipping to Austin:",
+    products: [
+      { name: "All-Weather Chelsea Boots", price: "$129", img: "https://loremflickr.com/440/440/black,chelsea,boots/all?lock=8", emoji: "🥾" },
+      { name: "Wide-Fit Leather Loafers", price: "$115", img: "https://loremflickr.com/440/440/black,leather,loafers/all?lock=14", emoji: "👞" },
+    ],
+  },
+  {
+    city: "Seattle", avatar: 12, eta: "2 days",
+    query: "Looking for a quiet burr coffee grinder under $200, shipping to Seattle.",
+    intro: "Two highly-rated quiet grinders that ship to Seattle:",
+    products: [
+      { name: "Precision Burr Grinder", price: "$179", img: "https://loremflickr.com/440/440/coffee,grinder/all?lock=21", emoji: "⚙️" },
+      { name: "Compact Espresso Grinder", price: "$149", img: "https://loremflickr.com/440/440/espresso,coffee/all?lock=23", emoji: "☕" },
+    ],
+  },
+  {
+    city: "Miami", avatar: 47, eta: "3 days",
+    query: "Best fragrance-free vitamin C serum for sensitive skin under $50, to Miami?",
+    intro: "Two gentle, fragrance-free picks that ship to Miami:",
+    products: [
+      { name: "Brightening Vitamin C Serum", price: "$42", img: "https://loremflickr.com/440/440/serum,skincare/all?lock=31", emoji: "🧴" },
+      { name: "Gentle Hydrating Serum", price: "$38", img: "https://loremflickr.com/440/440/skincare,bottle/all?lock=33", emoji: "💧" },
+    ],
+  },
+  {
+    city: "Chicago", avatar: 60, eta: "2 days",
+    query: "Best noise-cancelling headphones for travel under $300, shipping to Chicago.",
+    intro: "Two travel-ready noise-cancelling picks for Chicago:",
+    products: [
+      { name: "QuietPro ANC Headphones", price: "$279", img: "https://loremflickr.com/440/440/headphones/all?lock=41", emoji: "🎧" },
+      { name: "SkyTravel Wireless", price: "$239", img: "https://loremflickr.com/440/440/wireless,headphones/all?lock=43", emoji: "🎵" },
+    ],
+  },
+];
+
+// Animated demo mouse cursor that "clicks" the Buy Now button.
+function DemoCursor({ clicking }: { clicking: boolean }) {
+  return (
+    <span className={`sh-cd-cursor${clicking ? " sh-cd-cursor-click" : ""}`} aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 2.5 L19 11 L12.4 12.4 L9.6 19 Z" fill="#15171c" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+      {clicking && <span className="sh-cd-ripple" />}
+    </span>
+  );
+}
+
 function HeroChatDemo() {
-  const [phase, setPhase] = useState(0); // 0 ask · 1 typing · 2 cards · 3 processing · 4 purchased · 5 confirmed
+  const [scene, setScene] = useState(0);
+  const [phase, setPhase] = useState(0); // 0 ask · 1 typing · 2 cards · 3 click · 4 purchased · 5 confirmed
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // Auto-scroll the chat as new messages arrive — like a real conversation.
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [phase]);
+  }, [phase, scene]);
   useEffect(() => {
-    const durations = [1700, 1200, 2200, 1400, 1700, 3200];
-    let p = 0;
+    const durations = [2100, 1200, 2400, 1500, 1600, 3000];
+    let p = 0, s = 0;
     let id: ReturnType<typeof setTimeout>;
-    const run = () => { setPhase(p); id = setTimeout(() => { p = (p + 1) % 6; run(); }, durations[p]); };
+    const run = () => {
+      setPhase(p); setScene(s);
+      id = setTimeout(() => { p = (p + 1) % 6; if (p === 0) s = (s + 1) % SCENES.length; run(); }, durations[p]);
+    };
     run();
     return () => clearTimeout(id);
   }, []);
+  const sc = SCENES[scene];
+  const bought = sc.products[0];
   const T = { ink: "#1f2430", muted: "#6b7280", line: "#eceef1", green: "#3f7d17", studio: "#efe9df" };
   const Btn = ({ children, solid, muted }: { children: ReactNode; solid?: boolean; muted?: boolean }) => (
     <div style={{ marginTop: 9, textAlign: "center", fontSize: 12.5, fontWeight: 800, padding: "9px 0", borderRadius: 9, background: muted ? "#eceef1" : solid ? "linear-gradient(180deg,#a8e85f,#6ec531)" : "#f3f4f6", color: muted ? T.muted : solid ? "#0a1606" : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{children}</div>
   );
   return (
-    <section style={{ maxWidth: 600, margin: "0 auto", padding: "12px 18px 6px", position: "relative" }}>
+    <section style={{ maxWidth: 600, margin: "0 auto", padding: "12px 18px 6px", position: "relative" }} id="demo">
       <style>{`
         @keyframes shFade { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:none; } }
         @keyframes shBlink { 0%,80%,100% { opacity:.25; } 40% { opacity:1; } }
@@ -650,6 +685,12 @@ function HeroChatDemo() {
         .sh-cd-scroll::-webkit-scrollbar { display: none; }
         @keyframes shPop { 0% { transform: scale(.6); opacity:0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity:1; } }
         .sh-cd-pop { animation: shPop .5s cubic-bezier(.2,.8,.2,1) both; }
+        @keyframes shCursorIn { from { opacity:0; transform: translate(18px,18px); } to { opacity:1; transform: translate(0,0); } }
+        @keyframes shPress { 0%,100% { transform: scale(1); } 45% { transform: scale(.78); } }
+        @keyframes shRipple { from { opacity:.55; transform: translate(-50%,-50%) scale(.3); } to { opacity:0; transform: translate(-50%,-50%) scale(1.9); } }
+        .sh-cd-cursor { position:absolute; left:calc(50% - 4px); bottom:9px; z-index:6; pointer-events:none; animation: shCursorIn .45s ease both; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
+        .sh-cd-cursor-click { animation: shPress .5s ease; }
+        .sh-cd-ripple { position:absolute; left:50%; top:50%; width:36px; height:36px; border-radius:50%; background: rgba(110,197,49,.5); animation: shRipple .6s ease-out forwards; }
       `}</style>
       {/* soft glow behind the floating panel */}
       <div aria-hidden="true" style={{ position: "absolute", inset: "8% 12%", background: "radial-gradient(closest-side, rgba(52,224,161,0.18), transparent)", filter: "blur(30px)", zIndex: 0 }} />
@@ -657,15 +698,15 @@ function HeroChatDemo() {
        <div ref={scrollRef} className="sh-cd-scroll" style={{ height: "100%", overflowY: "auto", padding: "20px 18px", scrollbarWidth: "none" }}>
         {/* shopper + avatar */}
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 10 }}>
-          <div className="sh-cd-fade" style={{ maxWidth: "82%", background: "#eef1f4", color: T.ink, borderRadius: "16px 16px 4px 16px", padding: "11px 14px", fontSize: 14, lineHeight: 1.45, fontWeight: 500 }}>
-            I need waterproof Chelsea boots for wide feet under $150, shipping to Austin.
+          <div key={`q${scene}`} className="sh-cd-fade" style={{ maxWidth: "82%", background: "#eef1f4", color: T.ink, borderRadius: "16px 16px 4px 16px", padding: "11px 14px", fontSize: 14, lineHeight: 1.45, fontWeight: 500 }}>
+            {sc.query}
           </div>
-          <img src="https://i.pravatar.cc/80?img=45" alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "linear-gradient(135deg,#c7d2fe,#a5b4fc)" }} />
+          <img src={`https://i.pravatar.cc/80?img=${sc.avatar}`} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0, background: "linear-gradient(135deg,#c7d2fe,#a5b4fc)" }} />
         </div>
 
         {/* ChatGPT */}
         {phase >= 1 && (
-          <div className="sh-cd-fade" style={{ marginTop: 16, display: "flex", gap: 10 }}>
+          <div key={`a${scene}`} className="sh-cd-fade" style={{ marginTop: 16, display: "flex", gap: 10 }}>
             <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#10a37f", display: "grid", placeItems: "center", color: "#fff", fontWeight: 900, fontSize: 13, flexShrink: 0 }}>✦</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: "#10a37f", marginBottom: 6 }}>ChatGPT</div>
@@ -675,18 +716,19 @@ function HeroChatDemo() {
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.5, marginBottom: 12 }}>I found two great wide-fit options shipping to Austin:</div>
+                  <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.5, marginBottom: 12 }}>{sc.intro}</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                      <ProductImg src={BOOT_IMG} kind="boot" />
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>All-Weather Chelsea Boots</div>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$129</div>
+                    <div className="sh-cd-fade" style={{ position: "relative", border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                      <ProductTile src={bought.img} emoji={bought.emoji} />
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>{bought.name}</div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{bought.price}</div>
                       {phase < 3 ? <Btn solid>Buy Now</Btn> : phase === 3 ? <Btn muted><span className="sh-cd-spin" /> Processing…</Btn> : <Btn solid>✓ Purchased</Btn>}
+                      {(phase === 2 || phase === 3) && <DemoCursor clicking={phase === 3} />}
                     </div>
                     <div className="sh-cd-fade" style={{ border: `1px solid ${T.line}`, borderRadius: 14, padding: 10, background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                      <ProductImg src={LOAFER_IMG} kind="loafer" />
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>Wide-Fit Leather Loafers</div>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>$115</div>
+                      <ProductTile src={sc.products[1].img} emoji={sc.products[1].emoji} />
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: T.ink, marginTop: 8 }}>{sc.products[1].name}</div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{sc.products[1].price}</div>
                       <Btn solid>Buy Now</Btn>
                     </div>
                   </div>
@@ -716,12 +758,12 @@ function HeroChatDemo() {
             </div>
             <div style={{ background: "#fff", padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 54, flexShrink: 0 }}><ProductImg src={BOOT_IMG} kind="boot" box={54} /></div>
+                <div style={{ width: 54, flexShrink: 0 }}><ProductTile src={bought.img} emoji={bought.emoji} box={54} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>All-Weather Chelsea Boots</div>
-                  <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>📍 Delivering to Austin · arrives in 3 days</div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{bought.name}</div>
+                  <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>📍 Delivering to {sc.city} · arrives in {sc.eta}</div>
                 </div>
-                <div style={{ fontWeight: 800, fontSize: 17, color: T.ink }}>$129</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: T.ink }}>{bought.price}</div>
               </div>
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11.5, color: T.muted, display: "flex", alignItems: "center", gap: 6 }}>🔒 Paid with Shop Pay</span>
@@ -819,6 +861,12 @@ const TESTIMONIALS: { name: string; role: string; flag: string; img: number; quo
   { name: "Lucas M.", role: "Coffee roaster", flag: "🇦🇺", img: 14, src: "Shopify App Store", quote: <>I approve everything and nothing touches my live theme. <Hl>The crawler dashboard is the first thing I check every morning.</Hl></> },
   { name: "Sofía K.", role: "Jewelry", flag: "🇪🇸", img: 47, src: "Trustpilot", quote: <>A fraction of what my SEO agency charged — and it's <Hl>the only one actually doing the AI side.</Hl> Easy decision.</> },
   { name: "Daniel A.", role: "Pet supplies", flag: "🇮🇱", img: 60, src: "Shopify App Store", quote: <>Got <Hl>mentioned by Perplexity for "best harness for big dogs"</Hl> within a month — a customer I'd never have reached otherwise.</> },
+  { name: "Hannah W.", role: "Candle studio", flag: "🇺🇸", img: 9, src: "Shopify App Store", quote: <>Within a month ChatGPT started suggesting my candles for "best soy candles for gifts." <Hl>I didn't even know that was possible.</Hl></> },
+  { name: "Marco V.", role: "Cycling apparel", flag: "🇮🇹", img: 33, src: "Trustpilot", quote: <>The schema and feed went live the same day. <Hl>My products finally show full price and stock in Google's AI overview.</Hl></> },
+  { name: "Aisha M.", role: "Modest fashion", flag: "🇦🇪", img: 49, src: "Shopify App Store", quote: <>I was paying an agency $2k a month for blog posts. <Hl>ShopHero does the part that actually moves AI</Hl> — for a fraction.</> },
+  { name: "Ben K.", role: "Home fitness", flag: "🇺🇸", img: 51, src: "Shopify App Store", quote: <>The score gave me a clear to-do list. <Hl>Went from 38 to 84 in three weeks</Hl> and the crawler log proves the bots are reading me.</> },
+  { name: "Yuki T.", role: "Stationery", flag: "🇯🇵", img: 26, src: "Trustpilot", quote: <>Setup was genuinely under a minute. <Hl>Perplexity now cites my planner guides</Hl> when people ask what to buy.</> },
+  { name: "Grace O.", role: "Baby & kids", flag: "🇨🇦", img: 16, src: "Shopify App Store", quote: <>Nothing touches my live theme without approval, which I love. <Hl>And I can finally see which AI is sending traffic.</Hl></> },
 ];
 function Hl({ children }: { children: ReactNode }) {
   return <mark style={{ background: "rgba(110,197,49,0.20)", color: "#cdeea9", padding: "0 3px", borderRadius: 4 }}>{children}</mark>;
@@ -983,6 +1031,14 @@ function ScoreChecker({ showForm }: { showForm: boolean }) {
   );
 }
 
+// The AI engines that recommend stores — the "result" side of the hero lockup.
+const ENGINES: { name: string; glyph: string; bg: string }[] = [
+  { name: "ChatGPT", glyph: "✦", bg: "#10a37f" },
+  { name: "Claude", glyph: "✳", bg: "#d97757" },
+  { name: "Perplexity", glyph: "✺", bg: "#20808d" },
+  { name: "Gemini", glyph: "✶", bg: "linear-gradient(135deg,#4285f4,#9b72cb)" },
+];
+
 export default function LandingV2() {
   const { showForm } = useLoaderData<typeof loader>();
 
@@ -1009,15 +1065,26 @@ export default function LandingV2() {
         <div className={styles.heroInner}>
           <span className={styles.badge}>✦ The AI SEO app for Shopify</span>
           <div className={styles.lockup}>
-            <span className={styles.logoChip}><ShopifyMark /><span>Shopify</span></span>
+            <span className={styles.logoChip}><ShopifyMark /><span>Your store</span></span>
             <span className={styles.plus}>+</span>
-            <span className={styles.logoChip}><ClaudeMark /><span>Claude</span></span>
-            <span className={styles.lockupBreak} aria-hidden="true" />
-            <span className={styles.plus}>=</span>
-            <span className={styles.lockupBreak} aria-hidden="true" />
             <span className={`${styles.logoChip} ${styles.logoChipResult}`}>
               <img src="/ShopHero.png" alt="" className={styles.chipLogo} /><span>ShopHero</span>
             </span>
+            <span className={styles.lockupBreak} aria-hidden="true" />
+            <span className={styles.plus}>=</span>
+            <span className={styles.lockupBreak} aria-hidden="true" />
+            <span className={styles.engines}>
+              <span className={styles.engineRow}>
+                {ENGINES.map((e) => (
+                  <span key={e.name} className={styles.engineBadge} style={{ background: e.bg }} title={e.name} aria-label={e.name}>{e.glyph}</span>
+                ))}
+              </span>
+              <span className={styles.engineLabel}>Recommended by AI</span>
+            </span>
+          </div>
+          <div className={styles.lockupNote}>
+            <span style={{ display: "inline-flex", transform: "scale(0.7)", verticalAlign: "middle", marginRight: 2 }}><ClaudeMark /></span>
+            Powered by Claude — readable &amp; recommendable across every major AI engine
           </div>
           <h1 className={styles.h1}>
             <span className={styles.nowrap}>Get your store</span>{" "}

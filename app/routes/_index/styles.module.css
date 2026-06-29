@@ -163,6 +163,47 @@
   display: none;
 }
 
+/* the "result" side: the AI engines that recommend the store */
+.engines {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(110, 197, 49, 0.14), rgba(110, 197, 49, 0.02));
+  border: 1px solid rgba(110, 197, 49, 0.45);
+  box-shadow: 0 12px 36px rgba(110, 197, 49, 0.22);
+}
+.engineRow {
+  display: inline-flex;
+  gap: 8px;
+}
+.engineBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.engineLabel {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--brand2);
+}
+.lockupNote {
+  margin: -18px auto 30px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .nowrap {
   white-space: nowrap;
 }
