@@ -915,54 +915,6 @@ export default function LandingV2() {
         <a href="/ai-check" className={styles.btnPrimary}>Check my store free →</a>
       </section>
 
-      {/* PRODUCT DEMO */}
-      <section className={`${styles.section} ${styles.sectionAlt}`} id="demo">
-        <h2 className={styles.h2}>See it <span className={styles.grad}>work.</span></h2>
-        <p className={styles.lead}>Ask in plain English. Watch ShopHero make your store readable by AI - structured, fed, and tracked - with your approval on every change.</p>
-        <Demo />
-      </section>
-
-      {/* HOW IT WORKS (merged, Leak Map centerpiece) */}
-      <section className={styles.section} id="how">
-        <h2 className={styles.h2}>Always know <span className={styles.grad}>how AI-ready you are.</span></h2>
-        <p className={styles.lead}>
-          ShopHero turns your store into a live AI-Readiness Map - every gap that's stopping
-          agents from reading and recommending you, ranked by impact.
-        </p>
-        <div className={styles.steps}>
-          {STEPS.map((s) => (
-            <div className={styles.step} key={s.title}>
-              <span className={styles.stepIcon}>{s.icon}</span>
-              <h3>{s.title}</h3>
-              <p>{s.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className={styles.mapShowcase}>
-          <div className={styles.mapText}>
-            <span className={styles.kicker}>📊 The breakthrough</span>
-            <h3 className={styles.mapHeading}>Where other tools only diagnose, ShopHero fixes.</h3>
-            <p>
-              AutoSEO-style tools throw blog posts at the wall. ShopHero hands you an
-              <strong> AI-Readiness Map</strong>: the exact gaps stopping agents from recommending you -
-              each one a tap away from fixed, and kept fixed as your store changes.
-            </p>
-          </div>
-          <div className={styles.mapCard}>
-            <div className={styles.mapHead}><span>AI-Readiness Map</span><span className={styles.mapTag}>Example</span></div>
-            {LEAK_MAP.map((l) => (
-              <div className={styles.mapRow} key={l.issue}>
-                <span className={`${styles.sevDot} ${l.sev === "High" ? styles.sevHigh : l.sev === "Medium" ? styles.sevMed : styles.sevLow}`} />
-                <div className={styles.mapInfo}><strong>{l.issue}</strong><span>{l.detail}</span></div>
-                <span className={styles.mapImpact}>{l.impact}</span>
-              </div>
-            ))}
-            <div className={styles.mapFoot}><span>Your AI-Readiness Score</span><strong>41 / 100</strong></div>
-          </div>
-        </div>
-      </section>
-
       {/* COMPARISON */}
       <section className={`${styles.section} ${styles.sectionAlt}`} id="compare">
         <h2 className={styles.h2}>Blog posts vs. <span className={styles.grad}>actually being readable by AI.</span></h2>
@@ -1001,21 +953,6 @@ export default function LandingV2() {
 
       {/* DIY VS SHOPHERO */}
       <DiyVsShopHero />
-
-      {/* SAFETY */}
-      <section className={`${styles.section} ${styles.sectionAlt}`} id="safety">
-        <h2 className={styles.h2}>AI on your store - <span className={styles.grad}>with the brakes on.</span></h2>
-        <p className={styles.lead}>You stay in control of everything. Always.</p>
-        <div className={styles.safetyGrid}>
-          {SAFETY.map((s) => (
-            <div className={styles.safetyCard} key={s.title}>
-              <span className={styles.safetyIcon}>{s.icon}</span>
-              <h3>{s.title}</h3>
-              <p>{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* FAQ */}
       <section className={styles.section} id="faq">
